@@ -32,13 +32,16 @@ export const PasswordPrompt = ({ onAuthenticated, theme, dark }: PasswordPromptP
         body: JSON.stringify({ password }),
       });
 
+      const data = await response.json();
+
       if (response.ok) {
         // Store auth token in localStorage
         localStorage.setItem('authenticated', 'true');
         toast.success('Access granted!');
         onAuthenticated();
       } else {
-        toast.error('Invalid password');
+        console.error('Auth failed:', response.status, data);
+        toast.error(data.error || 'Invalid password');
         setPassword('');
       }
     } catch (error) {

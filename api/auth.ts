@@ -17,11 +17,19 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
     const { password } = req.body;
     const correctPassword = process.env.APP_PASSWORD;
 
+    console.log('Environment variable APP_PASSWORD exists:', !!correctPassword);
+    console.log('Received password length:', password?.length || 0);
+    console.log('Expected password length:', correctPassword?.length || 0);
+    
     if (!correctPassword) {
       return res.status(500).json({ error: 'Password not configured' });
     }
 
-    if (password === correctPassword) {
+    // Trim whitespace from both passwords for comparison
+    const trimmedPassword = password?.trim();
+    const trimmedCorrectPassword = correctPassword?.trim();
+
+    if (trimmedPassword === trimmedCorrectPassword) {
       res.setHeader('Access-Control-Allow-Origin', '*');
       return res.status(200).json({ success: true });
     } else {
