@@ -66,12 +66,39 @@ export interface DBSearchCache {
   createdAt: number;
 }
 
+export interface DBPatternAnalysis {
+  id: string; // Pattern name normalized as key
+  patternName: string;
+  analyses: any[]; // Array of PatternAnalysis objects (5 frameworks)
+  mechanismCount: number;
+  createdAt: number;
+}
+
+export interface DBPriorArtAnalysis {
+  id: string; // Need name normalized as key
+  needName: string;
+  analyses: any[]; // Array of PriorArtAnalysis objects (5 frameworks)
+  createdAt: number;
+}
+
+export interface DBChainAnalysis {
+  id: string; // Expression ID as key
+  expressionId: string;
+  expressionName: string;
+  needId: string;
+  analyses: any[]; // Array of ChainAnalysis objects (5 frameworks)
+  createdAt: number;
+}
+
 class IndustryFamilyTreeDB extends Dexie {
   needs!: Table<DBNeed, string>;
   mechanisms!: Table<DBMechanism, string>;
   deepDives!: Table<DBDeepDive, string>;
   crossPollinates!: Table<DBCrossPollinate, string>;
   searchCache!: Table<DBSearchCache, string>;
+  patternAnalyses!: Table<DBPatternAnalysis, string>;
+  priorArtAnalyses!: Table<DBPriorArtAnalysis, string>;
+  chainAnalyses!: Table<DBChainAnalysis, string>;
 
   constructor() {
     super('IndustryFamilyTreeDB');
@@ -82,6 +109,39 @@ class IndustryFamilyTreeDB extends Dexie {
       deepDives: 'id, needId, expressionName, createdAt',
       crossPollinates: 'id, expression1Id, expression2Id, createdAt',
       searchCache: 'key, needName, createdAt'
+    });
+    
+    // Add pattern analyses table in version 2
+    this.version(2).stores({
+      needs: 'id, name, createdAt, updatedAt',
+      mechanisms: 'id, needId, expressionName, createdAt',
+      deepDives: 'id, needId, expressionName, createdAt',
+      crossPollinates: 'id, expression1Id, expression2Id, createdAt',
+      searchCache: 'key, needName, createdAt',
+      patternAnalyses: 'id, patternName, mechanismCount, createdAt'
+    });
+    
+    // Add prior art analyses table in version 3
+    this.version(3).stores({
+      needs: 'id, name, createdAt, updatedAt',
+      mechanisms: 'id, needId, expressionName, createdAt',
+      deepDives: 'id, needId, expressionName, createdAt',
+      crossPollinates: 'id, expression1Id, expression2Id, createdAt',
+      searchCache: 'key, needName, createdAt',
+      patternAnalyses: 'id, patternName, mechanismCount, createdAt',
+      priorArtAnalyses: 'id, needName, createdAt'
+    });
+    
+    // Add chain analyses table in version 4
+    this.version(4).stores({
+      needs: 'id, name, createdAt, updatedAt',
+      mechanisms: 'id, needId, expressionName, createdAt',
+      deepDives: 'id, needId, expressionName, createdAt',
+      crossPollinates: 'id, expression1Id, expression2Id, createdAt',
+      searchCache: 'key, needName, createdAt',
+      patternAnalyses: 'id, patternName, mechanismCount, createdAt',
+      priorArtAnalyses: 'id, needName, createdAt',
+      chainAnalyses: 'id, expressionId, needId, createdAt'
     });
   }
 }
@@ -165,6 +225,9 @@ export class DBService {
     await db.needs.clear();
     await db.mechanisms.clear();
     await db.deepDives.clear();
+    await db.patternAnalyses.clear();
+    await db.priorArtAnalyses.clear();
+    await db.chainAnalyses.clear();
   }
 
   // ============ MECHANISMS ============
@@ -236,6 +299,77 @@ export class DBService {
 
   static async getAllCrossPollinates(): Promise<DBCrossPollinate[]> {
     return await db.crossPollinates.orderBy('createdAt').reverse().toArray();
+  }
+
+  // ============ PATTERN ANALYSES ============
+
+  static async savePatternAnalysis(patternName: string, analyses: any[], mechanismCount: number): Promise<void> {
+    const id = patternName.toLowerCase().trim().replace(/\s+/g, '-');
+    const patternAnalysis: DBPatternAnalysis = {
+      id,
+      patternName,
+      analyses,
+      mechanismCount,
+      createdAt: Date.now()
+    };
+    await db.patternAnalyses.put(patternAnalysis);
+  }
+
+  static async getPatternAnalysis(patternName: string): Promise<DBPatternAnalysis | undefined> {
+    const id = patternName.toLowerCase().trim().replace(/\s+/g, '-');
+    return await db.patternAnalyses.get(id);
+  }
+
+  static async getAllPatternAnalyses(): Promise<DBPatternAnalysis[]> {
+    return await db.patternAnalyses.orderBy('mechanismCount').reverse().toArray();
+  }
+
+  // ============ PRIOR ART ANALYSES ============
+
+  static async savePriorArtAnalysis(needName: string, analyses: any[]): Promise<void> {
+    const id = needName.toLowerCase().trim().replace(/\s+/g, '-');
+    const priorArtAnalysis: DBPriorArtAnalysis = {
+      id,
+      needName,
+      analyses,
+      createdAt: Date.now()
+    };
+    await db.priorArtAnalyses.put(priorArtAnalysis);
+  }
+
+  static async getPriorArtAnalysis(needName: string): Promise<DBPriorArtAnalysis | undefined> {
+    const id = needName.toLowerCase().trim().replace(/\s+/g, '-');
+    return await db.priorArtAnalyses.get(id);
+  }
+
+  static async getAllPriorArtAnalyses(): Promise<DBPriorArtAnalysis[]> {
+    return await db.priorArtAnalyses.orderBy('createdAt').reverse().toArray();
+  }
+
+  // ============ CHAIN ANALYSES ============
+
+  static async saveChainAnalysis(expressionId: string, expressionName: string, needId: string, analyses: any[]): Promise<void> {
+    const chainAnalysis: DBChainAnalysis = {
+      id: expressionId,
+      expressionId,
+      expressionName,
+      needId,
+      analyses,
+      createdAt: Date.now()
+    };
+    await db.chainAnalyses.put(chainAnalysis);
+  }
+
+  static async getChainAnalysis(expressionId: string): Promise<DBChainAnalysis | undefined> {
+    return await db.chainAnalyses.get(expressionId);
+  }
+
+  static async getChainAnalysesByNeed(needId: string): Promise<DBChainAnalysis[]> {
+    return await db.chainAnalyses.where('needId').equals(needId).toArray();
+  }
+
+  static async getAllChainAnalyses(): Promise<DBChainAnalysis[]> {
+    return await db.chainAnalyses.orderBy('createdAt').reverse().toArray();
   }
 
   // ============ SEARCH CACHE ============

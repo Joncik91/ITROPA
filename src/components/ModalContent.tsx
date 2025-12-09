@@ -13,52 +13,303 @@ interface MechanismModalContentProps {
   onExecuteAction?: (suggestion: AIActionSuggestion) => Promise<void>;
 }
 
-export const MechanismModalContent = ({ mechanism, theme, dark, aiSuggestions, onAIAssist, aiLoading, onExecuteAction }: MechanismModalContentProps) => (
-  <div className="space-y-4 text-sm">
-    {/* AI Assistant */}
-    {onAIAssist && (
-      <div className="mb-4">
-        <AIAssistButton onClick={onAIAssist} loading={!!aiLoading} theme={theme} />
-      </div>
-    )}
-    {aiSuggestions && onExecuteAction && (
-      <div className="mb-4">
-        <AIAssistant
-          suggestions={aiSuggestions.suggestions}
-          reasoning={aiSuggestions.reasoning}
-          theme={theme}
-          onExecuteAction={onExecuteAction}
-        />
-      </div>
-    )}
-    <div className={`p-3 rounded-lg ${dark ? "bg-indigo-500/10 border-indigo-500/30" : "bg-indigo-50 border-indigo-200"} border`}>
-      <p className={`text-xs ${theme.muted} mb-1`}>Core Mechanism</p>
-      <p className="font-medium">{mechanism.details?.coreMechanism}</p>
-    </div>
-    <div className={`p-3 rounded-lg ${theme.itemBg}`}>
-      <p className={`text-xs ${theme.muted} mb-1`}>Abstract Pattern</p>
-      <p className={theme.accent}>{mechanism.details?.abstractPattern}</p>
-    </div>
-    <div>
-      <p className={`text-xs font-medium ${theme.muted} mb-2`}>Historical Applications</p>
-      {mechanism.details?.historicalApplications?.map((h: any, i: number) => (
-        <div key={i} className={`mb-2 p-2 rounded ${theme.itemBgAlt}`}>
-          <span className="font-medium">{h.domain}</span> <span className={theme.muted}>({h.era})</span>
-          <p className="text-xs mt-1">{h.implementation}</p>
+export const MechanismModalContent = ({ mechanism, theme, dark, aiSuggestions, onAIAssist, aiLoading, onExecuteAction }: MechanismModalContentProps) => {
+  // mechanism.details is now an array of MechanismDetails
+  const analyses = Array.isArray(mechanism.details) ? mechanism.details : [mechanism.details];
+  
+  const getAnalysisTypeLabel = (type?: string) => {
+    const labels: Record<string, string> = {
+      functional: 'Functional Decomposition',
+      structural: 'Structural Analysis',
+      causal: 'Causal Chain Mapping',
+      'constraint-opportunity': 'Constraint-Opportunity',
+      'scale-context': 'Scale-Context Transfer'
+    };
+    return type ? labels[type] || type : 'General Analysis';
+  };
+
+  const getScoreColor = (score: number) => {
+    if (score >= 80) return dark ? 'text-green-400' : 'text-green-600';
+    if (score >= 60) return dark ? 'text-yellow-400' : 'text-yellow-600';
+    return dark ? 'text-orange-400' : 'text-orange-600';
+  };
+
+  const getRatingBadge = (rating?: string) => {
+    const colors: Record<string, string> = {
+      high: dark ? 'bg-green-500/20 text-green-400 border-green-500/30' : 'bg-green-100 text-green-700 border-green-300',
+      medium: dark ? 'bg-yellow-500/20 text-yellow-400 border-yellow-500/30' : 'bg-yellow-100 text-yellow-700 border-yellow-300',
+      low: dark ? 'bg-gray-500/20 text-gray-400 border-gray-500/30' : 'bg-gray-100 text-gray-700 border-gray-300',
+      broad: dark ? 'bg-blue-500/20 text-blue-400 border-blue-500/30' : 'bg-blue-100 text-blue-700 border-blue-300',
+      moderate: dark ? 'bg-indigo-500/20 text-indigo-400 border-indigo-500/30' : 'bg-indigo-100 text-indigo-700 border-indigo-300',
+      narrow: dark ? 'bg-purple-500/20 text-purple-400 border-purple-500/30' : 'bg-purple-100 text-purple-700 border-purple-300'
+    };
+    const color = rating ? colors[rating] : colors.medium;
+    return `px-2 py-0.5 rounded-full text-xs border ${color}`;
+  };
+
+  return (
+    <div className="space-y-6 text-sm">
+      {/* AI Assistant */}
+      {onAIAssist && (
+        <div className="mb-4">
+          <AIAssistButton onClick={onAIAssist} loading={!!aiLoading} theme={theme} />
+        </div>
+      )}
+      {aiSuggestions && onExecuteAction && (
+        <div className="mb-4">
+          <AIAssistant
+            suggestions={aiSuggestions.suggestions}
+            reasoning={aiSuggestions.reasoning}
+            theme={theme}
+            onExecuteAction={onExecuteAction}
+          />
+        </div>
+      )}
+
+      {/* Display each mechanism analysis */}
+      {analyses.map((analysis, idx) => (
+        <div key={idx} className={`space-y-4 p-4 rounded-lg border ${dark ? 'bg-gray-800/50 border-gray-700' : 'bg-gray-50 border-gray-200'}`}>
+          {/* Analysis Type Header */}
+          <div className="flex items-center justify-between mb-3">
+            <h3 className={`font-semibold ${theme.accent}`}>
+              {getAnalysisTypeLabel(analysis.analysisType)}
+            </h3>
+            {analysis.analysisType && (
+              <span className={getRatingBadge(analysis.analysisType)}>
+                Framework {idx + 1}
+              </span>
+            )}
+          </div>
+
+          {/* Core Mechanism */}
+          <div className={`p-3 rounded-lg ${dark ? "bg-indigo-500/10 border-indigo-500/30" : "bg-indigo-50 border-indigo-200"} border`}>
+            <p className={`text-xs ${theme.muted} mb-1`}>Core Mechanism</p>
+            <p className="font-medium">{analysis.coreMechanism}</p>
+          </div>
+
+          {/* Abstract Pattern */}
+          <div className={`p-3 rounded-lg ${theme.itemBg}`}>
+            <p className={`text-xs ${theme.muted} mb-1`}>Abstract Pattern</p>
+            <p className={theme.accent}>{analysis.abstractPattern}</p>
+          </div>
+
+          {/* Metadata Scores */}
+          {(analysis.transferPotential !== undefined || analysis.maturityScore !== undefined) && (
+            <div className="grid grid-cols-2 gap-3">
+              {analysis.transferPotential !== undefined && (
+                <div className={`p-3 rounded-lg ${theme.itemBgAlt}`}>
+                  <p className={`text-xs ${theme.muted} mb-1`}>Transfer Potential</p>
+                  <div className="flex items-center gap-2">
+                    <div className="flex-1 h-2 bg-gray-200 dark:bg-gray-700 rounded-full overflow-hidden">
+                      <div 
+                        className={`h-full transition-all ${analysis.transferPotential >= 80 ? 'bg-green-500' : analysis.transferPotential >= 60 ? 'bg-yellow-500' : 'bg-orange-500'}`}
+                        style={{ width: `${analysis.transferPotential}%` }}
+                      />
+                    </div>
+                    <span className={`font-semibold ${getScoreColor(analysis.transferPotential)}`}>
+                      {analysis.transferPotential}
+                    </span>
+                  </div>
+                </div>
+              )}
+              {analysis.maturityScore !== undefined && (
+                <div className={`p-3 rounded-lg ${theme.itemBgAlt}`}>
+                  <p className={`text-xs ${theme.muted} mb-1`}>Maturity Score</p>
+                  <div className="flex items-center gap-2">
+                    <div className="flex-1 h-2 bg-gray-200 dark:bg-gray-700 rounded-full overflow-hidden">
+                      <div 
+                        className={`h-full transition-all ${analysis.maturityScore >= 80 ? 'bg-green-500' : analysis.maturityScore >= 60 ? 'bg-yellow-500' : 'bg-orange-500'}`}
+                        style={{ width: `${analysis.maturityScore}%` }}
+                      />
+                    </div>
+                    <span className={`font-semibold ${getScoreColor(analysis.maturityScore)}`}>
+                      {analysis.maturityScore}
+                    </span>
+                  </div>
+                </div>
+              )}
+            </div>
+          )}
+
+          {/* Categorical Ratings */}
+          {(analysis.abstractionLevel || analysis.complexityRating || analysis.universality || analysis.disruptionPotential) && (
+            <div className="flex flex-wrap gap-2">
+              {analysis.abstractionLevel && (
+                <div className="flex items-center gap-1.5">
+                  <span className={`text-xs ${theme.muted}`}>Abstraction:</span>
+                  <span className={getRatingBadge(analysis.abstractionLevel)}>{analysis.abstractionLevel}</span>
+                </div>
+              )}
+              {analysis.complexityRating && (
+                <div className="flex items-center gap-1.5">
+                  <span className={`text-xs ${theme.muted}`}>Complexity:</span>
+                  <span className={getRatingBadge(analysis.complexityRating)}>{analysis.complexityRating}</span>
+                </div>
+              )}
+              {analysis.universality && (
+                <div className="flex items-center gap-1.5">
+                  <span className={`text-xs ${theme.muted}`}>Universality:</span>
+                  <span className={getRatingBadge(analysis.universality)}>{analysis.universality}</span>
+                </div>
+              )}
+              {analysis.disruptionPotential && (
+                <div className="flex items-center gap-1.5">
+                  <span className={`text-xs ${theme.muted}`}>Disruption:</span>
+                  <span className={getRatingBadge(analysis.disruptionPotential)}>{analysis.disruptionPotential}</span>
+                </div>
+              )}
+            </div>
+          )}
+
+          {/* Framework-Specific Fields */}
+          {analysis.keyPrinciples && analysis.keyPrinciples.length > 0 && (
+            <div>
+              <p className={`text-xs font-medium ${theme.muted} mb-2`}>Key Principles (Functional)</p>
+              {analysis.keyPrinciples.map((p, i) => (
+                <div key={i} className={`mb-2 p-2 rounded ${theme.itemBgAlt}`}>
+                  <span className="font-medium">{p.principle}</span>
+                  <p className="text-xs mt-1">{p.function}</p>
+                  <p className={`text-xs mt-1 ${theme.muted}`}>Why critical: {p.criticality}</p>
+                </div>
+              ))}
+            </div>
+          )}
+
+          {analysis.structuralElements && analysis.structuralElements.length > 0 && (
+            <div>
+              <p className={`text-xs font-medium ${theme.muted} mb-2`}>Structural Elements</p>
+              {analysis.structuralElements.map((e, i) => (
+                <div key={i} className={`mb-2 p-2 rounded ${theme.itemBgAlt}`}>
+                  <span className="font-medium">{e.element}</span>
+                  <p className="text-xs mt-1">Role: {e.role}</p>
+                  <p className={`text-xs mt-1 ${theme.muted}`}>Interactions: {e.interactions}</p>
+                </div>
+              ))}
+            </div>
+          )}
+
+          {analysis.causalChain && (
+            <div>
+              <p className={`text-xs font-medium ${theme.muted} mb-2`}>Causal Chain</p>
+              <div className={`p-3 rounded-lg ${theme.itemBgAlt} space-y-2`}>
+                <div><span className="font-medium">Trigger:</span> {analysis.causalChain.trigger}</div>
+                <div>
+                  <span className="font-medium">Sequence:</span>
+                  <ol className="list-decimal list-inside ml-2 mt-1 space-y-1">
+                    {analysis.causalChain.sequence.map((step, i) => (
+                      <li key={i} className="text-xs">{step}</li>
+                    ))}
+                  </ol>
+                </div>
+                <div><span className="font-medium">Outcome:</span> {analysis.causalChain.outcome}</div>
+                {analysis.causalChain.interventionPoints.length > 0 && (
+                  <div>
+                    <span className="font-medium">Intervention Points:</span>
+                    <ul className="list-disc list-inside ml-2 mt-1">
+                      {analysis.causalChain.interventionPoints.map((point, i) => (
+                        <li key={i} className="text-xs">{point}</li>
+                      ))}
+                    </ul>
+                  </div>
+                )}
+              </div>
+            </div>
+          )}
+
+          {analysis.constraintOpportunities && analysis.constraintOpportunities.length > 0 && (
+            <div>
+              <p className={`text-xs font-medium ${theme.muted} mb-2`}>Constraint-Opportunity Pairs</p>
+              {analysis.constraintOpportunities.map((co, i) => (
+                <div key={i} className={`mb-2 p-2 rounded ${theme.itemBgAlt}`}>
+                  <div className="text-xs"><span className="font-medium">Constraint:</span> {co.constraint}</div>
+                  <div className="text-xs mt-1"><span className="font-medium">Opportunity:</span> {co.opportunity}</div>
+                  <div className={`text-xs mt-1 ${theme.muted}`}>Application: {co.application}</div>
+                </div>
+              ))}
+            </div>
+          )}
+
+          {analysis.scaleContextInsights && (
+            <div>
+              <p className={`text-xs font-medium ${theme.muted} mb-2`}>Scale-Context Insights</p>
+              <div className={`p-3 rounded-lg ${theme.itemBgAlt} space-y-2`}>
+                <div><span className="font-medium">Micro Scale:</span> {analysis.scaleContextInsights.microScale}</div>
+                <div><span className="font-medium">Meso Scale:</span> {analysis.scaleContextInsights.mesoScale}</div>
+                <div><span className="font-medium">Macro Scale:</span> {analysis.scaleContextInsights.macroScale}</div>
+                {analysis.scaleContextInsights.contextVariations.length > 0 && (
+                  <div>
+                    <span className="font-medium">Context Variations:</span>
+                    <ul className="list-disc list-inside ml-2 mt-1">
+                      {analysis.scaleContextInsights.contextVariations.map((v, i) => (
+                        <li key={i} className="text-xs">{v}</li>
+                      ))}
+                    </ul>
+                  </div>
+                )}
+              </div>
+            </div>
+          )}
+
+          {/* Historical Applications */}
+          {analysis.historicalApplications && analysis.historicalApplications.length > 0 && (
+            <div>
+              <p className={`text-xs font-medium ${theme.muted} mb-2`}>Historical Applications</p>
+              {analysis.historicalApplications.map((h, i) => (
+                <div key={i} className={`mb-2 p-2 rounded ${theme.itemBgAlt}`}>
+                  <div className="flex items-center justify-between">
+                    <span className="font-medium">{h.domain}</span>
+                    <span className={`text-xs ${theme.muted}`}>({h.era})</span>
+                  </div>
+                  <p className="text-xs mt-1">{h.example}</p>
+                  {h.successFactors && <p className="text-xs mt-1"><span className="font-medium">Success:</span> {h.successFactors}</p>}
+                  {h.limitations && <p className={`text-xs mt-1 ${theme.muted}`}><span className="font-medium">Limitations:</span> {h.limitations}</p>}
+                  {h.evolutionPath && <p className="text-xs mt-1"><span className="font-medium">Evolution:</span> {h.evolutionPath}</p>}
+                </div>
+              ))}
+            </div>
+          )}
+
+          {/* Untapped Domains */}
+          {analysis.untappedDomains && analysis.untappedDomains.length > 0 && (
+            <div>
+              <p className={`text-xs font-medium ${theme.muted} mb-2`}>Untapped Domains</p>
+              {analysis.untappedDomains.map((u, i) => (
+                <div key={i} className={`mb-2 p-3 rounded-lg border ${dark ? 'bg-purple-500/10 border-purple-500/30' : 'bg-purple-50 border-purple-200'}`}>
+                  <div className="flex items-center justify-between mb-1">
+                    <span className="font-medium">{u.domain}</span>
+                    {u.impactPotential && (
+                      <span className={getRatingBadge(u.impactPotential)}>
+                        {u.impactPotential} impact
+                      </span>
+                    )}
+                  </div>
+                  <p className="text-xs mt-1"><span className="font-medium">Opportunity:</span> {u.opportunity}</p>
+                  <p className="text-xs mt-1"><span className="font-medium">Novelty:</span> {u.novelty}</p>
+                  {u.transferBarriers && <p className={`text-xs mt-1 ${theme.muted}`}><span className="font-medium">Barriers:</span> {u.transferBarriers}</p>}
+                  {u.requiredAdaptations && <p className="text-xs mt-1"><span className="font-medium">Adaptations:</span> {u.requiredAdaptations}</p>}
+                </div>
+              ))}
+            </div>
+          )}
+
+          {/* Combination Potential */}
+          {analysis.combinationPotential && analysis.combinationPotential.length > 0 && (
+            <div>
+              <p className={`text-xs font-medium ${theme.muted} mb-2`}>Combination Potential</p>
+              <div className="flex flex-wrap gap-2">
+                {analysis.combinationPotential.map((combo, i) => (
+                  <span key={i} className={`px-2 py-1 rounded text-xs ${theme.itemBgAlt}`}>
+                    {combo}
+                  </span>
+                ))}
+              </div>
+            </div>
+          )}
         </div>
       ))}
     </div>
-    <div>
-      <p className={`text-xs font-medium ${theme.muted} mb-2`}>Future Applications</p>
-      {mechanism.details?.futureApplications?.map((f: any, i: number) => (
-        <div key={i} className={`mb-2 p-2 rounded ${theme.itemBgAlt}`}>
-          <span className="font-medium">{f.domain}</span>
-          <p className="text-xs mt-1">{f.potential}</p>
-        </div>
-      ))}
-    </div>
-  </div>
-);
+  );
+};
 
 interface DeepDiveModalContentProps {
   deepDive: any;
@@ -211,20 +462,65 @@ export const CrossPollinateModalContent = ({
 
     {crossPollinate.result && (
       <div className="mt-4 space-y-3">
-        <p className={`text-sm font-medium ${theme.muted}`}>Novel Recombinations:</p>
+        <p className={`text-sm font-medium ${theme.muted}`}>Novel Recombinations ({crossPollinate.result.length} strategies):</p>
         {crossPollinate.result.map((r, i) => (
           <div key={i} className={`p-3 rounded-lg ${theme.itemBg} border ${theme.border}`}>
-            <p className="font-medium flex items-center gap-2">
-              <Sparkles className={`w-3.5 h-3.5 ${theme.accent}`} />
-              {r.name}
-            </p>
+            <div className="flex items-start justify-between gap-2">
+              <p className="font-medium flex items-center gap-2">
+                <Sparkles className={`w-3.5 h-3.5 ${theme.accent}`} />
+                {r.name}
+              </p>
+              {r.synergyScore && (
+                <div className={`flex items-center gap-1 px-2 py-0.5 rounded-full text-xs ${
+                  r.synergyScore >= 85 ? 'bg-green-500/20 text-green-400' : 
+                  r.synergyScore >= 70 ? 'bg-blue-500/20 text-blue-400' : 
+                  'bg-amber-500/20 text-amber-400'
+                }`}>
+                  <span className="font-mono">{r.synergyScore}</span>
+                  <span className="text-xs opacity-70">synergy</span>
+                </div>
+              )}
+            </div>
+            
+            {r.combinationType && (
+              <div className={`mt-1 text-xs ${theme.muted} flex items-center gap-1`}>
+                <span className="opacity-60">Strategy:</span>
+                <span className={theme.accent}>{r.combinationType}</span>
+                {r.noveltyFactor && (
+                  <span className="ml-2 opacity-60">• Novelty: <span className={theme.accent}>{r.noveltyFactor}/100</span></span>
+                )}
+              </div>
+            )}
+            
             <p className={`text-xs ${theme.muted} mt-1`}>{r.mutation}</p>
             <p className="text-sm mt-2">{r.insight}</p>
+            
+            {r.marketFit && (
+              <div className={`mt-2 p-2 rounded ${theme.itemBgAlt} text-xs`}>
+                <span className={`font-medium ${theme.accent}`}>Market Fit:</span> {r.marketFit}
+              </div>
+            )}
+            
+            {r.challenges && r.challenges.length > 0 && (
+              <div className={`mt-2 space-y-1`}>
+                <p className={`text-xs font-medium ${theme.muted}`}>Challenges:</p>
+                {r.challenges.map((challenge, idx) => (
+                  <div key={idx} className={`text-xs ${theme.muted} flex items-start gap-1`}>
+                    <span className="text-amber-400 mt-0.5">⚠</span>
+                    <span>{challenge}</span>
+                  </div>
+                ))}
+              </div>
+            )}
+            
             {r.inspirations && (
-              <div className={`mt-2 pt-2 border-t ${theme.border} text-xs`}>
+              <div className={`mt-2 pt-2 border-t ${theme.border} text-xs space-y-1`}>
+                <p className={`font-medium ${theme.muted} mb-1`}>Combination Elements:</p>
                 {r.inspirations.map((ins, j) => (
-                  <div key={j}>
-                    <span className={theme.accent}>{ins.source}</span> → {ins.twist}
+                  <div key={j} className="flex items-start gap-1">
+                    <span className={theme.accent}>{ins.source}</span>
+                    <span className="opacity-60">→</span>
+                    <span className="flex-1">{ins.twist || ins.mechanism}</span>
                   </div>
                 ))}
               </div>

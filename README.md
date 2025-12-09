@@ -67,9 +67,50 @@ An interactive tool for exploring human needs and generating future industry pre
 - Research prior art from existing solutions
 - Generate future industry predictions using AI
 - Branch industries into sub-categories
-- Cross-pollinate ideas from different industries
+- **Advanced Cross-Pollination** - Combine industries using 5 systematic strategies:
+  - Additive Integration (side-by-side combination)
+  - Substitution (replace core components)
+  - Complementary (fill gaps)
+  - Sequential Enablement (one enables the other)
+  - Contradiction Synthesis (resolve conflicts)
+  - Synergy scoring and novelty ratings for each combination
+- **Sophisticated Mechanism Extraction** - Analyze mechanisms through 5 analytical frameworks:
+  - Functional Decomposition (what it does, why it's essential)
+  - Structural Analysis (how components interact)
+  - Causal Chain Mapping (cause-effect sequences)
+  - Constraint-Opportunity Analysis (leveraging limitations)
+  - Scale-Context Transfer (how it scales across contexts)
+  - Transfer potential scores and maturity ratings
+  - Enhanced historical applications with success factors
+  - Actionable untapped domain recommendations with barriers & adaptations
+- **AI-Powered Pattern Recognition** - Identify recurring patterns across needs with 5 frameworks:
+  - Frequency & Distribution (where patterns appear, hot/cold zones)
+  - Need-Mapping (how patterns serve different needs)
+  - Evolution Trajectory (historical progression, next-stage predictions)
+  - Combination Synergies (compatible patterns, optimal stacks)
+  - Transfer Potential (expansion opportunities with actionable roadmaps)
+  - Strength, universality, maturity, and adoption rate metrics
+  - Strategic implications and risk assessments
+- **Enhanced Prior Art Analysis** - Transform basic research into competitive intelligence with 5 frameworks:
+  - Competitive Landscape Mapping (market segments, leader profiles, dynamics)
+  - Gap Analysis (unmet needs, underserved segments, white spaces)
+  - Evolution Pattern Recognition (timeline, future stages, disruptive triggers)
+  - Innovation Potential Assessment (incremental/adjacent/breakthrough opportunities)
+  - Strategic Positioning Recommendations (strategies, differentiation, entry tactics)
+  - Competitive intensity, market maturity, innovation opportunity, and white space metrics
+  - Categorical ratings: entry barriers, competitive structure, innovation pace, satisfaction
+  - Actionable strategic insights for entrepreneurs, investors, and product managers
+- **Inspiration Chain Visualization** - Analyze innovation genealogy and evolution with 5 frameworks:
+  - Lineage Tracing (generation depth, branching points, evolutionary pathways, ancestor influence)
+  - Influence Mapping (central nodes, inspiration sources, influence flows, network density)
+  - Divergence Patterns (branching strategy, diversity scores, novelty hotspots, convergence points)
+  - Innovation Velocity (speed metrics, acceleration zones, stagnation detection, maturity curves)
+  - Coherence Assessment (logical gaps, strong/weak connections, thematic clusters)
+  - Chain complexity, innovation potential, and strategic value metrics
+  - Per-expression analysis showing role in overall innovation network
+  - Visual analytics revealing leverage points and optimization opportunities
 - Deep dive into market analysis
-- Extract transferable mechanisms
+- Extract transferable mechanisms with quantified metrics
 
 ## Architecture
 

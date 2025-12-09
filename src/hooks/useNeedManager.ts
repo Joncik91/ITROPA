@@ -212,6 +212,17 @@ export const useNeedManager = () => {
     try {
       setLoadingStage("Researching prior art...");
       const priorArt = await geminiService.fetchPriorArt(needName);
+      
+      // Run prior art analysis in background (don't block need generation)
+      geminiService.analyzePriorArt(needName, priorArt)
+        .then(analyses => {
+          if (analyses.length > 0) {
+            DBService.savePriorArtAnalysis(needName, analyses);
+            console.log(`Cached ${analyses.length} prior art analyses for: ${needName}`);
+          }
+        })
+        .catch(err => console.warn('Prior art analysis failed:', err));
+      
       toast.loading("Generating predictions from prior art...", { id: toastId });
       setLoadingStage("Generating predictions from prior art...");
       const parsed = await geminiService.generateNeed(needName, priorArt);
@@ -306,13 +317,14 @@ export const useNeedManager = () => {
         toast.success(`Loaded mechanism: ${expr.name}`, { id: toastId });
         return;
       }
-      const details = await geminiService.extractMechanism(expr);
-      setMechanism({ ...expr, details });
+      const detailsArray = await geminiService.extractMechanism(expr);
+      // Store the array of mechanism analyses
+      setMechanism({ ...expr, details: detailsArray });
       setSelected(expr);
-      // Save to database
+      // Save to database - store the first analysis as primary, but include all analyses
       const needId = activeNeed?.id || '';
-      await DBService.saveMechanism(expr.id, expr.name, needId, details);
-      toast.success(`Extracted mechanism: ${expr.name}`, { id: toastId });
+      await DBService.saveMechanism(expr.id, expr.name, needId, detailsArray);
+      toast.success(`Extracted mechanism with ${detailsArray.length} analyses: ${expr.name}`, { id: toastId });
     } catch (e) { 
       setError("Failed to extract mechanism");
       toast.error(`Failed to extract mechanism: ${expr.name}`, { id: toastId });
