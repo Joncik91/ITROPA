@@ -1,5 +1,5 @@
 import { useState, useEffect } from "react";
-import { Sun, Moon, Keyboard, BookOpen, Shapes, Home } from "lucide-react";
+import { Sun, Moon, Keyboard, BookOpen, Shapes, Home, FileText } from "lucide-react";
 import { Toaster } from 'react-hot-toast';
 import { getTheme } from "./config/theme";
 import { useTheme } from "./hooks/useTheme";
@@ -119,6 +119,13 @@ export default function App() {
               title="Pattern Library"
             >
               <Shapes className="w-4 h-4" />
+            </button>
+            <button 
+              onClick={() => window.open('/docs/index.html', '_blank')} 
+              className={`p-2 rounded-lg ${theme.hover}`} 
+              title="Documentation"
+            >
+              <FileText className="w-4 h-4" />
             </button>
             <button onClick={() => setShowKeys(true)} className={`p-2 rounded-lg ${theme.hover}`} title="Keyboard Shortcuts"><Keyboard className="w-4 h-4" /></button>
             <button onClick={toggleTheme} className={`p-2 rounded-lg ${theme.hover}`} title="Toggle Theme">{dark ? <Sun className="w-4 h-4" /> : <Moon className="w-4 h-4" />}</button>
