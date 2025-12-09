@@ -45,9 +45,10 @@ An interactive tool for exploring human needs and generating future industry pre
    vercel
    ```
 
-3. **Set environment variable:**
+3. **Set environment variables:**
    - In Vercel Dashboard, go to: Project Settings → Environment Variables
-   - Add: `GEMINI_API_KEY` = `your_actual_api_key`
+   - Add `GEMINI_API_KEY` = `your_actual_api_key`
+   - Add `APP_PASSWORD` = `your_secure_password` (for authentication)
    - Select all environments (Production, Preview, Development)
 
 4. **Redeploy:**
@@ -55,7 +56,10 @@ An interactive tool for exploring human needs and generating future industry pre
    vercel --prod
    ```
 
-**Security:** Your API key is stored as a Vercel environment variable and only accessible by the serverless functions in the `/api` directory. The frontend never sees the key.
+**Security:** 
+- Your API key is stored as a Vercel environment variable and only accessible by serverless functions
+- Password protection is automatically enabled in production
+- No authentication required for local development
 
 ## Features
 

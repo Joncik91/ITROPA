@@ -1,4 +1,4 @@
-import { useState } from "react";
+import { useState, useEffect } from "react";
 import { Sun, Moon, Keyboard, BookOpen, Shapes, Home } from "lucide-react";
 import { Toaster } from 'react-hot-toast';
 import { getTheme } from "./config/theme";
@@ -9,6 +9,7 @@ import { ModalWrapper } from "./components/ModalWrapper";
 import { HomePage } from "./components/HomePage";
 import { LibraryView } from "./components/LibraryView";
 import { PatternsView } from "./components/PatternsView";
+import { PasswordPrompt } from "./components/PasswordPrompt";
 import { 
   MechanismModalContent, 
   DeepDiveModalContent, 
@@ -21,9 +22,46 @@ import { Layers, TrendingUp } from "lucide-react";
 export default function App() {
   const [showKeys, setShowKeys] = useState(false);
   const [page, setPage] = useState<"home" | "library" | "patterns">("home");
+  const [authenticated, setAuthenticated] = useState(false);
+  const [checkingAuth, setCheckingAuth] = useState(true);
 
   const { dark, toggleTheme } = useTheme();
   const theme = getTheme(dark);
+
+  // Check if running in production (Vercel) or local
+  const isProduction = import.meta.env.PROD;
+
+  // Check authentication on mount
+  useEffect(() => {
+    if (!isProduction) {
+      // Local development - no auth required
+      setAuthenticated(true);
+      setCheckingAuth(false);
+    } else {
+      // Production - check if already authenticated
+      const isAuth = localStorage.getItem('authenticated') === 'true';
+      setAuthenticated(isAuth);
+      setCheckingAuth(false);
+    }
+  }, [isProduction]);
+
+  // Show loading or password prompt
+  if (checkingAuth) {
+    return null;
+  }
+
+  if (isProduction && !authenticated) {
+    return (
+      <>
+        <PasswordPrompt 
+          onAuthenticated={() => setAuthenticated(true)}
+          theme={theme}
+          dark={dark}
+        />
+        <Toaster position="bottom-right" />
+      </>
+    );
+  }
   
   const manager = useNeedManager();
 
