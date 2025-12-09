@@ -27,6 +27,9 @@ export default function App() {
 
   const { dark, toggleTheme } = useTheme();
   const theme = getTheme(dark);
+  
+  // IMPORTANT: Always call hooks before any conditional returns
+  const manager = useNeedManager();
 
   // Check if running in production (Vercel) or local
   const isProduction = import.meta.env.PROD;
@@ -45,6 +48,20 @@ export default function App() {
     }
   }, [isProduction]);
 
+  useKeyboardShortcuts({
+    needs: manager.needs,
+    activeTab: manager.activeTab,
+    modalOpen: manager.modal.open,
+    onTabChange: manager.setActiveTab,
+    onCloseModals: () => {
+      manager.closeAllModals();
+      setShowKeys(false);
+    },
+    onToggleShortcuts: () => setShowKeys(p => !p),
+    onUndo: manager.undo,
+    onRedo: manager.redo,
+  });
+
   // Show loading or password prompt
   if (checkingAuth) {
     return null;
@@ -62,22 +79,6 @@ export default function App() {
       </>
     );
   }
-  
-  const manager = useNeedManager();
-
-  useKeyboardShortcuts({
-    needs: manager.needs,
-    activeTab: manager.activeTab,
-    modalOpen: manager.modal.open,
-    onTabChange: manager.setActiveTab,
-    onCloseModals: () => {
-      manager.closeAllModals();
-      setShowKeys(false);
-    },
-    onToggleShortcuts: () => setShowKeys(p => !p),
-    onUndo: manager.undo,
-    onRedo: manager.redo,
-  });
 
   const loadNeedFromLibrary = (need: any) => {
     const existing = manager.needs.find(n => n.id === need.id);
