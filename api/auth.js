@@ -1,6 +1,4 @@
-import type { VercelRequest, VercelResponse } from '@vercel/node';
-
-export default async function handler(req: VercelRequest, res: VercelResponse) {
+export default async function handler(req, res) {
   // Set CORS headers for all responses
   res.setHeader('Access-Control-Allow-Origin', '*');
   res.setHeader('Access-Control-Allow-Methods', 'POST, OPTIONS');
@@ -39,7 +37,7 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
     } else {
       return res.status(401).json({ error: 'Invalid password' });
     }
-  } catch (error: any) {
+  } catch (error) {
     console.error('Auth Error:', error);
     return res.status(500).json({ 
       error: 'Internal server error',
