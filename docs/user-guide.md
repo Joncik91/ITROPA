@@ -165,11 +165,10 @@ ITROPA generates AI-powered predictions of future industries that will address y
 ### Understanding the Timeline
 
 **Eras from Past to Future:**
-- **Past** - Historical solutions (for reference)
-- **Present** - Current state of the market
-- **Near Future** - Emerging trends (5-10 years)
-- **Far Future** - Speculative innovations (10-25 years)
-- **Distant Future** - Radical transformations (25+ years)
+- **Pre-Industrial** - Solutions before mechanization
+- **Industrial** - Mechanized and mass production era
+- **Digital (2000s-2020)** - Modern digital solutions
+- **Post-AI Era (2025+)** - Future predictions spanning near-term through long-term innovations
 
 ### Anatomy of a Prediction
 

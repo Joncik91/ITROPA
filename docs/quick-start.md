@@ -37,16 +37,13 @@ Click "View Prior Art" to see how this need has been addressed before:
 
 ### Step 3: Review Future Predictions (1 minute)
 
-Scroll through the timeline to see AI-generated predictions:
-- **Near Future** - 5-10 years out
-- **Far Future** - 10-25 years
-- **Distant Future** - 25+ years
+Scroll through the timeline to see AI-generated predictions for the **Post-AI Era (2025+)**:
 
 Each prediction shows:
-- **Name** - The industry
-- **Mutation** - How it evolved
-- **Insight** - Why it matters
-- **Inspirations** - Source solutions
+- **Name** - The emerging industry
+- **Mutation** - What enables it to emerge
+- **Insight** - Why it matters and how it addresses the need
+- **Inspirations** - Prior art it builds upon and recombines
 
 ### Step 4: Try an Action (2 minutes)
 

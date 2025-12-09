@@ -245,11 +245,10 @@ Biomimicry Potential: Decentralized resource-sharing platforms
 **Layout:** Horizontal scrolling timeline with era columns
 
 **Eras:**
-1. **Past** - Historical reference (from prior art)
-2. **Present** - Current state of the market
-3. **Near Future** - Emerging trends (5-10 years)
-4. **Far Future** - Speculative innovations (10-25 years)
-5. **Distant Future** - Radical transformations (25+ years)
+1. **Pre-Industrial** - Solutions before mechanization
+2. **Industrial** - Mechanized and mass production era
+3. **Digital (2000s-2020)** - Modern digital solutions
+4. **Post-AI Era (2025+)** - Future predictions spanning near-term through long-term innovations
 
 ### Industry Cards
 
@@ -499,7 +498,7 @@ After extraction, the AI Assistant provides suggestions:
 3. Wait for comprehensive analysis
 4. Review market insights
 
-**Note:** Deep dive is most relevant for near/far/distant future predictions.
+**Note:** Deep dive is most relevant for Post-AI Era (2025+) predictions.
 
 ### Analysis Output
 
@@ -695,7 +694,7 @@ After deep dive, AI provides suggestions:
 ### How to Branch
 
 **Prerequisites:**
-- Can only branch from present/near/far/distant future predictions
+- Can only branch from Post-AI Era (2025+) predictions
 - Cannot branch from past/historical items
 - Parent industry must be in active need
 
