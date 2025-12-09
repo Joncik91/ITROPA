@@ -1,0 +1,786 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <meta name="description" content="ITROPA - Innovation Through Recombination of Prior Art. Documentation and user guide.">
+    <title>ITROPA Documentation</title>
+    <style>
+        * {
+            margin: 0;
+            padding: 0;
+            box-sizing: border-box;
+        }
+
+        :root {
+            --primary: #6366f1;
+            --primary-dark: #4f46e5;
+            --bg: #ffffff;
+            --bg-secondary: #f8fafc;
+            --text: #1e293b;
+            --text-muted: #64748b;
+            --border: #e2e8f0;
+            --card: #ffffff;
+            --code-bg: #f1f5f9;
+            --accent: #8b5cf6;
+        }
+
+        [data-theme="dark"] {
+            --primary: #818cf8;
+            --primary-dark: #6366f1;
+            --bg: #0f172a;
+            --bg-secondary: #1e293b;
+            --text: #f1f5f9;
+            --text-muted: #94a3b8;
+            --border: #334155;
+            --card: #1e293b;
+            --code-bg: #334155;
+            --accent: #a78bfa;
+        }
+
+        body {
+            font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, 'Helvetica Neue', Arial, sans-serif;
+            line-height: 1.6;
+            color: var(--text);
+            background: var(--bg);
+            transition: background 0.3s ease, color 0.3s ease;
+        }
+
+        .container {
+            max-width: 1200px;
+            margin: 0 auto;
+            padding: 0 2rem;
+        }
+
+        /* Header */
+        header {
+            background: var(--card);
+            border-bottom: 1px solid var(--border);
+            position: sticky;
+            top: 0;
+            z-index: 100;
+            backdrop-filter: blur(10px);
+            background: var(--bg)ee;
+        }
+
+        .header-content {
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            padding: 1rem 2rem;
+            max-width: 1200px;
+            margin: 0 auto;
+        }
+
+        .logo {
+            font-size: 1.5rem;
+            font-weight: bold;
+            color: var(--primary);
+            text-decoration: none;
+        }
+
+        .nav-links {
+            display: flex;
+            gap: 2rem;
+            align-items: center;
+        }
+
+        .nav-links a {
+            color: var(--text-muted);
+            text-decoration: none;
+            transition: color 0.2s;
+            font-weight: 500;
+        }
+
+        .nav-links a:hover {
+            color: var(--primary);
+        }
+
+        .theme-toggle {
+            background: var(--bg-secondary);
+            border: 1px solid var(--border);
+            border-radius: 8px;
+            padding: 0.5rem;
+            cursor: pointer;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            transition: all 0.2s;
+        }
+
+        .theme-toggle:hover {
+            background: var(--primary);
+            border-color: var(--primary);
+            color: white;
+        }
+
+        /* Hero */
+        .hero {
+            text-align: center;
+            padding: 4rem 2rem;
+            background: linear-gradient(135deg, var(--primary)15, var(--accent)15);
+        }
+
+        .hero h1 {
+            font-size: 3rem;
+            margin-bottom: 1rem;
+            background: linear-gradient(135deg, var(--primary), var(--accent));
+            -webkit-background-clip: text;
+            -webkit-text-fill-color: transparent;
+            background-clip: text;
+        }
+
+        .hero p {
+            font-size: 1.25rem;
+            color: var(--text-muted);
+            max-width: 600px;
+            margin: 0 auto 2rem;
+        }
+
+        .cta-button {
+            display: inline-block;
+            background: var(--primary);
+            color: white;
+            padding: 0.875rem 2rem;
+            border-radius: 8px;
+            text-decoration: none;
+            font-weight: 600;
+            transition: all 0.2s;
+            box-shadow: 0 4px 6px rgba(99, 102, 241, 0.2);
+        }
+
+        .cta-button:hover {
+            background: var(--primary-dark);
+            transform: translateY(-2px);
+            box-shadow: 0 6px 12px rgba(99, 102, 241, 0.3);
+        }
+
+        /* Content */
+        .content {
+            padding: 4rem 2rem;
+        }
+
+        .section {
+            margin-bottom: 4rem;
+        }
+
+        .section h2 {
+            font-size: 2rem;
+            margin-bottom: 1.5rem;
+            color: var(--text);
+        }
+
+        .section h3 {
+            font-size: 1.5rem;
+            margin: 2rem 0 1rem;
+            color: var(--text);
+        }
+
+        .section h4 {
+            font-size: 1.25rem;
+            margin: 1.5rem 0 0.75rem;
+            color: var(--primary);
+        }
+
+        .section p {
+            margin-bottom: 1rem;
+            color: var(--text-muted);
+        }
+
+        .section ul, .section ol {
+            margin-bottom: 1rem;
+            padding-left: 2rem;
+        }
+
+        .section li {
+            margin-bottom: 0.5rem;
+            color: var(--text-muted);
+        }
+
+        /* Cards */
+        .card-grid {
+            display: grid;
+            grid-template-columns: repeat(auto-fit, minmax(300px, 1fr));
+            gap: 2rem;
+            margin: 2rem 0;
+        }
+
+        .card {
+            background: var(--card);
+            border: 1px solid var(--border);
+            border-radius: 12px;
+            padding: 2rem;
+            transition: all 0.3s;
+        }
+
+        .card:hover {
+            transform: translateY(-4px);
+            box-shadow: 0 12px 24px rgba(0, 0, 0, 0.1);
+            border-color: var(--primary);
+        }
+
+        .card-icon {
+            font-size: 2rem;
+            margin-bottom: 1rem;
+        }
+
+        .card h3 {
+            margin: 0 0 0.5rem 0;
+            color: var(--text);
+        }
+
+        .card p {
+            color: var(--text-muted);
+            margin: 0;
+        }
+
+        /* Code blocks */
+        code {
+            background: var(--code-bg);
+            padding: 0.2rem 0.4rem;
+            border-radius: 4px;
+            font-family: 'Courier New', monospace;
+            font-size: 0.9em;
+            color: var(--primary);
+        }
+
+        /* Callout boxes */
+        .callout {
+            background: var(--bg-secondary);
+            border-left: 4px solid var(--primary);
+            padding: 1rem 1.5rem;
+            margin: 1.5rem 0;
+            border-radius: 4px;
+        }
+
+        .callout.tip {
+            border-left-color: #10b981;
+        }
+
+        .callout.warning {
+            border-left-color: #f59e0b;
+        }
+
+        /* Steps */
+        .steps {
+            counter-reset: step-counter;
+            list-style: none;
+            padding: 0;
+        }
+
+        .steps li {
+            counter-increment: step-counter;
+            position: relative;
+            padding-left: 3rem;
+            margin-bottom: 2rem;
+        }
+
+        .steps li::before {
+            content: counter(step-counter);
+            position: absolute;
+            left: 0;
+            top: 0;
+            width: 2rem;
+            height: 2rem;
+            background: var(--primary);
+            color: white;
+            border-radius: 50%;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            font-weight: bold;
+        }
+
+        /* Footer */
+        footer {
+            background: var(--bg-secondary);
+            border-top: 1px solid var(--border);
+            padding: 2rem;
+            text-align: center;
+            color: var(--text-muted);
+        }
+
+        /* Mobile */
+        @media (max-width: 768px) {
+            .hero h1 {
+                font-size: 2rem;
+            }
+
+            .nav-links {
+                display: none;
+            }
+
+            .card-grid {
+                grid-template-columns: 1fr;
+            }
+        }
+
+        /* Smooth scroll */
+        html {
+            scroll-behavior: smooth;
+        }
+
+        /* Table of Contents */
+        .toc {
+            background: var(--card);
+            border: 1px solid var(--border);
+            border-radius: 12px;
+            padding: 2rem;
+            margin-bottom: 3rem;
+        }
+
+        .toc h3 {
+            margin-top: 0;
+        }
+
+        .toc ul {
+            list-style: none;
+            padding-left: 0;
+        }
+
+        .toc li {
+            margin-bottom: 0.5rem;
+        }
+
+        .toc a {
+            color: var(--text-muted);
+            text-decoration: none;
+            transition: color 0.2s;
+        }
+
+        .toc a:hover {
+            color: var(--primary);
+        }
+    </style>
+</head>
+<body>
+    <header>
+        <div class="header-content">
+            <a href="#" class="logo">ITROPA</a>
+            <nav class="nav-links">
+                <a href="#getting-started">Getting Started</a>
+                <a href="#features">Features</a>
+                <a href="#guide">User Guide</a>
+                <a href="#tips">Tips</a>
+                <button class="theme-toggle" onclick="toggleTheme()" title="Toggle theme">
+                    <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+                        <circle cx="12" cy="12" r="5"></circle>
+                        <line x1="12" y1="1" x2="12" y2="3"></line>
+                        <line x1="12" y1="21" x2="12" y2="23"></line>
+                        <line x1="4.22" y1="4.22" x2="5.64" y2="5.64"></line>
+                        <line x1="18.36" y1="18.36" x2="19.78" y2="19.78"></line>
+                        <line x1="1" y1="12" x2="3" y2="12"></line>
+                        <line x1="21" y1="12" x2="23" y2="12"></line>
+                        <line x1="4.22" y1="19.78" x2="5.64" y2="18.36"></line>
+                        <line x1="18.36" y1="5.64" x2="19.78" y2="4.22"></line>
+                    </svg>
+                </button>
+            </nav>
+        </div>
+    </header>
+
+    <section class="hero">
+        <div class="container">
+            <h1>ITROPA Documentation</h1>
+            <p>Innovation Through Recombination of Prior Art. Discover breakthrough innovations by exploring human needs and combining existing solutions in novel ways.</p>
+            <a href="#getting-started" class="cta-button">Get Started in 5 Minutes →</a>
+        </div>
+    </section>
+
+    <main class="content container">
+        <div class="toc">
+            <h3>📚 Quick Navigation</h3>
+            <ul>
+                <li><a href="#what-is-itropa">What is ITROPA?</a></li>
+                <li><a href="#getting-started">Getting Started (5 min)</a></li>
+                <li><a href="#features">Key Features</a></li>
+                <li><a href="#guide">Complete User Guide</a></li>
+                <li><a href="#tips">Tips & Best Practices</a></li>
+            </ul>
+        </div>
+
+        <section id="what-is-itropa" class="section">
+            <h2>What is ITROPA?</h2>
+            <p>ITROPA helps you discover innovative opportunities by showing you how existing solutions from different industries can be recombined to address human needs in new ways.</p>
+            
+            <div class="callout tip">
+                <strong>Core Philosophy:</strong> Innovation = Prior Art + New Context
+            </div>
+
+            <p>Most innovations aren't created from scratch—they're recombinations of existing solutions applied in new ways. ITROPA makes this process systematic and AI-powered.</p>
+
+            <h3>How It Works</h3>
+            <ol class="steps">
+                <li><strong>Explore Human Needs</strong> - Start with fundamental needs like Belonging, Status, or Mastery</li>
+                <li><strong>Research Prior Art</strong> - See how needs have been met historically and across domains</li>
+                <li><strong>Generate Predictions</strong> - AI predicts future industries addressing these needs</li>
+                <li><strong>Extract Mechanisms</strong> - Understand WHY solutions work at an abstract level</li>
+                <li><strong>Cross-Pollinate</strong> - Combine mechanisms from different domains for breakthroughs</li>
+            </ol>
+        </section>
+
+        <section id="getting-started" class="section">
+            <h2>🚀 Getting Started (5 Minutes)</h2>
+
+            <h3>Step 1: Choose a Human Need (30 seconds)</h3>
+            <p>Click one of the suggested needs on the home screen or search for your own:</p>
+            <ul>
+                <li><strong>Belonging</strong> - Connection with others</li>
+                <li><strong>Status</strong> - Recognition and achievement</li>
+                <li><strong>Mastery</strong> - Skill development</li>
+                <li><strong>Security</strong> - Safety and stability</li>
+                <li><strong>Love</strong> - Deep connection</li>
+                <li><strong>Sustainability</strong> - Long-term wellbeing</li>
+            </ul>
+
+            <h3>Step 2: Explore Prior Art (1 minute)</h3>
+            <p>Click "View Prior Art" to see how this need has been addressed before:</p>
+            <ul>
+                <li><strong>Current Leaders</strong> - What's working today</li>
+                <li><strong>Historical Precedents</strong> - Time-tested solutions</li>
+                <li><strong>Adjacent Domains</strong> - Solutions from other industries</li>
+                <li><strong>Nature Solutions</strong> - Biomimicry opportunities</li>
+            </ul>
+
+            <h3>Step 3: Review Future Predictions (1 minute)</h3>
+            <p>Scroll through the timeline to see AI-generated predictions:</p>
+            <ul>
+                <li><strong>Near Future</strong> - 5-10 years out</li>
+                <li><strong>Far Future</strong> - 10-25 years</li>
+                <li><strong>Distant Future</strong> - 25+ years</li>
+            </ul>
+
+            <h3>Step 4: Try an Action (2 minutes)</h3>
+            <p>Right-click any prediction and choose:</p>
+            <ul>
+                <li><strong>Extract Mechanism</strong> - Understand WHY it works</li>
+                <li><strong>Deep Dive</strong> - Analyze the market opportunity</li>
+                <li><strong>Branch</strong> - Create specialized sub-categories</li>
+            </ul>
+
+            <h3>Step 5: Cross-Pollinate (30 seconds)</h3>
+            <ol>
+                <li>Check boxes next to 2+ different industries</li>
+                <li>Click "Cross-Pollinate"</li>
+                <li>Review AI-generated hybrid innovations</li>
+                <li>Add promising ones to your need</li>
+            </ol>
+        </section>
+
+        <section id="features" class="section">
+            <h2>✨ Key Features</h2>
+
+            <div class="card-grid">
+                <div class="card">
+                    <div class="card-icon">🔍</div>
+                    <h3>Need Exploration</h3>
+                    <p>Search any human need to generate comprehensive research including historical solutions and future predictions.</p>
+                </div>
+
+                <div class="card">
+                    <div class="card-icon">📊</div>
+                    <h3>Prior Art Analysis</h3>
+                    <p>Discover solutions from current leaders, historical precedents, adjacent domains, and nature (biomimicry).</p>
+                </div>
+
+                <div class="card">
+                    <div class="card-icon">🌳</div>
+                    <h3>Branching</h3>
+                    <p>Create hierarchical trees of industries and sub-industries to explore niches and specializations.</p>
+                </div>
+
+                <div class="card">
+                    <div class="card-icon">🔬</div>
+                    <h3>Mechanism Extraction</h3>
+                    <p>AI analyzes industries to identify core patterns, abstract principles, and transfer opportunities.</p>
+                </div>
+
+                <div class="card">
+                    <div class="card-icon">📈</div>
+                    <h3>Deep Dive Analysis</h3>
+                    <p>Comprehensive market analysis including opportunity sizing, enablers, challenges, and strategic insights.</p>
+                </div>
+
+                <div class="card">
+                    <div class="card-icon">✨</div>
+                    <h3>Cross-Pollination</h3>
+                    <p>Combine mechanisms from different industries to generate novel hybrid innovations.</p>
+                </div>
+
+                <div class="card">
+                    <div class="card-icon">🤖</div>
+                    <h3>AI Assistant</h3>
+                    <p>Context-aware suggestions for next actions, pattern discovery, and strategic opportunities.</p>
+                </div>
+
+                <div class="card">
+                    <div class="card-icon">📚</div>
+                    <h3>Library System</h3>
+                    <p>Personal knowledge repository with full-text search, filtering, and recent activity tracking.</p>
+                </div>
+
+                <div class="card">
+                    <div class="card-icon">🔁</div>
+                    <h3>Pattern Discovery</h3>
+                    <p>Identify recurring mechanisms across different needs to find universal innovation strategies.</p>
+                </div>
+            </div>
+        </section>
+
+        <section id="guide" class="section">
+            <h2>📖 Complete User Guide</h2>
+
+            <h3>Working with Human Needs</h3>
+            <h4>Searching for Needs</h4>
+            <ol>
+                <li>Click the search bar at the top</li>
+                <li>Type a human need (e.g., "belonging", "creativity", "healthcare")</li>
+                <li>Press Enter or click the search icon</li>
+                <li>Wait while AI researches the need (10-30 seconds)</li>
+            </ol>
+
+            <h4>Managing Multiple Needs</h4>
+            <ul>
+                <li>Search for different needs to open them as tabs</li>
+                <li>Click tab headers to switch between needs</li>
+                <li>Use arrow keys (← →) to navigate tabs</li>
+                <li>Click × button to close tabs</li>
+            </ul>
+
+            <h3>Understanding Prior Art</h3>
+            <p>Prior Art shows you how others have addressed this need before. This is your innovation goldmine.</p>
+
+            <h4>Four Categories</h4>
+            <ul>
+                <li><strong>Current Leaders:</strong> Modern solutions dominating the market today</li>
+                <li><strong>Historical Precedents:</strong> Solutions from the past that addressed the same need</li>
+                <li><strong>Adjacent Domains:</strong> Solutions from different industries addressing similar challenges</li>
+                <li><strong>Nature Solutions:</strong> Biological systems that solve analogous problems</li>
+            </ul>
+
+            <div class="callout">
+                <strong>Key Questions to Ask:</strong>
+                <ul>
+                    <li>What core mechanism makes this solution work?</li>
+                    <li>Why did it work in its original context?</li>
+                    <li>What constraints or limitations did it have?</li>
+                    <li>How might this transfer to a new domain?</li>
+                </ul>
+            </div>
+
+            <h3>Advanced Features</h3>
+
+            <h4>Extract Mechanisms</h4>
+            <p>Identifies the core pattern that makes a solution work, abstracting it from its specific implementation.</p>
+            <p><strong>When to use:</strong> You want to understand WHY something works, looking for transferable patterns, or need ideas for cross-pollination.</p>
+
+            <h4>Deep Dive Analysis</h4>
+            <p>Performs market analysis on a predicted industry to evaluate its viability and opportunity.</p>
+            <p><strong>When to use:</strong> Evaluating business opportunities, need market sizing information, understanding barriers to entry, or preparing for strategic planning.</p>
+
+            <h4>Branching</h4>
+            <p>Creates specialized variations or niche markets within a broader industry.</p>
+            <p><strong>When to use:</strong> Exploring market segments, drilling down into niches, creating specializations, or mapping industry evolution.</p>
+
+            <h4>Cross-Pollination</h4>
+            <p>Combines mechanisms from different industries to generate novel hybrid innovations.</p>
+            <p><strong>When to use:</strong> Looking for breakthrough innovations, combining complementary solutions, creating unique value propositions, or exploring convergence opportunities.</p>
+
+            <h3>Using the Library</h3>
+            <p>Your personal knowledge repository of everything you've explored.</p>
+            <ul>
+                <li><strong>Statistics Dashboard:</strong> Track your research progress</li>
+                <li><strong>Recent Activity:</strong> See latest explorations chronologically</li>
+                <li><strong>Search:</strong> Find specific items in your research history</li>
+                <li><strong>Filter by Type:</strong> Focus on needs, mechanisms, deep dives, or cross-pollinations</li>
+            </ul>
+
+            <h3>Pattern Library</h3>
+            <p>Discover recurring patterns across all your explorations.</p>
+            <ul>
+                <li><strong>Abstract Patterns:</strong> Universal principles that appear in multiple industries</li>
+                <li><strong>Pattern Instances:</strong> Each place this pattern appears with specific implementations</li>
+                <li><strong>Cross-Domain Insights:</strong> See which mechanisms work reliably across different contexts</li>
+            </ul>
+
+            <h3>Keyboard Shortcuts</h3>
+            <ul>
+                <li><code>←/→</code> - Switch between need tabs</li>
+                <li><code>Esc</code> - Close all open modals</li>
+                <li><code>?</code> - Show keyboard shortcuts</li>
+                <li><code>Enter</code> - Execute search (when in search box)</li>
+                <li><code>Ctrl+Z</code> - Undo last action</li>
+                <li><code>Ctrl+Y</code> - Redo action</li>
+            </ul>
+        </section>
+
+        <section id="tips" class="section">
+            <h2>💡 Tips & Best Practices</h2>
+
+            <div class="card-grid">
+                <div class="card">
+                    <h3>Start Broad, Then Specialize</h3>
+                    <p>Begin with fundamental human needs, review all prior art categories thoroughly, then use branching to drill into specific niches.</p>
+                </div>
+
+                <div class="card">
+                    <h3>Extract Mechanisms Liberally</h3>
+                    <p>Extract mechanisms from surprising sources. Look for patterns across different needs. Build your pattern library for deeper insights.</p>
+                </div>
+
+                <div class="card">
+                    <h3>Cross-Pollinate Strategically</h3>
+                    <p>Combine industries from different needs. Look for complementary mechanisms. Try non-obvious combinations for breakthroughs.</p>
+                </div>
+
+                <div class="card">
+                    <h3>Use AI Suggestions</h3>
+                    <p>Read the reasoning before executing. Batch execute related suggestions. Follow up on recommended explorations.</p>
+                </div>
+
+                <div class="card">
+                    <h3>Organize Your Library</h3>
+                    <p>Regularly review your saved needs. Delete outdated explorations. Search your library before creating duplicates.</p>
+                </div>
+
+                <div class="card">
+                    <h3>Think in Mechanisms, Not Features</h3>
+                    <p>Focus on WHY something works. Abstract beyond specific implementations. Look for transferable principles.</p>
+                </div>
+
+                <div class="card">
+                    <h3>Leverage Historical Prior Art</h3>
+                    <p>Don't ignore old solutions. Time-tested mechanisms often resurface. Combine old patterns with new technology.</p>
+                </div>
+
+                <div class="card">
+                    <h3>Document Your Insights</h3>
+                    <p>Use the export feature for important discoveries. Create branches for detailed explorations. Build your personal innovation framework.</p>
+                </div>
+            </div>
+
+            <h3>Common Use Cases</h3>
+
+            <h4>Product Innovation</h4>
+            <ol>
+                <li>Search for the need your product addresses</li>
+                <li>Review adjacent domain solutions</li>
+                <li>Extract mechanisms from leaders</li>
+                <li>Cross-pollinate with complementary industries</li>
+                <li>Deep dive on promising hybrids</li>
+            </ol>
+
+            <h4>Market Research</h4>
+            <ol>
+                <li>Explore multiple related needs</li>
+                <li>Perform deep dives on predictions</li>
+                <li>Compare timelines across needs</li>
+                <li>Identify underserved segments</li>
+                <li>Export findings for reports</li>
+            </ol>
+
+            <h4>Creative Inspiration</h4>
+            <ol>
+                <li>Search abstract human needs</li>
+                <li>Review nature solutions</li>
+                <li>Extract unusual mechanisms</li>
+                <li>Cross-pollinate wildly different domains</li>
+                <li>Follow AI suggestions for novel angles</li>
+            </ol>
+
+            <div class="callout warning">
+                <strong>Remember:</strong> Innovation is recombination. ITROPA gives you the building blocks. Your creativity combines them in new ways.
+            </div>
+        </section>
+
+        <section class="section">
+            <h2>❓ Troubleshooting</h2>
+
+            <h4>Search returns no results</h4>
+            <ul>
+                <li>Try simpler, more fundamental needs</li>
+                <li>Use single words instead of phrases</li>
+                <li>Try synonyms (e.g., "community" instead of "belonging")</li>
+                <li>Ensure you have an internet connection</li>
+            </ul>
+
+            <h4>AI is taking a long time</h4>
+            <ul>
+                <li>Complex analyses can take 15-60 seconds</li>
+                <li>Don't refresh - wait for completion</li>
+                <li>Multiple requests queue automatically</li>
+            </ul>
+
+            <h4>Can't find my saved work</h4>
+            <ul>
+                <li>Check the Library view</li>
+                <li>Use search to find specific items</li>
+                <li>Data is stored locally in your browser</li>
+                <li>Clearing browser data will delete library</li>
+            </ul>
+
+            <h4>Data not saving</h4>
+            <ul>
+                <li>Check browser storage permissions</li>
+                <li>Storage quota may be full</li>
+                <li>Try different browser</li>
+                <li>Export important work regularly</li>
+            </ul>
+        </section>
+
+        <section class="section">
+            <h2>🎯 Next Steps</h2>
+            <p>Ready to start innovating?</p>
+            <ul>
+                <li>Experiment with different human needs</li>
+                <li>Build your pattern library through extraction</li>
+                <li>Try unusual cross-pollinations</li>
+                <li>Follow AI suggestions to discover new connections</li>
+                <li>Export and review your insights regularly</li>
+            </ul>
+
+            <div style="text-align: center; margin: 3rem 0;">
+                <a href="../index.html" class="cta-button">Launch ITROPA →</a>
+            </div>
+        </section>
+    </main>
+
+    <footer>
+        <div class="container">
+            <p>&copy; 2025 ITROPA - Innovation Through Recombination of Prior Art</p>
+            <p style="margin-top: 0.5rem; font-size: 0.875rem;">Built with AI • Powered by Google Gemini</p>
+        </div>
+    </footer>
+
+    <script>
+        // Theme toggle
+        function toggleTheme() {
+            const html = document.documentElement;
+            const currentTheme = html.getAttribute('data-theme');
+            const newTheme = currentTheme === 'dark' ? 'light' : 'dark';
+            html.setAttribute('data-theme', newTheme);
+            localStorage.setItem('theme', newTheme);
+        }
+
+        // Load saved theme
+        (function() {
+            const savedTheme = localStorage.getItem('theme') || 'light';
+            document.documentElement.setAttribute('data-theme', savedTheme);
+        })();
+
+        // Smooth scroll for anchor links
+        document.querySelectorAll('a[href^="#"]').forEach(anchor => {
+            anchor.addEventListener('click', function (e) {
+                e.preventDefault();
+                const target = document.querySelector(this.getAttribute('href'));
+                if (target) {
+                    target.scrollIntoView({
+                        behavior: 'smooth',
+                        block: 'start'
+                    });
+                }
+            });
+        });
+    </script>
+</body>
+</html>
