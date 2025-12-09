@@ -5,13 +5,6 @@ import type { VercelRequest, VercelResponse } from '@vercel/node';
 const genAI = new GoogleGenerativeAI(process.env.GEMINI_API_KEY || '');
 const model = genAI.getGenerativeModel({ model: "gemini-2.5-flash-lite" });
 
-// CORS headers for frontend access
-const corsHeaders = {
-  'Access-Control-Allow-Origin': '*', // In production, replace with your actual domain
-  'Access-Control-Allow-Methods': 'POST, OPTIONS',
-  'Access-Control-Allow-Headers': 'Content-Type',
-};
-
 export default async function handler(req: VercelRequest, res: VercelResponse) {
   // Handle CORS preflight
   if (req.method === 'OPTIONS') {

@@ -50,53 +50,40 @@ export const PasswordPrompt = ({ onAuthenticated, theme, dark }: PasswordPromptP
   };
 
   return (
-    <div className="min-h-screen flex items-center justify-center p-4" 
-         style={{ background: dark ? theme.colors.dark.bg : theme.colors.light.bg }}>
+    <div className={`min-h-screen flex items-center justify-center p-4 ${theme.bg} transition-colors duration-200`}>
       <motion.div
         initial={{ opacity: 0, y: 20 }}
         animate={{ opacity: 1, y: 0 }}
         className="w-full max-w-md"
       >
         <div className="text-center mb-8">
-          <div className="inline-flex items-center justify-center w-16 h-16 rounded-full mb-4"
-               style={{ background: dark ? theme.colors.dark.cardBg : theme.colors.light.cardBg }}>
-            <Lock size={32} style={{ color: theme.colors.primary }} />
+          <div className={`inline-flex items-center justify-center w-16 h-16 rounded-full mb-4 ${theme.cardBg} border ${theme.border}`}>
+            <Lock size={32} className={theme.accent} />
           </div>
-          <h1 className="text-3xl font-bold mb-2" 
-              style={{ color: dark ? theme.colors.dark.text : theme.colors.light.text }}>
+          <h1 className={`text-3xl font-bold mb-2 ${theme.text}`}>
             ITROPA
           </h1>
-          <p style={{ color: dark ? theme.colors.dark.textSecondary : theme.colors.light.textSecondary }}>
+          <p className={theme.muted}>
             Enter password to access
           </p>
         </div>
 
         <form onSubmit={handleSubmit}>
-          <div className="rounded-lg p-6 space-y-4"
-               style={{ background: dark ? theme.colors.dark.cardBg : theme.colors.light.cardBg }}>
+          <div className={`rounded-lg p-6 space-y-4 ${theme.card}`}>
             <input
               type="password"
               value={password}
               onChange={(e) => setPassword(e.target.value)}
               placeholder="Enter password"
               disabled={loading}
-              className="w-full px-4 py-3 rounded-lg focus:outline-none focus:ring-2 transition-all"
-              style={{
-                background: dark ? theme.colors.dark.bg : theme.colors.light.bg,
-                color: dark ? theme.colors.dark.text : theme.colors.light.text,
-                borderColor: dark ? theme.colors.dark.border : theme.colors.light.border,
-              }}
+              className={`w-full px-4 py-3 rounded-lg border focus:outline-none focus:ring-2 focus:ring-indigo-500 transition-all ${theme.inputBg} ${theme.text}`}
               autoFocus
             />
             
             <button
               type="submit"
               disabled={loading}
-              className="w-full py-3 px-4 rounded-lg font-medium flex items-center justify-center gap-2 transition-all hover:opacity-90 disabled:opacity-50"
-              style={{
-                background: theme.colors.primary,
-                color: '#fff',
-              }}
+              className="w-full py-3 px-4 rounded-lg font-medium flex items-center justify-center gap-2 bg-indigo-600 hover:bg-indigo-700 text-white transition-all disabled:opacity-50"
             >
               {loading ? (
                 <>
@@ -110,8 +97,7 @@ export const PasswordPrompt = ({ onAuthenticated, theme, dark }: PasswordPromptP
           </div>
         </form>
 
-        <p className="text-center mt-6 text-sm"
-           style={{ color: dark ? theme.colors.dark.textSecondary : theme.colors.light.textSecondary }}>
+        <p className={`text-center mt-6 text-sm ${theme.muted}`}>
           Industry Tree Research & Opportunity Prediction Analysis
         </p>
       </motion.div>
