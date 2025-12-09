@@ -13,45 +13,45 @@
         }
 
         :root {
-            /* Light theme - matching application */
+            /* Light theme - matching application exactly */
             --primary: #4f46e5;
             --primary-dark: #4338ca;
             --primary-light: #6366f1;
-            --bg: #e5e7eb;
+            --bg: #f3f4f6;
             --bg-gradient: linear-gradient(to bottom right, #e5e7eb, #f3f4f6, #e5e7eb);
-            --bg-secondary: #f3f4f6;
-            --bg-tertiary: #e5e7eb;
+            --bg-secondary: #e5e7eb;
+            --bg-tertiary: #d1d5db;
             --text: #111827;
-            --text-secondary: #4b5563;
+            --text-secondary: #374151;
             --text-muted: #6b7280;
-            --border: #9ca3af;
-            --border-light: #d1d5db;
-            --card: rgba(243, 244, 246, 0.9);
-            --card-hover: #f3f4f6;
-            --code-bg: #f3f4f6;
+            --border: #d1d5db;
+            --border-light: #e5e7eb;
+            --card: rgba(255, 255, 255, 0.7);
+            --card-hover: rgba(255, 255, 255, 0.9);
+            --code-bg: #e5e7eb;
             --accent: #4f46e5;
             --success: #10b981;
             --warning: #f59e0b;
-            --sidebar-width: 280px;
-            --header-height: 64px;
+            --sidebar-width: 260px;
+            --header-height: 60px;
         }
 
         [data-theme="dark"] {
-            /* Dark theme - matching application */
+            /* Dark theme - matching application exactly */
             --primary: #818cf8;
             --primary-dark: #6366f1;
             --primary-light: #a5b4fc;
-            --bg: #1f2937;
+            --bg: #111827;
             --bg-gradient: linear-gradient(to bottom right, #1f2937, #111827, #1f2937);
-            --bg-secondary: #111827;
+            --bg-secondary: #1f2937;
             --bg-tertiary: #374151;
             --text: #f3f4f6;
             --text-secondary: #d1d5db;
             --text-muted: #9ca3af;
-            --border: #4b5563;
-            --border-light: #374151;
-            --card: rgba(17, 24, 39, 0.9);
-            --card-hover: #111827;
+            --border: #374151;
+            --border-light: #4b5563;
+            --card: rgba(31, 41, 55, 0.7);
+            --card-hover: rgba(31, 41, 55, 0.9);
             --code-bg: #374151;
             --accent: #818cf8;
         }
@@ -112,21 +112,22 @@
         }
 
         .logo {
-            font-size: 1.375rem;
+            font-size: 1.25rem;
             font-weight: 700;
-            color: var(--primary);
+            color: var(--text);
             text-decoration: none;
             display: flex;
             align-items: center;
-            gap: 0.5rem;
+            gap: 0.625rem;
+            letter-spacing: -0.02em;
         }
 
         .logo-icon {
-            width: 28px;
-            height: 28px;
+            width: 32px;
+            height: 32px;
             background: linear-gradient(135deg, #4f46e5, #818cf8);
             border-radius: 6px;
-            box-shadow: 0 2px 4px rgba(79, 70, 229, 0.3);
+            flex-shrink: 0;
         }
 
         .header-right {
@@ -432,11 +433,11 @@
         .card {
             background: var(--card);
             border: 1px solid var(--border);
-            border-radius: 12px;
-            padding: 1.75rem;
+            border-radius: 8px;
+            padding: 1.5rem;
             transition: all 0.2s;
             position: relative;
-            overflow: hidden;
+            backdrop-filter: blur(8px);
         }
 
         .card::before {
@@ -445,15 +446,15 @@
             top: 0;
             left: 0;
             right: 0;
-            height: 3px;
+            height: 2px;
             background: linear-gradient(90deg, #4f46e5, #818cf8);
             transform: scaleX(0);
             transition: transform 0.3s;
         }
 
         .card:hover {
-            transform: translateY(-4px);
-            box-shadow: 0 12px 24px rgba(79, 70, 229, 0.15);
+            transform: translateY(-2px);
+            box-shadow: 0 8px 16px rgba(0, 0, 0, 0.1);
             border-color: var(--primary);
             background: var(--card-hover);
         }
@@ -462,49 +463,45 @@
             transform: scaleX(1);
         }
 
-        .card-icon {
-            font-size: 2rem;
-            margin-bottom: 1rem;
-            display: block;
-        }
-
         .card h3 {
             margin: 0 0 0.75rem 0;
-            font-size: 1.125rem;
+            font-size: 1rem;
+            font-weight: 600;
             color: var(--text);
         }
 
         .card p {
             color: var(--text-secondary);
             margin: 0;
-            font-size: 0.9375rem;
+            font-size: 0.875rem;
             line-height: 1.6;
         }
 
         /* Callout */
         .callout {
             background: var(--bg-secondary);
-            border-left: 4px solid var(--primary);
-            padding: 1.25rem 1.5rem;
-            margin: 2rem 0;
-            border-radius: 8px;
+            border-left: 3px solid var(--primary);
+            padding: 1rem 1.25rem;
+            margin: 1.5rem 0;
+            border-radius: 4px;
             font-size: 0.9375rem;
         }
 
         .callout.tip {
             border-left-color: var(--success);
-            background: rgba(16, 185, 129, 0.05);
+            background: var(--bg-secondary);
         }
 
         .callout.warning {
             border-left-color: var(--warning);
-            background: rgba(245, 158, 11, 0.05);
+            background: var(--bg-secondary);
         }
 
         .callout strong {
             display: block;
             margin-bottom: 0.5rem;
             color: var(--text);
+            font-weight: 600;
         }
 
         /* Code */
@@ -528,9 +525,9 @@
         .steps li {
             counter-increment: step-counter;
             position: relative;
-            padding-left: 4rem;
-            margin-bottom: 2.5rem;
-            padding-top: 0.25rem;
+            padding-left: 3.5rem;
+            margin-bottom: 2rem;
+            padding-top: 0.125rem;
         }
 
         .steps li::before {
@@ -538,24 +535,24 @@
             position: absolute;
             left: 0;
             top: 0;
-            width: 2.5rem;
-            height: 2.5rem;
+            width: 2rem;
+            height: 2rem;
             background: linear-gradient(135deg, #4f46e5, #818cf8);
             color: white;
-            border-radius: 12px;
+            border-radius: 6px;
             display: flex;
             align-items: center;
             justify-content: center;
             font-weight: 700;
-            font-size: 1.125rem;
-            box-shadow: 0 4px 6px rgba(79, 70, 229, 0.3);
+            font-size: 0.875rem;
         }
 
         .steps li strong {
             display: block;
             margin-bottom: 0.5rem;
             color: var(--text);
-            font-size: 1.0625rem;
+            font-size: 1rem;
+            font-weight: 600;
         }
 
         /* CTA */
@@ -563,29 +560,28 @@
             display: inline-block;
             background: var(--primary);
             color: white;
-            padding: 0.875rem 1.75rem;
-            border-radius: 8px;
+            padding: 0.75rem 1.5rem;
+            border-radius: 6px;
             text-decoration: none;
             font-weight: 600;
-            font-size: 1rem;
+            font-size: 0.9375rem;
             transition: all 0.2s;
-            box-shadow: 0 4px 6px rgba(99, 102, 241, 0.2);
+            border: none;
         }
 
         .cta-button:hover {
             background: var(--primary-dark);
-            transform: translateY(-2px);
-            box-shadow: 0 8px 16px rgba(99, 102, 241, 0.3);
+            transform: translateY(-1px);
+            box-shadow: 0 4px 12px rgba(79, 70, 229, 0.25);
         }
 
         .cta-section {
             text-align: center;
-            margin: 4rem 0;
-            padding: 3rem;
+            margin: 3rem 0;
+            padding: 2.5rem 2rem;
             background: var(--card);
-            border-radius: 16px;
+            border-radius: 8px;
             border: 1px solid var(--border);
-            box-shadow: 0 4px 6px rgba(0, 0, 0, 0.05);
         }
 
         /* Footer */
@@ -949,7 +945,7 @@
                     <p>ITROPA helps you discover innovative opportunities by showing you how existing solutions from different industries can be recombined to address human needs in new ways.</p>
                     
                     <div class="callout tip">
-                        <strong>💡 Core Philosophy</strong>
+                        <strong>Core Philosophy</strong>
                         Innovation = Prior Art + New Context. Most innovations aren't created from scratch—they're recombinations of existing solutions applied in new ways.
                     </div>
 
@@ -980,7 +976,7 @@
 
                 <!-- Getting Started -->
                 <section id="getting-started">
-                    <h2>🚀 Getting Started</h2>
+                    <h2>Getting Started</h2>
                     <p>Get up and running with ITROPA in just 5 minutes. Follow these simple steps to start discovering innovative opportunities.</p>
 
                     <h3>Step 1: Choose a Human Need</h3>
@@ -998,22 +994,18 @@
                     <p>Click "View Prior Art" to see how this need has been addressed before:</p>
                     <div class="card-grid">
                         <div class="card">
-                            <div class="card-icon">🏆</div>
                             <h3>Current Leaders</h3>
                             <p>Solutions dominating the market today</p>
                         </div>
                         <div class="card">
-                            <div class="card-icon">📜</div>
                             <h3>Historical</h3>
                             <p>Time-tested solutions from the past</p>
                         </div>
                         <div class="card">
-                            <div class="card-icon">🔄</div>
                             <h3>Adjacent Domains</h3>
                             <p>Solutions from other industries</p>
                         </div>
                         <div class="card">
-                            <div class="card-icon">🌿</div>
                             <h3>Nature</h3>
                             <p>Biomimicry opportunities</p>
                         </div>
@@ -1026,67 +1018,58 @@
                     <p>Right-click any prediction and choose an action to deepen your understanding.</p>
 
                     <div class="callout">
-                        <strong>🎯 Pro Tip</strong>
+                        <strong>Pro Tip</strong>
                         Start with "Extract Mechanism" to understand the core patterns that make solutions work. This forms the foundation for cross-pollination.
                     </div>
                 </section>
 
                 <!-- Features -->
                 <section id="features">
-                    <h2>✨ Key Features</h2>
+                    <h2>Key Features</h2>
                     <p>ITROPA provides a comprehensive suite of tools for discovering and analyzing innovation opportunities.</p>
 
                     <div class="card-grid">
                         <div class="card">
-                            <div class="card-icon">🔍</div>
                             <h3>Need Exploration</h3>
                             <p>Search any human need to generate comprehensive research including historical solutions and future predictions.</p>
                         </div>
 
                         <div class="card">
-                            <div class="card-icon">📊</div>
                             <h3 id="prior-art">Prior Art Analysis</h3>
                             <p>Discover solutions from current leaders, historical precedents, adjacent domains, and nature (biomimicry).</p>
                         </div>
 
                         <div class="card">
-                            <div class="card-icon">🌳</div>
                             <h3>Branching</h3>
                             <p>Create hierarchical trees of industries and sub-industries to explore niches and specializations.</p>
                         </div>
 
                         <div class="card">
-                            <div class="card-icon">🔬</div>
                             <h3>Mechanism Extraction</h3>
                             <p>AI analyzes industries to identify core patterns, abstract principles, and transfer opportunities.</p>
                         </div>
 
                         <div class="card">
-                            <div class="card-icon">📈</div>
                             <h3>Deep Dive Analysis</h3>
                             <p>Comprehensive market analysis including opportunity sizing, enablers, challenges, and strategic insights.</p>
                         </div>
 
                         <div class="card">
-                            <div class="card-icon">✨</div>
                             <h3>Cross-Pollination</h3>
                             <p>Combine mechanisms from different industries to generate novel hybrid innovations.</p>
                         </div>
 
                         <div class="card">
-                            <div class="card-icon">🤖</div>
                             <h3>AI Assistant</h3>
                             <p>Context-aware suggestions for next actions, pattern discovery, and strategic opportunities.</p>
                         </div>
 
                         <div class="card">
-                            <div class="card-icon">📚</div>
                             <h3>Library System</h3>
                             <p>Personal knowledge repository with full-text search, filtering, and recent activity tracking.</p>
                         </div>
 
                         <div class="card">
-                            <div class="card-icon">🔁</div>
                             <h3>Pattern Discovery</h3>
                             <p>Identify recurring mechanisms across different needs to find universal innovation strategies.</p>
                         </div>
@@ -1113,7 +1096,7 @@
 
                 <!-- User Guide -->
                 <section id="guide">
-                    <h2>📖 Complete User Guide</h2>
+                    <h2>Complete User Guide</h2>
 
                     <h3 id="working-with-needs">Working with Human Needs</h3>
                     
@@ -1137,7 +1120,7 @@
                     <p>Prior Art shows you how others have addressed this need before. This is your innovation goldmine.</p>
 
                     <div class="callout">
-                        <strong>🔑 Key Questions to Ask</strong>
+                        <strong>Key Questions to Ask</strong>
                         <ul>
                             <li>What core mechanism makes this solution work?</li>
                             <li>Why did it work in its original context?</li>
@@ -1186,41 +1169,35 @@
 
                 <!-- Tips & Best Practices -->
                 <section id="tips">
-                    <h2>💡 Tips & Best Practices</h2>
+                    <h2>Tips & Best Practices</h2>
 
                     <div class="card-grid">
                         <div class="card">
-                            <div class="card-icon">🎯</div>
                             <h3>Start Broad, Then Specialize</h3>
                             <p>Begin with fundamental human needs, review all prior art categories thoroughly, then use branching to drill into specific niches.</p>
                         </div>
 
                         <div class="card">
-                            <div class="card-icon">🔬</div>
                             <h3>Extract Mechanisms Liberally</h3>
                             <p>Extract mechanisms from surprising sources. Look for patterns across different needs. Build your pattern library for deeper insights.</p>
                         </div>
 
                         <div class="card">
-                            <div class="card-icon">✨</div>
                             <h3>Cross-Pollinate Strategically</h3>
                             <p>Combine industries from different needs. Look for complementary mechanisms. Try non-obvious combinations for breakthroughs.</p>
                         </div>
 
                         <div class="card">
-                            <div class="card-icon">🤖</div>
                             <h3>Use AI Suggestions</h3>
                             <p>Read the reasoning before executing. Batch execute related suggestions. Follow up on recommended explorations.</p>
                         </div>
 
                         <div class="card">
-                            <div class="card-icon">📚</div>
                             <h3>Organize Your Library</h3>
                             <p>Regularly review your saved needs. Delete outdated explorations. Search your library before creating duplicates.</p>
                         </div>
 
                         <div class="card">
-                            <div class="card-icon">🧠</div>
                             <h3>Think in Mechanisms</h3>
                             <p>Focus on WHY something works. Abstract beyond specific implementations. Look for transferable principles.</p>
                         </div>
@@ -1229,7 +1206,7 @@
                     <h3 id="use-cases">Common Use Cases</h3>
 
                     <div class="callout tip">
-                        <strong>💼 Product Innovation</strong>
+                        <strong>Product Innovation</strong>
                         <ol>
                             <li>Search for the need your product addresses</li>
                             <li>Review adjacent domain solutions</li>
@@ -1240,7 +1217,7 @@
                     </div>
 
                     <div class="callout">
-                        <strong>📊 Market Research</strong>
+                        <strong>Market Research</strong>
                         <ol>
                             <li>Explore multiple related needs</li>
                             <li>Perform deep dives on predictions</li>
@@ -1253,7 +1230,7 @@
 
                 <!-- Troubleshooting -->
                 <section id="troubleshooting">
-                    <h2>❓ Troubleshooting</h2>
+                    <h2>Troubleshooting</h2>
 
                     <h4>Search returns no results</h4>
                     <ul>
@@ -1279,7 +1256,7 @@
                     </ul>
 
                     <div class="callout warning">
-                        <strong>⚠️ Data Storage</strong>
+                        <strong>Data Storage Warning</strong>
                         Your data is stored locally in your browser. Export important work regularly and avoid clearing browser storage if you want to preserve your research.
                     </div>
                 </section>
