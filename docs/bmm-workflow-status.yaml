@@ -15,10 +15,98 @@
 #   - {file-path}: File created/found (e.g., "docs/product-brief.md")
 #   - skipped: Optional/conditional workflow that was skipped
 
-generated: "PLACEHOLDER"
+generated: "2025-12-10"
 project: "ITROPA"
-project_type: "PLACEHOLDER"
-selected_track: "PLACEHOLDER"
-field_type: "PLACEHOLDER"
-workflow_path: "PLACEHOLDER"
-workflow_status: "PLACEHOLDER"
+project_type: "application"
+selected_track: "method"
+field_type: "brownfield"
+workflow_path: ".bmad/bmm/workflows/workflow-status/paths/method-brownfield.yaml"
+workflow_status:
+  # Phase: Documentation (Prerequisite)
+  - id: "document-project"
+    name: "Document Project"
+    phase: "prerequisite"
+    status: "docs/index.md"
+    agent: "analyst"
+    command: "/bmad:bmm:workflows:document-project"
+    output: "Comprehensive project documentation"
+    purpose: "Understand existing codebase before planning"
+    note: "Completed: 8 documentation files generated (deep scan)"
+    completed_date: "2025-12-10"
+
+  # Phase 0: Discovery (Optional)
+  - id: "brainstorm-project"
+    name: "Brainstorming Session"
+    phase: 0
+    status: "optional"
+    agent: "analyst"
+    command: "/bmad:bmm:workflows:brainstorming-session"
+    note: "Selected by user during init"
+
+  # Phase 1: Planning
+  - id: "prd"
+    name: "Product Requirements Document"
+    phase: 1
+    status: "required"
+    agent: "pm"
+    command: "/bmad:bmm:workflows:create-prd"
+    output: "PRD focused on new features/changes"
+    note: "Must consider existing system constraints"
+
+  - id: "create-ux-design"
+    name: "UX Design"
+    phase: 1
+    status: "conditional"
+    condition: "if_has_ui"
+    agent: "ux-designer"
+    command: "/bmad:bmm:workflows:create-ux-design"
+
+  # Phase 2: Solutioning
+  - id: "create-architecture"
+    name: "Architecture"
+    phase: 2
+    status: "recommended"
+    agent: "architect"
+    command: "/bmad:bmm:workflows:create-architecture"
+    output: "Integration architecture - solution design for THIS project"
+    note: "HIGHLY RECOMMENDED: Distills massive brownfield context into focused solution design"
+
+  - id: "create-epics-and-stories"
+    name: "Epics & Stories"
+    phase: 2
+    status: "required"
+    agent: "pm"
+    command: "/bmad:bmm:workflows:create-epics-stories"
+    note: "Break down PRD into implementable epics and stories"
+
+  - id: "test-design"
+    name: "Test Design"
+    phase: 2
+    status: "recommended"
+    agent: "tea"
+    command: "/bmad:bmm:workflows:testarch-test-design"
+    output: "System-level testability review"
+
+  - id: "validate-architecture"
+    name: "Validate Architecture"
+    phase: 2
+    status: "optional"
+    agent: "architect"
+    command: "/bmad:bmm:workflows:validate-architecture"
+
+  - id: "implementation-readiness"
+    name: "Implementation Readiness Check"
+    phase: 2
+    status: "required"
+    agent: "architect"
+    command: "/bmad:bmm:workflows:check-implementation-readiness"
+    note: "Validates PRD + Architecture + Epics + UX (optional)"
+
+  # Phase 3: Implementation
+  - id: "sprint-planning"
+    name: "Sprint Planning"
+    phase: 3
+    status: "required"
+    agent: "sm"
+    command: "/bmad:bmm:workflows:sprint-planning"
+    note: "Creates sprint plan with stories"
