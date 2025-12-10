@@ -1,10 +1,11 @@
 import { motion, AnimatePresence } from "framer-motion";
 import { History, Undo2, Redo2, Trash2 } from "lucide-react";
 import type { HistoryState } from "../types";
+import type { Theme } from "../config/theme";
 
 interface HistoryPanelProps {
   history: HistoryState;
-  theme: any;
+  theme: Theme;
   onUndo: () => void;
   onRedo: () => void;
   onClear: () => void;

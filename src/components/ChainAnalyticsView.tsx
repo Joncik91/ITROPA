@@ -14,12 +14,13 @@ import {
   AlertCircle
 } from "lucide-react";
 import type { Need, IndustryExpression, ChainAnalysis } from "../types";
+import type { Theme } from "../config/theme";
 import { DBService } from "../services/db.service";
 import { getGeminiService } from "../services/gemini.service";
 
 interface ChainAnalyticsViewProps {
   need: Need;
-  theme: any;
+  theme: Theme;
 }
 
 export const ChainAnalyticsView = ({ need, theme }: ChainAnalyticsViewProps) => {
@@ -98,8 +99,8 @@ export const ChainAnalyticsView = ({ need, theme }: ChainAnalyticsViewProps) => 
 
   const getFrameworkIcon = (type: string) => {
     switch (type) {
-      case 'lineage-tracing': return <GitBranch className="w-5 h-5 text-blue-400" />;
-      case 'influence-mapping': return <Users className="w-5 h-5 text-purple-400" />;
+      case 'lineage-tracing': return <GitBranch className="w-5 h-5 text-gray-400" />;
+      case 'influence-mapping': return <Users className="w-5 h-5 text-gray-400" />;
       case 'divergence-patterns': return <Binary className="w-5 h-5 text-emerald-400" />;
       case 'innovation-velocity': return <Zap className="w-5 h-5 text-amber-400" />;
       case 'coherence-assessment': return <Link2 className="w-5 h-5 text-rose-400" />;
@@ -116,7 +117,7 @@ export const ChainAnalyticsView = ({ need, theme }: ChainAnalyticsViewProps) => 
   const getComplexityColor = (complexity: string) => {
     switch (complexity) {
       case 'simple': return "bg-emerald-500/20 text-emerald-300 border-emerald-500/30";
-      case 'moderate': return "bg-blue-500/20 text-blue-300 border-blue-500/30";
+      case 'moderate': return "bg-gray-500/20 text-gray-300 border-gray-500/30";
       case 'complex': return "bg-amber-500/20 text-amber-300 border-amber-500/30";
       case 'highly-complex': return "bg-rose-500/20 text-rose-300 border-rose-500/30";
       default: return "bg-gray-500/20 text-gray-300 border-gray-500/30";
@@ -186,7 +187,7 @@ export const ChainAnalyticsView = ({ need, theme }: ChainAnalyticsViewProps) => 
                     <p className={`text-xs ${theme.muted} truncate`}>{expr.mutation}</p>
                   </div>
                   {isAnalyzed && (
-                    <span className="px-2 py-1 rounded text-xs bg-indigo-500/20 text-indigo-300 border border-indigo-500/30 flex-shrink-0">
+                    <span className="px-2 py-1 rounded text-xs bg-gray-500/20 text-gray-300 border border-gray-500/30 flex-shrink-0">
                       {exprAnalyses.length} frameworks
                     </span>
                   )}
@@ -197,7 +198,7 @@ export const ChainAnalyticsView = ({ need, theme }: ChainAnalyticsViewProps) => 
                   ) : isAnalyzed ? (
                     isExpanded ? <ChevronUp className="w-4 h-4" /> : <ChevronDown className="w-4 h-4" />
                   ) : (
-                    <span className="text-xs px-2 py-1 rounded bg-blue-500/20 text-blue-300">Analyze</span>
+                    <span className="text-xs px-2 py-1 rounded bg-gray-500/20 text-gray-300">Analyze</span>
                   )}
                 </div>
               </button>
@@ -224,7 +225,7 @@ export const ChainAnalyticsView = ({ need, theme }: ChainAnalyticsViewProps) => 
                             </div>
                             <div className="w-full bg-gray-700/50 rounded-full h-2">
                               <div 
-                                className="h-2 rounded-full bg-gradient-to-r from-purple-500 to-pink-500 transition-all"
+                                className="h-2 rounded-full bg-gradient-to-r from-gray-600 to-pink-500 transition-all"
                                 style={{ width: `${exprAnalyses[0].innovationPotential}%` }}
                               />
                             </div>
@@ -246,7 +247,7 @@ export const ChainAnalyticsView = ({ need, theme }: ChainAnalyticsViewProps) => 
                             <span className={`px-2 py-1 rounded text-xs border ${
                               exprAnalyses[0].strategicValue === 'critical' ? 'bg-rose-500/20 text-rose-300 border-rose-500/30' :
                               exprAnalyses[0].strategicValue === 'high' ? 'bg-amber-500/20 text-amber-300 border-amber-500/30' :
-                              exprAnalyses[0].strategicValue === 'medium' ? 'bg-blue-500/20 text-blue-300 border-blue-500/30' :
+                              exprAnalyses[0].strategicValue === 'medium' ? 'bg-gray-500/20 text-gray-300 border-gray-500/30' :
                               'bg-gray-500/20 text-gray-300 border-gray-500/30'
                             }`}>
                               {exprAnalyses[0].strategicValue}
@@ -295,7 +296,7 @@ export const ChainAnalyticsView = ({ need, theme }: ChainAnalyticsViewProps) => 
                                   <div className="space-y-1">
                                     {analysis.branchingPoints.map((bp: any, i: number) => (
                                       <div key={i} className={`text-xs p-2 rounded ${theme.sectionBg}`}>
-                                        <span className="font-medium text-blue-300">{bp.node}</span>
+                                        <span className="font-medium text-gray-300">{bp.node}</span>
                                         <span className={theme.muted}> → {bp.branchCount} branches at gen {bp.generation}</span>
                                       </div>
                                     ))}
@@ -322,8 +323,8 @@ export const ChainAnalyticsView = ({ need, theme }: ChainAnalyticsViewProps) => 
                                     {analysis.centralNodes.map((node: any, i: number) => (
                                       <div key={i} className={`text-xs p-2 rounded ${theme.sectionBg}`}>
                                         <div className="flex justify-between items-start mb-1">
-                                          <span className="font-medium text-purple-300">{node.node}</span>
-                                          <span className="text-xs px-1.5 py-0.5 rounded bg-purple-500/20 text-purple-300">{node.role}</span>
+                                          <span className="font-medium text-gray-300">{node.node}</span>
+                                          <span className="text-xs px-1.5 py-0.5 rounded bg-gray-600/20 text-gray-300">{node.role}</span>
                                         </div>
                                         <span className={theme.muted}>Score: {node.centralityScore} • Radius: {node.influenceRadius}</span>
                                       </div>
@@ -449,13 +450,13 @@ export const ChainAnalyticsView = ({ need, theme }: ChainAnalyticsViewProps) => 
                           {analysis.recommendedActions && analysis.recommendedActions.length > 0 && (
                             <div className="mt-3 pt-3 border-t border-gray-700/30">
                               <p className="text-xs font-medium mb-2 flex items-center gap-1.5">
-                                <TrendingUp className="w-3.5 h-3.5 text-indigo-400" />
+                                <TrendingUp className="w-3.5 h-3.5 text-gray-400" />
                                 Recommended Actions:
                               </p>
                               <ul className="space-y-1">
                                 {analysis.recommendedActions.map((action: string, i: number) => (
-                                  <li key={i} className="text-xs text-indigo-300 flex gap-2">
-                                    <span className="text-indigo-500">→</span>
+                                  <li key={i} className="text-xs text-gray-300 flex gap-2">
+                                    <span className="text-gray-500">→</span>
                                     <span>{action}</span>
                                   </li>
                                 ))}

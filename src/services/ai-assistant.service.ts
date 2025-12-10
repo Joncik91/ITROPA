@@ -1,37 +1,10 @@
-import type { 
+import type {
   AIAssistantResponse
 } from "../types";
 import { DBService } from "./db.service";
 import { apiClient } from "./api-client.service";
 
 class AIAssistantService {
-  constructor() {
-    // No longer needs API key - using backend API
-  }
-
-  private extractJSON(text: string): any {
-    let jsonStr = text.replace(/```json\s*/g, "").replace(/```\s*/g, "").trim();
-    
-    const firstBrace = jsonStr.search(/[\[{]/);
-    const lastBrace = Math.max(jsonStr.lastIndexOf('}'), jsonStr.lastIndexOf(']'));
-    
-    if (firstBrace !== -1 && lastBrace !== -1) {
-      jsonStr = jsonStr.slice(firstBrace, lastBrace + 1);
-    }
-    
-    try {
-      return JSON.parse(jsonStr);
-    } catch (e: any) {
-      jsonStr = jsonStr.replace(/,(\s*[}\]])/g, '$1');
-      try {
-        return JSON.parse(jsonStr);
-      } catch (e2) {
-        console.error("Failed to parse JSON:", jsonStr.substring(0, 500));
-        throw new Error(`JSON Parse Error: ${e.message}`);
-      }
-    }
-  }
-
   // Context builders
   private async buildNeedContext(needId: string) {
     const need = await DBService.getNeed(needId);
@@ -69,7 +42,9 @@ class AIAssistantService {
   }
 
   private async buildDeepDiveContext(deepDiveId: string) {
-    const deepDive = await DBService.getDeepDive(deepDiveId);
+    // Find deep dive by ID across all needs
+    const allDeepDives = await DBService.getAllDeepDives();
+    const deepDive = allDeepDives.find(dd => dd.id === deepDiveId);
     if (!deepDive) throw new Error("Deep dive not found");
 
     const need = await DBService.getNeed(deepDive.needId);

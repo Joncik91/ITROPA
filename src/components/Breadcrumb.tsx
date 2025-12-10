@@ -1,8 +1,9 @@
 import { ChevronRight, Home } from "lucide-react";
+import type { Theme } from "../config/theme";
 
 interface BreadcrumbProps {
   path: string[];
-  theme: any;
+  theme: Theme;
   onNavigate?: (index: number) => void;
 }
 
@@ -18,14 +19,14 @@ export const Breadcrumb = ({ path, theme, onNavigate }: BreadcrumbProps) => {
           {onNavigate ? (
             <button
               onClick={() => onNavigate(index)}
-              className={`hover:text-indigo-400 transition-colors ${
-                index === path.length - 1 ? "text-indigo-300 font-medium" : ""
+              className={`hover:text-gray-400 transition-colors ${
+                index === path.length - 1 ? "text-gray-300 font-medium" : ""
               }`}
             >
               {item}
             </button>
           ) : (
-            <span className={index === path.length - 1 ? "text-indigo-300 font-medium" : ""}>
+            <span className={index === path.length - 1 ? "text-gray-300 font-medium" : ""}>
               {item}
             </span>
           )}

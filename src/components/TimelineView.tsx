@@ -1,9 +1,10 @@
 import { motion } from "framer-motion";
 import type { Need, IndustryExpression } from "../types";
+import type { Theme } from "../config/theme";
 
 interface TimelineViewProps {
   need: Need;
-  theme: any;
+  theme: Theme;
   dark: boolean;
 }
 
@@ -11,7 +12,7 @@ export const TimelineView = ({ need, theme, dark }: TimelineViewProps) => {
   return (
     <div className="relative">
       {/* Timeline Line */}
-      <div className={`absolute left-8 top-0 bottom-0 w-0.5 ${dark ? "bg-gradient-to-b from-slate-700 via-indigo-500/50 to-indigo-500" : "bg-gradient-to-b from-slate-300 via-indigo-400 to-indigo-600"}`} />
+      <div className={`absolute left-8 top-0 bottom-0 w-0.5 ${dark ? "bg-gradient-to-b from-gray-700 via-gray-500/50 to-gray-500" : "bg-gradient-to-b from-gray-300 via-gray-400 to-gray-600"}`} />
       
       {/* Eras */}
       <div className="space-y-8">
@@ -31,17 +32,17 @@ export const TimelineView = ({ need, theme, dark }: TimelineViewProps) => {
               <div className="absolute left-0 top-0 flex items-center gap-3">
                 <div className={`w-16 h-16 rounded-full border-4 flex items-center justify-center ${
                   isFuture 
-                    ? "bg-indigo-500/20 border-indigo-500" 
-                    : dark ? "bg-slate-800 border-slate-700" : "bg-slate-100 border-slate-300"
+                    ? "bg-gray-500/20 border-gray-500" 
+                    : dark ? "bg-gray-800 border-gray-700" : "bg-gray-100 border-gray-300"
                 }`}>
-                  <span className={`text-xs font-bold ${isFuture ? "text-indigo-300" : theme.muted}`}>
+                  <span className={`text-xs font-bold ${isFuture ? "text-gray-300" : theme.muted}`}>
                     {index + 1}
                   </span>
                 </div>
               </div>
 
               {/* Era Content */}
-              <div className={`p-4 rounded-xl ${isFuture ? (dark ? "bg-indigo-500/10 border border-indigo-500/30" : "bg-indigo-50 border border-indigo-200") : theme.itemBg}`}>
+              <div className={`p-4 rounded-xl ${isFuture ? (dark ? "bg-gray-500/10 border border-gray-500/30" : "bg-gray-50 border border-gray-200") : theme.itemBg}`}>
                 <h3 className={`text-sm font-bold mb-3 ${isFuture ? theme.accent : theme.muted}`}>
                   {era.name}
                 </h3>
@@ -55,10 +56,10 @@ export const TimelineView = ({ need, theme, dark }: TimelineViewProps) => {
                         initial={{ opacity: 0, y: 10 }}
                         animate={{ opacity: 1, y: 0 }}
                         transition={{ delay: (index * 0.1) + (i * 0.05) }}
-                        className={`p-3 rounded-lg ${dark ? "bg-slate-800/50" : "bg-white"} border ${theme.border}`}
+                        className={`p-3 rounded-lg ${dark ? "bg-gray-800/50" : "bg-white"} border ${theme.border}`}
                       >
                         <div className="flex items-start gap-2">
-                          <div className={`mt-0.5 w-2 h-2 rounded-full ${theme.accent} bg-indigo-500`} />
+                          <div className={`mt-0.5 w-2 h-2 rounded-full ${theme.accent} bg-gray-500`} />
                           <div className="flex-1">
                             <p className="font-medium text-sm">{expr.name}</p>
                             <p className={`text-xs ${theme.muted} mt-1`}>
@@ -113,7 +114,7 @@ export const TimelineView = ({ need, theme, dark }: TimelineViewProps) => {
                         initial={{ opacity: 0, scale: 0.9 }}
                         animate={{ opacity: 1, scale: 1 }}
                         transition={{ delay: (index * 0.1) + (i * 0.02) }}
-                        className={`text-xs px-3 py-1.5 rounded-lg ${dark ? "bg-slate-700/50" : "bg-slate-200"}`}
+                        className={`text-xs px-3 py-1.5 rounded-lg ${dark ? "bg-gray-700/50" : "bg-gray-200"}`}
                       >
                         {expr}
                       </motion.span>

@@ -2,10 +2,11 @@ import { useState } from 'react';
 import { motion } from 'framer-motion';
 import { Lock, Loader2 } from 'lucide-react';
 import toast from 'react-hot-toast';
+import type { Theme } from '../config/theme';
 
 interface PasswordPromptProps {
   onAuthenticated: () => void;
-  theme: any;
+  theme: Theme;
   dark: boolean;
 }
 
@@ -79,14 +80,14 @@ export const PasswordPrompt = ({ onAuthenticated, theme, dark }: PasswordPromptP
               onChange={(e) => setPassword(e.target.value)}
               placeholder="Enter password"
               disabled={loading}
-              className={`w-full px-4 py-3 rounded-lg border focus:outline-none focus:ring-2 focus:ring-indigo-500 transition-all ${theme.inputBg} ${theme.text}`}
+              className={`w-full px-4 py-3 rounded-lg border focus:outline-none focus:ring-2 focus:ring-gray-500 transition-all ${theme.inputBg} ${theme.text}`}
               autoFocus
             />
             
             <button
               type="submit"
               disabled={loading}
-              className="w-full py-3 px-4 rounded-lg font-medium flex items-center justify-center gap-2 bg-indigo-600 hover:bg-indigo-700 text-white transition-all disabled:opacity-50"
+              className="w-full py-3 px-4 rounded-lg font-medium flex items-center justify-center gap-2 bg-gray-600 hover:bg-gray-700 text-white transition-all disabled:opacity-50"
             >
               {loading ? (
                 <>

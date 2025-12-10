@@ -19,3 +19,10 @@ dist-ssr
 # Logs
 *.log
 npm-debug.log*
+
+# Bmad
+.bmad 
+
+# Claude
+.claude
+claude.md

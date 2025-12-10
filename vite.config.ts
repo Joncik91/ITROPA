@@ -1,6 +1,6 @@
 import { defineConfig } from 'vite'
 import react from '@vitejs/plugin-react'
-import { copyFileSync, mkdirSync } from 'fs'
+import { copyFileSync, mkdirSync, existsSync } from 'fs'
 import { resolve } from 'path'
 
 export default defineConfig({
@@ -9,12 +9,13 @@ export default defineConfig({
     {
       name: 'copy-docs',
       closeBundle() {
-        const docsDir = resolve(__dirname, 'dist/docs')
-        mkdirSync(docsDir, { recursive: true })
-        copyFileSync(
-          resolve(__dirname, 'docs/index.html'),
-          resolve(docsDir, 'index.html')
-        )
+        const docsSource = resolve(__dirname, 'docs/index.html')
+        // Only copy if source file exists
+        if (existsSync(docsSource)) {
+          const docsDir = resolve(__dirname, 'dist/docs')
+          mkdirSync(docsDir, { recursive: true })
+          copyFileSync(docsSource, resolve(docsDir, 'index.html'))
+        }
       }
     }
   ],

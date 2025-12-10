@@ -2,9 +2,10 @@ import { useState, useEffect } from "react";
 import { motion } from "framer-motion";
 import { Search, Database, Clock, Layers, TrendingUp, Shuffle, Sparkles, Calendar, X, Trash2 } from "lucide-react";
 import { DBService, type DBNeed, type DBMechanism, type DBDeepDive } from "../services/db.service";
+import type { Theme } from "../config/theme";
 
 interface LibraryViewProps {
-  theme: any;
+  theme: Theme;
   dark: boolean;
   onLoadNeed: (need: DBNeed) => void;
 }
@@ -238,7 +239,7 @@ export const LibraryView = ({ theme, onLoadNeed }: LibraryViewProps) => {
           value={searchQuery}
           onChange={(e) => setSearchQuery(e.target.value)}
           placeholder="Search needs, expressions, mechanisms, analyses..."
-          className={`w-full pl-10 pr-10 py-3 rounded-xl ${theme.inputBg} border focus:outline-none focus:border-indigo-500 text-sm transition-colors`}
+          className={`w-full pl-10 pr-10 py-3 rounded-xl ${theme.inputBg} border focus:outline-none focus:border-gray-500 text-sm transition-colors`}
         />
         {searchQuery && (
           <button
@@ -366,7 +367,7 @@ export const LibraryView = ({ theme, onLoadNeed }: LibraryViewProps) => {
       {/* Recent Activity */}
       {!hasSearchResults && (
         <>
-          <div className="flex items-center gap-2 border-b border-slate-700 pb-3">
+          <div className="flex items-center gap-2 border-b border-gray-700 pb-3">
             <Clock className={`w-4 h-4 ${theme.muted}`} />
             <h3 className="font-medium">Recent Activity</h3>
             <div className="flex-1" />
@@ -376,7 +377,7 @@ export const LibraryView = ({ theme, onLoadNeed }: LibraryViewProps) => {
                   key={filter}
                   onClick={() => setActiveFilter(filter as any)}
                   className={`text-xs px-2 py-1 rounded ${
-                    activeFilter === filter ? "bg-indigo-500/20 text-indigo-300" : theme.muted
+                    activeFilter === filter ? "bg-gray-500/20 text-gray-300" : theme.muted
                   }`}
                 >
                   {filter === "all" ? "All" : filter.charAt(0).toUpperCase() + filter.slice(1)}
@@ -463,7 +464,7 @@ export const LibraryView = ({ theme, onLoadNeed }: LibraryViewProps) => {
             <div className="flex gap-3">
               <button
                 onClick={() => setConfirmDelete(null)}
-                className={`flex-1 px-4 py-2 rounded-lg border ${theme.border} ${theme.muted} hover:bg-slate-700/50`}
+                className={`flex-1 px-4 py-2 rounded-lg border ${theme.border} ${theme.muted} hover:bg-gray-700/50`}
               >
                 Cancel
               </button>

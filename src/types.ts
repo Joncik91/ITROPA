@@ -559,3 +559,24 @@ export interface ChainAnalysis {
   recommendedActions?: string[];
 }
 
+// Re-export manager interfaces for convenience
+export type {
+  NeedState,
+  SelectionState,
+  LoadingState,
+  UIState,
+  AIState,
+  NeedOperations,
+  ExpressionOperations,
+  AnalysisOperations,
+  CrossPollinateOperations,
+  HistoryOperations,
+  AIOperations,
+  StateSetters,
+  ModalOperations,
+  HomePageManager,
+  NeedDisplayManager,
+  BranchManager,
+  ModalManager,
+} from './types/manager-interfaces';
+

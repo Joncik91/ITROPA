@@ -2,11 +2,12 @@ import { useState } from "react";
 import { Sparkles, Loader2, CheckCircle2, PlayCircle, AlertCircle } from "lucide-react";
 import toast from 'react-hot-toast';
 import type { AIActionSuggestion } from "../types";
+import type { Theme } from "../config/theme";
 
 interface AIAssistantProps {
   suggestions: AIActionSuggestion[];
   reasoning: string;
-  theme: any;
+  theme: Theme;
   onExecuteAction: (suggestion: AIActionSuggestion) => Promise<void>;
 }
 
@@ -89,8 +90,8 @@ export const AIAssistant = ({ suggestions, reasoning, theme, onExecuteAction }: 
               disabled={executingAll}
               className={`flex items-center gap-1.5 px-3 py-1.5 rounded text-xs font-medium transition-colors ${
                 executingAll
-                  ? "bg-indigo-500/50 text-white cursor-not-allowed"
-                  : "bg-indigo-500 text-white hover:bg-indigo-600"
+                  ? "bg-gray-500/50 text-white cursor-not-allowed"
+                  : "bg-gray-500 text-white hover:bg-gray-600"
               }`}
             >
               {executingAll ? (
@@ -134,7 +135,7 @@ export const AIAssistant = ({ suggestions, reasoning, theme, onExecuteAction }: 
                 </button>
                 <button
                   onClick={handleExecuteAll}
-                  className="px-4 py-2 rounded text-sm font-medium bg-indigo-500 text-white hover:bg-indigo-600 transition-colors"
+                  className="px-4 py-2 rounded text-sm font-medium bg-gray-500 text-white hover:bg-gray-600 transition-colors"
                 >
                   Execute All
                 </button>
@@ -167,7 +168,7 @@ export const AIAssistant = ({ suggestions, reasoning, theme, onExecuteAction }: 
                   className={`px-3 py-1.5 rounded text-xs font-medium transition-colors ${
                     executed.has(suggestion.id)
                       ? "bg-gray-500 text-gray-300 cursor-not-allowed"
-                      : "bg-indigo-500 text-white hover:bg-indigo-600"
+                      : "bg-gray-500 text-white hover:bg-gray-600"
                   } disabled:opacity-50 flex items-center gap-1`}
                 >
                   {executing === suggestion.id ? (
@@ -193,7 +194,7 @@ export const AIAssistant = ({ suggestions, reasoning, theme, onExecuteAction }: 
 interface AIAssistButtonProps {
   onClick: () => void;
   loading: boolean;
-  theme: any;
+  theme: Theme;
   label?: string;
 }
 
@@ -202,9 +203,9 @@ export const AIAssistButton = ({ onClick, loading, theme, label = "AI Assist" }:
     onClick={onClick}
     disabled={loading}
     className={`flex items-center gap-2 px-3 py-1.5 rounded-lg text-sm font-medium transition-colors ${
-      theme.accent === "text-indigo-400"
-        ? "bg-indigo-500/20 text-indigo-300 hover:bg-indigo-500/30 border border-indigo-500/50"
-        : "bg-indigo-100 text-indigo-700 hover:bg-indigo-200 border border-indigo-300"
+      theme.accent === "text-gray-400"
+        ? "bg-gray-500/20 text-gray-300 hover:bg-gray-500/30 border border-gray-500/50"
+        : "bg-gray-100 text-gray-700 hover:bg-gray-200 border border-gray-300"
     } disabled:opacity-50`}
   >
     {loading ? (

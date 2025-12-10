@@ -15,11 +15,12 @@ import {
 } from "lucide-react";
 import { DBService } from "../services/db.service";
 import type { PriorArt, PriorArtAnalysis } from "../types";
+import type { Theme } from "../config/theme";
 
 interface PriorArtDisplayProps {
   needName: string;
   priorArt: PriorArt;
-  theme: any;
+  theme: Theme;
 }
 
 export const PriorArtDisplay = ({ needName, priorArt, theme }: PriorArtDisplayProps) => {
@@ -107,7 +108,7 @@ export const PriorArtDisplay = ({ needName, priorArt, theme }: PriorArtDisplayPr
               <div key={i} className={`mb-2 p-2 rounded ${theme.itemBg}`}>
                 <p className="font-medium">{a.name} <span className={theme.muted}>({a.originalDomain})</span></p>
                 <p className={theme.muted}>Mechanism: {a.mechanism}</p>
-                <p className="text-indigo-400/80">Transfer: {a.transferPotential}</p>
+                <p className="text-gray-400/80">Transfer: {a.transferPotential}</p>
               </div>
             ))}
           </div>
@@ -117,7 +118,7 @@ export const PriorArtDisplay = ({ needName, priorArt, theme }: PriorArtDisplayPr
               <div key={i} className={`mb-2 p-2 rounded ${theme.itemBg}`}>
                 <p className="font-medium">{n.name}</p>
                 <p className={theme.muted}>Mechanism: {n.mechanism}</p>
-                <p className="text-cyan-400/80">Biomimicry: {n.biomimicryPotential}</p>
+                <p className="text-gray-400/80">Biomimicry: {n.biomimicryPotential}</p>
               </div>
             ))}
           </div>
@@ -187,8 +188,8 @@ export const PriorArtDisplay = ({ needName, priorArt, theme }: PriorArtDisplayPr
             <div className="w-full bg-gray-700/50 rounded-full h-2">
               <div 
                 className={`h-2 rounded-full transition-all ${
-                  avgMetrics.marketMaturity >= 70 ? 'bg-indigo-500' : 
-                  avgMetrics.marketMaturity >= 40 ? 'bg-blue-500' : 'bg-cyan-500'
+                  avgMetrics.marketMaturity >= 70 ? 'bg-gray-500' : 
+                  avgMetrics.marketMaturity >= 40 ? 'bg-gray-500' : 'bg-gray-500'
                 }`}
                 style={{ width: `${avgMetrics.marketMaturity}%` }}
               />
@@ -204,7 +205,7 @@ export const PriorArtDisplay = ({ needName, priorArt, theme }: PriorArtDisplayPr
             </div>
             <div className="w-full bg-gray-700/50 rounded-full h-2">
               <div 
-                className="h-2 rounded-full bg-gradient-to-r from-purple-500 to-pink-500 transition-all"
+                className="h-2 rounded-full bg-gradient-to-r from-gray-600 to-pink-500 transition-all"
                 style={{ width: `${avgMetrics.innovationOpportunity}%` }}
               />
             </div>
@@ -219,7 +220,7 @@ export const PriorArtDisplay = ({ needName, priorArt, theme }: PriorArtDisplayPr
             </div>
             <div className="w-full bg-gray-700/50 rounded-full h-2">
               <div 
-                className="h-2 rounded-full bg-gradient-to-r from-emerald-500 to-teal-500 transition-all"
+                className="h-2 rounded-full bg-gradient-to-r from-emerald-500 to-gray-600 transition-all"
                 style={{ width: `${avgMetrics.whiteSpaceScore}%` }}
               />
             </div>
@@ -255,9 +256,9 @@ export const PriorArtDisplay = ({ needName, priorArt, theme }: PriorArtDisplayPr
           >
             {/* Framework Header */}
             <div className="flex items-start gap-3 mb-3">
-              {analysis.analysisType === 'competitive-landscape' && <Users className="w-5 h-5 text-blue-400 flex-shrink-0 mt-0.5" />}
+              {analysis.analysisType === 'competitive-landscape' && <Users className="w-5 h-5 text-gray-400 flex-shrink-0 mt-0.5" />}
               {analysis.analysisType === 'gap-analysis' && <Target className="w-5 h-5 text-emerald-400 flex-shrink-0 mt-0.5" />}
-              {analysis.analysisType === 'evolution-pattern' && <TrendingUp className="w-5 h-5 text-purple-400 flex-shrink-0 mt-0.5" />}
+              {analysis.analysisType === 'evolution-pattern' && <TrendingUp className="w-5 h-5 text-gray-400 flex-shrink-0 mt-0.5" />}
               {analysis.analysisType === 'innovation-potential' && <Lightbulb className="w-5 h-5 text-amber-400 flex-shrink-0 mt-0.5" />}
               {analysis.analysisType === 'strategic-positioning' && <Map className="w-5 h-5 text-rose-400 flex-shrink-0 mt-0.5" />}
               
@@ -297,7 +298,7 @@ export const PriorArtDisplay = ({ needName, priorArt, theme }: PriorArtDisplayPr
                     <div className="space-y-2">
                       {analysis.leaderProfiles.map((leader: any, i: number) => (
                         <div key={i} className={`p-2 rounded ${theme.sectionBg} text-xs`}>
-                          <p className="font-medium text-blue-300">{leader.company}</p>
+                          <p className="font-medium text-gray-300">{leader.company}</p>
                           <p className={theme.muted}>Strength: {leader.coreStrength}</p>
                           {leader.vulnerability && (
                             <p className="text-amber-300/80">Weakness: {leader.vulnerability}</p>
@@ -326,7 +327,7 @@ export const PriorArtDisplay = ({ needName, priorArt, theme }: PriorArtDisplayPr
                             <span className={`text-xs px-1.5 py-0.5 rounded ${
                               need.severity === 'critical' ? 'bg-rose-500/20 text-rose-300' :
                               need.severity === 'high' ? 'bg-amber-500/20 text-amber-300' :
-                              'bg-blue-500/20 text-blue-300'
+                              'bg-gray-500/20 text-gray-300'
                             }`}>{need.severity}</span>
                           </div>
                           <p className={theme.muted}>Affected: {need.affectedSegment}</p>
@@ -360,7 +361,7 @@ export const PriorArtDisplay = ({ needName, priorArt, theme }: PriorArtDisplayPr
                     <div className="space-y-2">
                       {analysis.evolutionTimeline.map((stage: any, i: number) => (
                         <div key={i} className={`p-2 rounded ${theme.sectionBg} text-xs flex gap-3`}>
-                          <span className="font-mono text-purple-300">{stage.period}</span>
+                          <span className="font-mono text-gray-300">{stage.period}</span>
                           <div className="flex-1">
                             <p className="font-medium">{stage.stage}</p>
                             <p className={theme.muted}>{stage.characteristics}</p>
@@ -373,7 +374,7 @@ export const PriorArtDisplay = ({ needName, priorArt, theme }: PriorArtDisplayPr
                 
                 {analysis.futureStages && analysis.futureStages.length > 0 && (
                   <div>
-                    <p className="text-xs font-medium mb-2 text-purple-300">Future Predictions</p>
+                    <p className="text-xs font-medium mb-2 text-gray-300">Future Predictions</p>
                     <div className="space-y-1.5">
                       {analysis.futureStages.map((stage: any, i: number) => (
                         <div key={i} className={`p-2 rounded ${theme.sectionBg} text-xs`}>
@@ -393,7 +394,7 @@ export const PriorArtDisplay = ({ needName, priorArt, theme }: PriorArtDisplayPr
                   <div className="grid grid-cols-1 md:grid-cols-3 gap-3">
                     {analysis.innovationOpportunities.incremental && analysis.innovationOpportunities.incremental.length > 0 && (
                       <div>
-                        <p className="text-xs font-medium mb-2 text-blue-300">Incremental</p>
+                        <p className="text-xs font-medium mb-2 text-gray-300">Incremental</p>
                         <div className="space-y-1.5">
                           {analysis.innovationOpportunities.incremental.map((opp: any, i: number) => (
                             <div key={i} className={`p-2 rounded ${theme.sectionBg} text-xs`}>
@@ -421,7 +422,7 @@ export const PriorArtDisplay = ({ needName, priorArt, theme }: PriorArtDisplayPr
                     
                     {analysis.innovationOpportunities.breakthrough && analysis.innovationOpportunities.breakthrough.length > 0 && (
                       <div>
-                        <p className="text-xs font-medium mb-2 text-purple-300">Breakthrough</p>
+                        <p className="text-xs font-medium mb-2 text-gray-300">Breakthrough</p>
                         <div className="space-y-1.5">
                           {analysis.innovationOpportunities.breakthrough.map((opp: any, i: number) => (
                             <div key={i} className={`p-2 rounded ${theme.sectionBg} text-xs`}>
@@ -461,7 +462,7 @@ export const PriorArtDisplay = ({ needName, priorArt, theme }: PriorArtDisplayPr
                     <p className="text-xs font-medium mb-2">Differentiation Pillars</p>
                     <div className="flex flex-wrap gap-2">
                       {analysis.differentiationPillars.map((pillar: string, i: number) => (
-                        <span key={i} className="px-2 py-1 rounded bg-indigo-500/20 text-indigo-300 text-xs">
+                        <span key={i} className="px-2 py-1 rounded bg-gray-500/20 text-gray-300 text-xs">
                           {pillar}
                         </span>
                       ))}
@@ -534,7 +535,7 @@ export const PriorArtDisplay = ({ needName, priorArt, theme }: PriorArtDisplayPr
                     <div key={i} className={`mb-2 p-2 rounded ${theme.itemBg}`}>
                       <p className="font-medium">{a.name} <span className={theme.muted}>({a.originalDomain})</span></p>
                       <p className={theme.muted}>Mechanism: {a.mechanism}</p>
-                      <p className="text-indigo-400/80">Transfer: {a.transferPotential}</p>
+                      <p className="text-gray-400/80">Transfer: {a.transferPotential}</p>
                     </div>
                   ))}
                 </div>
@@ -544,7 +545,7 @@ export const PriorArtDisplay = ({ needName, priorArt, theme }: PriorArtDisplayPr
                     <div key={i} className={`mb-2 p-2 rounded ${theme.itemBg}`}>
                       <p className="font-medium">{n.name}</p>
                       <p className={theme.muted}>Mechanism: {n.mechanism}</p>
-                      <p className="text-cyan-400/80">Biomimicry: {n.biomimicryPotential}</p>
+                      <p className="text-gray-400/80">Biomimicry: {n.biomimicryPotential}</p>
                     </div>
                   ))}
                 </div>

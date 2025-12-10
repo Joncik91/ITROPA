@@ -1,6 +1,7 @@
 import { motion, AnimatePresence } from "framer-motion";
 import { X } from "lucide-react";
 import { ReactNode } from "react";
+import type { Theme } from "../config/theme";
 
 interface ModalWrapperProps {
   isOpen: boolean;
@@ -8,7 +9,7 @@ interface ModalWrapperProps {
   title: string;
   icon?: ReactNode;
   children: ReactNode;
-  theme: any;
+  theme: Theme;
   maxWidth?: string;
 }
 

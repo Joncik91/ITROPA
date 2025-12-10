@@ -1,9 +1,12 @@
 import { motion } from "framer-motion";
 import { Loader2, Layers, ArrowRight, TrendingUp, Network, Target, Shuffle, BarChart3 } from "lucide-react";
 import { usePatterns } from "../hooks/usePatterns";
+import { createRatingBadgeGetter } from "../utils/badge-styles";
+import { getFrameworkLabel } from "../config/analysis-frameworks";
+import type { Theme } from "../config/theme";
 
 interface PatternsViewProps {
-  theme: any;
+  theme: Theme;
   dark: boolean;
   onLoadNeed: (need: any) => void;
 }
@@ -17,23 +20,8 @@ export const PatternsView = ({ theme, dark, onLoadNeed }: PatternsViewProps) => 
     return dark ? 'text-orange-400' : 'text-orange-600';
   };
 
-  const getRatingBadge = (rating?: string) => {
-    const colors: Record<string, string> = {
-      high: dark ? 'bg-green-500/20 text-green-400 border-green-500/30' : 'bg-green-100 text-green-700 border-green-300',
-      medium: dark ? 'bg-yellow-500/20 text-yellow-400 border-yellow-500/30' : 'bg-yellow-100 text-yellow-700 border-yellow-300',
-      low: dark ? 'bg-gray-500/20 text-gray-400 border-gray-500/30' : 'bg-gray-100 text-gray-700 border-gray-300',
-      broad: dark ? 'bg-blue-500/20 text-blue-400 border-blue-500/30' : 'bg-blue-100 text-blue-700 border-blue-300',
-      moderate: dark ? 'bg-indigo-500/20 text-indigo-400 border-indigo-500/30' : 'bg-indigo-100 text-indigo-700 border-indigo-300',
-      narrow: dark ? 'bg-purple-500/20 text-purple-400 border-purple-500/30' : 'bg-purple-100 text-purple-700 border-purple-300',
-      stable: dark ? 'bg-cyan-500/20 text-cyan-400 border-cyan-500/30' : 'bg-cyan-100 text-cyan-700 border-cyan-300',
-      evolving: dark ? 'bg-teal-500/20 text-teal-400 border-teal-500/30' : 'bg-teal-100 text-teal-700 border-teal-300',
-      emerging: dark ? 'bg-pink-500/20 text-pink-400 border-pink-500/30' : 'bg-pink-100 text-pink-700 border-pink-300',
-      rapid: dark ? 'bg-red-500/20 text-red-400 border-red-500/30' : 'bg-red-100 text-red-700 border-red-300',
-      slow: dark ? 'bg-slate-500/20 text-slate-400 border-slate-500/30' : 'bg-slate-100 text-slate-700 border-slate-300'
-    };
-    const color = rating ? colors[rating] : colors.medium;
-    return `px-2 py-0.5 rounded-full text-xs border ${color}`;
-  };
+  // Use shared badge utility
+  const getRatingBadge = createRatingBadgeGetter(dark);
 
   const getFrameworkIcon = (type?: string) => {
     switch (type) {
@@ -46,16 +34,7 @@ export const PatternsView = ({ theme, dark, onLoadNeed }: PatternsViewProps) => 
     }
   };
 
-  const getFrameworkLabel = (type?: string) => {
-    const labels: Record<string, string> = {
-      'frequency-distribution': 'Frequency & Distribution',
-      'need-mapping': 'Need Mapping',
-      'evolution-trajectory': 'Evolution Trajectory',
-      'combination-synergies': 'Combination Synergies',
-      'transfer-potential': 'Transfer Potential'
-    };
-    return type ? labels[type] || type : 'Analysis';
-  };
+  // getFrameworkLabel is now imported from config/analysis-frameworks
 
   if (loading) {
     return (
@@ -96,7 +75,7 @@ export const PatternsView = ({ theme, dark, onLoadNeed }: PatternsViewProps) => 
             className={`rounded-xl ${theme.card} border ${theme.border} overflow-hidden`}
           >
             {/* Pattern Header */}
-            <div className={`p-4 ${dark ? "bg-indigo-500/5" : "bg-indigo-50/50"} border-b ${theme.border}`}>
+            <div className={`p-4 ${dark ? "bg-gray-500/5" : "bg-gray-50/50"} border-b ${theme.border}`}>
               <div className="flex items-start justify-between gap-4">
                 <div className="flex-1">
                   <div className="flex items-center gap-2 mb-2">
@@ -107,7 +86,7 @@ export const PatternsView = ({ theme, dark, onLoadNeed }: PatternsViewProps) => 
                     <p className={`text-sm ${theme.muted} mb-2`}>{patternGroup.analyses[0].abstractDescription}</p>
                   )}
                 </div>
-                <div className={`px-3 py-1 rounded-full ${dark ? "bg-indigo-500/20 text-indigo-300" : "bg-indigo-100 text-indigo-700"} text-xs font-medium`}>
+                <div className={`px-3 py-1 rounded-full ${dark ? "bg-gray-500/20 text-gray-300" : "bg-gray-100 text-gray-700"} text-xs font-medium`}>
                   {patternGroup.mechanisms.length} instances
                 </div>
               </div>
@@ -312,7 +291,7 @@ export const PatternsView = ({ theme, dark, onLoadNeed }: PatternsViewProps) => 
                       <div className="space-y-2">
                         <p className={`text-xs font-medium ${theme.muted}`}>Transfer Opportunities:</p>
                         {analysis.transferTargets.slice(0, 2).map((target: any, i: number) => (
-                          <div key={i} className={`p-2 rounded ${dark ? 'bg-purple-500/10 border-purple-500/30' : 'bg-purple-50 border-purple-200'} border`}>
+                          <div key={i} className={`p-2 rounded ${dark ? 'bg-gray-600/10 border-gray-600/30' : 'bg-gray-100 border-gray-300'} border`}>
                             <div className="flex items-center justify-between mb-1">
                               <span className="font-medium text-xs">{target.targetNeed} → {target.targetIndustry}</span>
                               <span className={getRatingBadge(target.expectedImpact)}>{target.expectedImpact} impact</span>

@@ -93,29 +93,28 @@ export default function App() {
   return (
     <div className={`min-h-screen ${theme.bg} ${theme.text} transition-colors duration-200`}>
       <div className="flex flex-col h-screen">
-        <header className="flex items-center justify-between px-6 py-4 border-b border-slate-700 flex-shrink-0">
+        <header className="flex items-center justify-between px-6 py-4 border-b border-gray-700 flex-shrink-0">
           <div>
             <h1 className="text-2xl font-bold">ITROPA</h1>
-            <p className={`text-sm ${theme.muted}`}>Innovation through recombination of prior art</p>
           </div>
           <div className="flex gap-2">
             <button 
               onClick={() => setPage("home")} 
-              className={`p-2 rounded-lg ${page === "home" ? "bg-indigo-500/20 text-indigo-300" : theme.hover}`}
+              className={`p-2 rounded-lg ${page === "home" ? "bg-gray-500/20 text-gray-300" : theme.hover}`}
               title="Home"
             >
               <Home className="w-4 h-4" />
             </button>
             <button 
               onClick={() => setPage("library")} 
-              className={`p-2 rounded-lg ${page === "library" ? "bg-indigo-500/20 text-indigo-300" : theme.hover}`}
+              className={`p-2 rounded-lg ${page === "library" ? "bg-gray-500/20 text-gray-300" : theme.hover}`}
               title="Library"
             >
               <BookOpen className="w-4 h-4" />
             </button>
             <button 
               onClick={() => setPage("patterns")} 
-              className={`p-2 rounded-lg ${page === "patterns" ? "bg-indigo-500/20 text-indigo-300" : theme.hover}`}
+              className={`p-2 rounded-lg ${page === "patterns" ? "bg-gray-500/20 text-gray-300" : theme.hover}`}
               title="Pattern Library"
             >
               <Shapes className="w-4 h-4" />
@@ -229,7 +228,6 @@ export default function App() {
           <KeyboardShortcutsModalContent theme={theme} />
         </ModalWrapper>
 
-        <footer className={`mt-8 text-center text-xs px-6 py-3 ${theme.muted} border-t border-slate-700 flex-shrink-0`}>Innovation = Prior Art + New Context • Branch to explore • Cross to recombine</footer>
       </div>
       <Toaster
         position="bottom-right"

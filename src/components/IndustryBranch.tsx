@@ -18,6 +18,7 @@ import {
   GripVertical,
 } from "lucide-react";
 import type { IndustryExpression } from "../types";
+import type { Theme } from "../config/theme";
 import { ContextMenu } from "./ContextMenu";
 
 interface IndustryBranchProps {
@@ -28,7 +29,7 @@ interface IndustryBranchProps {
   isLoading: boolean;
   isSelected: boolean;
   isCrossSelected: boolean;
-  theme: any;
+  theme: Theme;
   branchLoading: string | null;
   mechanismLoading: boolean;
   deepDiveLoading: boolean;
@@ -153,7 +154,7 @@ export const IndustryBranch = ({
             : isDropTarget
             ? "ring-2 ring-amber-500 bg-amber-500/10 border-amber-500 scale-105"
             : isSelected
-            ? "bg-indigo-500/15 border-indigo-500"
+            ? "bg-gray-500/15 border-gray-500"
             : isCrossSelected
             ? "bg-amber-500/15 border-amber-500"
             : theme.cardHover
@@ -179,7 +180,7 @@ export const IndustryBranch = ({
                 
                 {/* Branch depth badge */}
                 {treeDepth > 0 && (
-                  <span className="inline-flex items-center gap-0.5 px-1.5 py-0.5 rounded text-[10px] bg-indigo-500/20 text-indigo-300 border border-indigo-500/30">
+                  <span className="inline-flex items-center gap-0.5 px-1.5 py-0.5 rounded text-[10px] bg-gray-500/20 text-gray-300 border border-gray-500/30">
                     <TreeDeciduous className="w-2.5 h-2.5" />
                     {treeDepth}
                   </span>
@@ -187,14 +188,14 @@ export const IndustryBranch = ({
                 
                 {/* Mechanism analyzed badge */}
                 {hasMechanism && (
-                  <span className="inline-flex items-center gap-0.5 px-1.5 py-0.5 rounded text-[10px] bg-blue-500/20 text-blue-300 border border-blue-500/30">
+                  <span className="inline-flex items-center gap-0.5 px-1.5 py-0.5 rounded text-[10px] bg-gray-500/20 text-gray-300 border border-gray-500/30">
                     <Microscope className="w-2.5 h-2.5" />
                   </span>
                 )}
                 
                 {/* Deep dive analyzed badge */}
                 {hasDeepDive && (
-                  <span className="inline-flex items-center gap-0.5 px-1.5 py-0.5 rounded text-[10px] bg-purple-500/20 text-purple-300 border border-purple-500/30">
+                  <span className="inline-flex items-center gap-0.5 px-1.5 py-0.5 rounded text-[10px] bg-gray-600/20 text-gray-300 border border-gray-600/30">
                     <Briefcase className="w-2.5 h-2.5" />
                   </span>
                 )}
@@ -287,7 +288,7 @@ export const IndustryBranch = ({
             initial={{ opacity: 0, height: 0 }}
             animate={{ opacity: 1, height: "auto" }}
             exit={{ opacity: 0, height: 0 }}
-            className={`${viewDensity === "compact" ? "mt-1 ml-4 pl-2" : "mt-2 ml-6 pl-3"} border-l-2 border-indigo-500/20 ${densityClasses.spacing}`}
+            className={`${viewDensity === "compact" ? "mt-1 ml-4 pl-2" : "mt-2 ml-6 pl-3"} border-l-2 border-gray-500/20 ${densityClasses.spacing}`}
           >
             {expr.children.map((child) => renderBranch(child, depth + 1, needId))}
           </motion.div>

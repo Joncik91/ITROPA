@@ -1,12 +1,13 @@
 import { useState } from "react";
 import { Plus, Clock, List } from "lucide-react";
 import type { Need, IndustryExpression } from "../types";
+import type { Theme } from "../config/theme";
 import { getIcon } from "../config/constants";
 import { TimelineView } from "./TimelineView";
 
 interface NeedViewProps {
   need: Need;
-  theme: any;
+  theme: Theme;
   dark: boolean;
   isPriorArtOpen?: boolean;
   onTogglePriorArt?: () => void;
@@ -34,7 +35,7 @@ export const NeedView = ({
     <div>
       <div className="flex flex-col md:flex-row md:items-center gap-3 mb-4">
         <div className="flex items-center gap-3 flex-1">
-          <div className={`p-2 rounded-lg ${dark ? "bg-indigo-500/20" : "bg-indigo-100"}`}>
+          <div className={`p-2 rounded-lg ${dark ? "bg-gray-500/20" : "bg-gray-100"}`}>
             <Icon className={`w-5 h-5 ${theme.accent}`} />
           </div>
           <div className="flex-1 min-w-0">
@@ -47,7 +48,7 @@ export const NeedView = ({
             <button
               onClick={() => setViewMode("tree")}
               className={`flex-1 md:flex-initial px-3 py-2 text-xs flex items-center justify-center gap-1.5 transition-colors touch-manipulation ${
-                viewMode === "tree" ? "bg-indigo-500/20 text-indigo-300" : theme.hover
+                viewMode === "tree" ? "bg-gray-500/20 text-gray-300" : theme.hover
               }`}
             >
               <List className="w-3.5 h-3.5" />
@@ -56,7 +57,7 @@ export const NeedView = ({
             <button
               onClick={() => setViewMode("timeline")}
               className={`flex-1 md:flex-initial px-3 py-2 text-xs flex items-center justify-center gap-1.5 transition-colors touch-manipulation ${
-                viewMode === "timeline" ? "bg-indigo-500/20 text-indigo-300" : theme.hover
+                viewMode === "timeline" ? "bg-gray-500/20 text-gray-300" : theme.hover
               }`}
             >
               <Clock className="w-3.5 h-3.5" />
@@ -104,7 +105,7 @@ export const NeedView = ({
       )}
 
       {need.relatedNeeds && (
-        <div className="mt-4 pt-4 border-t border-slate-700">
+        <div className="mt-4 pt-4 border-t border-gray-700">
           <p className={`text-xs ${theme.muted} mb-2`}>Explore related:</p>
           <div className="flex flex-wrap gap-2">
             {need.relatedNeeds.map((r: string, i: number) => (
