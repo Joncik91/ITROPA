@@ -9,6 +9,7 @@ import type { HomePageManager } from "../types";
 import type { Theme } from "../config/theme";
 import { DBService } from "../services/db.service";
 import { LeftSidebar, CenterPanel, RightSidebar } from "./sidebars";
+import { useConstraints } from "../hooks/useConstraints";
 
 interface HomePageProps {
   theme: Theme;
@@ -26,6 +27,9 @@ export const HomePage = ({ theme, dark, manager }: HomePageProps) => {
     mechanisms: Set<string>;
     deepDives: Set<string>;
   }>({ mechanisms: new Set(), deepDives: new Set() });
+
+  // Constraints profile for personalized analysis
+  const { profile: constraintsProfile, setProfile: setConstraintsProfile, filterEnabled, setFilterEnabled } = useConstraints();
 
   // Load analysis status when active need changes
   useEffect(() => {
@@ -81,6 +85,8 @@ export const HomePage = ({ theme, dark, manager }: HomePageProps) => {
         onClose={() => setLeftSidebarOpen(false)}
         scrollContainerRef={scrollContainerRef}
         analyzedExpressions={analyzedExpressions}
+        constraintsProfile={constraintsProfile}
+        onSaveConstraints={setConstraintsProfile}
       />
 
       {/* Center Panel - Main Canvas */}
@@ -95,6 +101,9 @@ export const HomePage = ({ theme, dark, manager }: HomePageProps) => {
         rightSidebarOpen={rightSidebarOpen}
         setRightSidebarOpen={setRightSidebarOpen}
         analyzedExpressions={analyzedExpressions}
+        constraintsProfile={constraintsProfile}
+        filterEnabled={filterEnabled}
+        setFilterEnabled={setFilterEnabled}
       />
 
       {/* Right Sidebar - History + AI Assistant */}

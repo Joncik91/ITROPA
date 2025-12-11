@@ -5,12 +5,13 @@
 
 import { useState, useRef, useEffect } from "react";
 import { motion } from "framer-motion";
-import { Search, Loader2, AlertCircle, Shuffle, Download, ChevronDown, ChevronRight, BookOpen, X } from "lucide-react";
+import { Search, Loader2, AlertCircle, Shuffle, Download, ChevronDown, ChevronRight, BookOpen, X, Settings } from "lucide-react";
 import { getIcon, SUGGESTED_NEEDS } from "../../config/constants";
 import { MiniMap } from "../MiniMap";
-import type { Need, HomePageManager } from "../../types";
+import type { Need, HomePageManager, ConstraintsProfile } from "../../types";
 import type { Theme } from "../../config/theme";
 import { exportAsJSON, exportAsMarkdown, exportAsCSV } from "../../utils/export";
+import { ConstraintsSettingsModal } from "../modals/ConstraintsSettingsModal";
 import toast from "react-hot-toast";
 
 export interface LeftSidebarProps {
@@ -24,6 +25,8 @@ export interface LeftSidebarProps {
     mechanisms: Set<string>;
     deepDives: Set<string>;
   };
+  constraintsProfile: ConstraintsProfile;
+  onSaveConstraints: (profile: ConstraintsProfile) => void;
 }
 
 export const LeftSidebar = ({
@@ -33,12 +36,15 @@ export const LeftSidebar = ({
   isOpen,
   onClose,
   scrollContainerRef,
-  analyzedExpressions
+  analyzedExpressions,
+  constraintsProfile,
+  onSaveConstraints,
 }: LeftSidebarProps) => {
   const [search, setSearch] = useState("");
   const [searchDescription, setSearchDescription] = useState("");
   const [showExportDropdown, setShowExportDropdown] = useState(false);
   const [priorArtExpanded, setPriorArtExpanded] = useState(false);
+  const [showConstraintsModal, setShowConstraintsModal] = useState(false);
   const exportRef = useRef<HTMLDivElement>(null);
 
   // Close dropdown when clicking outside
@@ -359,7 +365,35 @@ export const LeftSidebar = ({
             />
           </div>
         )}
+
+        {/* Builder Profile Settings */}
+        <div className="pt-4 border-t border-gray-700">
+          <h3 className={`text-xs font-semibold uppercase tracking-wider ${theme.muted} mb-2`}>Builder Profile</h3>
+          <button
+            onClick={() => setShowConstraintsModal(true)}
+            className={`w-full px-3 py-2 rounded-lg text-xs flex items-center gap-2 transition-all ${
+              dark
+                ? "bg-blue-500/20 text-blue-300 hover:bg-blue-500/30"
+                : "bg-blue-100 text-blue-700 hover:bg-blue-200"
+            }`}
+          >
+            <Settings className="w-4 h-4" />
+            Configure Profile
+          </button>
+          <p className={`text-[10px] ${theme.muted} mt-1.5 px-1`}>
+            Personalize AI analysis to match your skills, time, and goals.
+          </p>
+        </div>
       </div>
+
+      {/* Constraints Settings Modal */}
+      <ConstraintsSettingsModal
+        isOpen={showConstraintsModal}
+        onClose={() => setShowConstraintsModal(false)}
+        theme={theme}
+        profile={constraintsProfile}
+        onSave={onSaveConstraints}
+      />
     </div>
   );
 };
