@@ -29,8 +29,18 @@ export const MechanismModalContent = ({
   aiLoading,
   onExecuteAction
 }: MechanismModalContentProps) => {
-  // mechanism.details is now an array of MechanismDetails
-  const analyses = Array.isArray(mechanism.details) ? mechanism.details : [mechanism.details];
+  // Handle both formats:
+  // 1. mechanism is the array directly (from extractMechanism or cache)
+  // 2. mechanism.details is the array (legacy format)
+  const rawAnalyses = Array.isArray(mechanism)
+    ? mechanism
+    : Array.isArray(mechanism?.details)
+      ? mechanism.details
+      : mechanism?.details
+        ? [mechanism.details]
+        : [];
+  // Filter out undefined/null entries to prevent rendering errors
+  const analyses = rawAnalyses.filter((a: any) => a != null);
 
   // Use shared framework labels from config
   const getAnalysisTypeLabel = (type?: string) => getFrameworkLabel(type);
@@ -64,6 +74,11 @@ export const MechanismModalContent = ({
       )}
 
       {/* Display each mechanism analysis */}
+      {analyses.length === 0 && (
+        <div className={`p-4 rounded-lg border ${dark ? 'bg-gray-800/50 border-gray-700' : 'bg-gray-50 border-gray-200'}`}>
+          <p className={theme.muted}>No mechanism analysis data available.</p>
+        </div>
+      )}
       {analyses.map((analysis: any, idx: number) => (
         <div key={idx} className={`space-y-4 p-4 rounded-lg border ${dark ? 'bg-gray-800/50 border-gray-700' : 'bg-gray-50 border-gray-200'}`}>
           {/* Analysis Type Header */}

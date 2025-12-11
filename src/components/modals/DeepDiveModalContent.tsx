@@ -119,7 +119,13 @@ export const DeepDiveModalContent = ({
   onAIAssist,
   aiLoading,
   onExecuteAction
-}: DeepDiveModalContentProps) => (
+}: DeepDiveModalContentProps) => {
+  // Handle both formats:
+  // 1. deepDive is the data directly (from API or cache)
+  // 2. deepDive.details contains the data (legacy format)
+  const data = deepDive?.details || deepDive || {};
+
+  return (
   <div className="space-y-4 text-sm">
     {/* AI Assistant */}
     {onAIAssist && (
@@ -139,30 +145,30 @@ export const DeepDiveModalContent = ({
     )}
 
     {/* Build Recommendation Banner - Show first if available */}
-    {deepDive.details?.buildRecommendation && (
+    {data.buildRecommendation && (
       <BuildRecommendationBanner
-        recommendation={deepDive.details.buildRecommendation}
+        recommendation={data.buildRecommendation}
         theme={theme}
       />
     )}
 
     {/* Opportunity Scores */}
-    {deepDive.details?.opportunityScore && (
+    {data.opportunityScore && (
       <div className={`p-3 rounded-lg ${theme.itemBg}`}>
         <p className={`text-xs font-medium ${theme.muted} mb-3`}>Opportunity Scorecard</p>
-        <ScoreBar label="Market Timing" score={deepDive.details.opportunityScore.marketTiming} theme={theme} />
-        <ScoreBar label="Technical Fit" score={deepDive.details.opportunityScore.technicalFit} theme={theme} />
-        <ScoreBar label="Effort (ease)" score={deepDive.details.opportunityScore.effortEstimate} theme={theme} />
-        <ScoreBar label="Monetization" score={deepDive.details.opportunityScore.monetizationClarity} theme={theme} />
-        <ScoreBar label="Blue Ocean" score={deepDive.details.opportunityScore.competitionDensity} theme={theme} />
+        <ScoreBar label="Market Timing" score={data.opportunityScore.marketTiming} theme={theme} />
+        <ScoreBar label="Technical Fit" score={data.opportunityScore.technicalFit} theme={theme} />
+        <ScoreBar label="Effort (ease)" score={data.opportunityScore.effortEstimate} theme={theme} />
+        <ScoreBar label="Monetization" score={data.opportunityScore.monetizationClarity} theme={theme} />
+        <ScoreBar label="Blue Ocean" score={data.opportunityScore.competitionDensity} theme={theme} />
         <div className="border-t border-gray-600 mt-3 pt-3">
           <div className="flex items-center justify-between">
             <span className="font-medium">Overall Score</span>
             <span className={`text-lg font-bold ${
-              deepDive.details.opportunityScore.overallScore >= 70 ? 'text-green-400' :
-              deepDive.details.opportunityScore.overallScore >= 40 ? 'text-yellow-400' : 'text-red-400'
+              data.opportunityScore.overallScore >= 70 ? 'text-green-400' :
+              data.opportunityScore.overallScore >= 40 ? 'text-yellow-400' : 'text-red-400'
             }`}>
-              {deepDive.details.opportunityScore.overallScore}/100
+              {data.opportunityScore.overallScore}/100
             </span>
           </div>
         </div>
@@ -170,21 +176,21 @@ export const DeepDiveModalContent = ({
     )}
 
     {/* Solo Dev Assessment */}
-    {deepDive.details?.soloDevAssessment && (
+    {data.soloDevAssessment && (
       <div className={`p-3 rounded-lg ${theme.itemBg}`}>
         <div className="flex items-center justify-between mb-3">
           <p className={`text-xs font-medium ${theme.muted}`}>Solo Dev Assessment</p>
-          <FeasibilityBadge feasibility={deepDive.details.soloDevAssessment.feasibility} />
+          <FeasibilityBadge feasibility={data.soloDevAssessment.feasibility} />
         </div>
         <div className="grid grid-cols-2 gap-3 text-xs">
           <div>
             <span className={theme.muted}>Time to MVP:</span>
-            <p className="font-medium">{deepDive.details.soloDevAssessment.timeToMVP}</p>
+            <p className="font-medium">{data.soloDevAssessment.timeToMVP}</p>
           </div>
           <div>
             <span className={theme.muted}>Tech Stack:</span>
             <div className="flex flex-wrap gap-1 mt-1">
-              {deepDive.details.soloDevAssessment.techStack?.map((tech: string, i: number) => (
+              {data.soloDevAssessment.techStack?.map((tech: string, i: number) => (
                 <span key={i} className={`px-1.5 py-0.5 rounded ${theme.itemBgAlt}`}>{tech}</span>
               ))}
             </div>
@@ -193,22 +199,22 @@ export const DeepDiveModalContent = ({
         <div className="mt-3 space-y-2 text-xs">
           <div>
             <span className={`${theme.muted}`}>Biggest Challenge:</span>
-            <p>{deepDive.details.soloDevAssessment.biggestChallenge}</p>
+            <p>{data.soloDevAssessment.biggestChallenge}</p>
           </div>
           <div>
             <span className={`${theme.muted}`}>Your Unfair Advantage:</span>
-            <p className="text-green-400">{deepDive.details.soloDevAssessment.unfairAdvantage}</p>
+            <p className="text-green-400">{data.soloDevAssessment.unfairAdvantage}</p>
           </div>
         </div>
       </div>
     )}
 
     {/* Monetization Models */}
-    {deepDive.details?.monetizationModels && deepDive.details.monetizationModels.length > 0 && (
+    {data.monetizationModels && data.monetizationModels.length > 0 && (
       <div>
         <p className={`text-xs font-medium ${theme.muted} mb-2`}>Monetization Models</p>
         <div className="space-y-2">
-          {deepDive.details.monetizationModels.map((model: any, i: number) => (
+          {data.monetizationModels.map((model: any, i: number) => (
             <div key={i} className={`p-3 rounded-lg ${theme.itemBgAlt}`}>
               <div className="flex items-center justify-between mb-1">
                 <span className="font-medium text-xs">{model.model}</span>
@@ -225,22 +231,22 @@ export const DeepDiveModalContent = ({
     {/* Original Deep Dive Content */}
     <div className={`p-3 rounded-lg ${theme.itemBg}`}>
       <p className={`text-xs ${theme.muted} mb-1`}>Market Opportunity</p>
-      <p>{deepDive.details?.marketOpportunity}</p>
+      <p>{data.marketOpportunity || 'No market opportunity data available.'}</p>
     </div>
 
-    {deepDive.details?.keyEnablers && deepDive.details.keyEnablers.length > 0 && (
+    {data.keyEnablers && data.keyEnablers.length > 0 && (
       <div>
         <p className={`text-xs font-medium ${theme.muted} mb-2`}>Key Enablers</p>
-        {deepDive.details.keyEnablers.map((e: string, i: number) => (
+        {data.keyEnablers.map((e: string, i: number) => (
           <div key={i} className={`mb-1 p-2 rounded ${theme.itemBgAlt} text-xs`}>{e}</div>
         ))}
       </div>
     )}
 
-    {deepDive.details?.challenges && deepDive.details.challenges.length > 0 && (
+    {data.challenges && data.challenges.length > 0 && (
       <div>
         <p className={`text-xs font-medium ${theme.muted} mb-2`}>Challenges & Solutions</p>
-        {deepDive.details.challenges.map((c: any, i: number) => (
+        {data.challenges.map((c: any, i: number) => (
           <div key={i} className={`mb-2 p-2 rounded ${theme.itemBgAlt}`}>
             <p className="font-medium text-xs">{c.challenge}</p>
             <p className={`text-xs ${theme.muted} mt-1`}>→ {c.potentialSolution}</p>
@@ -249,32 +255,32 @@ export const DeepDiveModalContent = ({
       </div>
     )}
 
-    {deepDive.details?.timeline && (
+    {data.timeline && (
       <div className={`p-3 rounded-lg ${theme.itemBg}`}>
         <p className={`text-xs font-medium ${theme.muted} mb-1`}>Timeline to Market</p>
-        <p className="text-xs">{deepDive.details.timeline}</p>
+        <p className="text-xs">{data.timeline}</p>
       </div>
     )}
 
-    {deepDive.details?.firstMoverAdvantage && (
+    {data.firstMoverAdvantage && (
       <div className={`p-3 rounded-lg ${theme.itemBg}`}>
         <p className={`text-xs font-medium ${theme.muted} mb-1`}>First Mover Strategy</p>
-        <p className="text-xs">{deepDive.details.firstMoverAdvantage}</p>
+        <p className="text-xs">{data.firstMoverAdvantage}</p>
       </div>
     )}
 
-    {deepDive.details?.priorArtLeverage && (
+    {data.priorArtLeverage && (
       <div className={`p-3 rounded-lg ${theme.itemBg}`}>
         <p className={`text-xs font-medium ${theme.muted} mb-1`}>Prior Art Advantage</p>
-        <p className="text-xs">{deepDive.details.priorArtLeverage}</p>
+        <p className="text-xs">{data.priorArtLeverage}</p>
       </div>
     )}
 
-    {deepDive.details?.keyPlayers && deepDive.details.keyPlayers.length > 0 && (
+    {data.keyPlayers && data.keyPlayers.length > 0 && (
       <div>
         <p className={`text-xs font-medium ${theme.muted} mb-2`}>Potential Key Players</p>
         <div className="flex flex-wrap gap-2">
-          {deepDive.details.keyPlayers.map((player: string, i: number) => (
+          {data.keyPlayers.map((player: string, i: number) => (
             <span key={i} className={`text-xs px-2 py-1 rounded-lg ${theme.itemBgAlt}`}>
               {player}
             </span>
@@ -283,11 +289,11 @@ export const DeepDiveModalContent = ({
       </div>
     )}
 
-    {deepDive.details?.risks && deepDive.details.risks.length > 0 && (
+    {data.risks && data.risks.length > 0 && (
       <div>
         <p className={`text-xs font-medium ${theme.muted} mb-2`}>Risk Factors</p>
         <div className="space-y-1">
-          {deepDive.details.risks.map((risk: string, i: number) => (
+          {data.risks.map((risk: string, i: number) => (
             <div key={i} className={`text-xs p-2 rounded ${theme.itemBgAlt} flex items-start gap-2`}>
               <span className="text-red-400">⚠</span>
               <span className="flex-1">{risk}</span>
@@ -297,4 +303,5 @@ export const DeepDiveModalContent = ({
       </div>
     )}
   </div>
-);
+  );
+};
