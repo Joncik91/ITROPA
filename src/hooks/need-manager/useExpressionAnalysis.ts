@@ -1,10 +1,10 @@
 import toast from 'react-hot-toast';
 import { getGeminiService } from '../../services/gemini.service';
 import { DBService } from '../../services/db.service';
-import type { IndustryExpression } from '../../types';
+import type { IndustryExpression, AppConcept } from '../../types';
 
 /**
- * Expression analysis operations (mechanism, deep dive)
+ * Expression analysis operations (mechanism, deep dive, app concepts)
  * Dependencies: uiState
  */
 export function useExpressionAnalysis(deps: {
@@ -12,12 +12,16 @@ export function useExpressionAnalysis(deps: {
   setMechanismLoading: (loading: boolean) => void;
   setDeepDive: (deepDive: any) => void;
   setDeepDiveLoading: (loading: boolean) => void;
+  setAppConcepts: (concepts: AppConcept[] | null) => void;
+  setAppConceptsLoading: (loading: boolean) => void;
 }) {
   const {
     setMechanism,
     setMechanismLoading,
     setDeepDive,
     setDeepDiveLoading,
+    setAppConcepts,
+    setAppConceptsLoading,
   } = deps;
 
   const geminiService = getGeminiService();
@@ -72,8 +76,39 @@ export function useExpressionAnalysis(deps: {
     }
   };
 
+  const fetchAppConcepts = async (expr: IndustryExpression, needId: string) => {
+    setAppConceptsLoading(true);
+    const toastId = toast.loading(`Generating app concepts for: ${expr.name}...`);
+    try {
+      // Check cache first
+      const cached = await DBService.getAppConcepts(expr.id);
+      if (cached) {
+        setAppConcepts(cached.concepts);
+        toast.success(`Loaded cached app concepts`, { id: toastId });
+        return;
+      }
+
+      // Try to get deep dive for richer context
+      const deepDiveCache = await DBService.getDeepDive(expr.id, needId);
+      const deepDive = deepDiveCache?.details;
+
+      const concepts = await geminiService.generateAppConcepts(expr, deepDive);
+      setAppConcepts(concepts);
+      // Save to database
+      if (concepts.length > 0) {
+        await DBService.saveAppConcepts(expr.id, expr.name, needId, concepts, !!deepDive);
+      }
+      toast.success(`Generated ${concepts.length} app concepts`, { id: toastId });
+    } catch (e: any) {
+      toast.error(`Failed to generate concepts: ${e.message}`, { id: toastId });
+    } finally {
+      setAppConceptsLoading(false);
+    }
+  };
+
   return {
     fetchMechanism,
     fetchDeepDive,
+    fetchAppConcepts,
   };
 }

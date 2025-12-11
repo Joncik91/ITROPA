@@ -1,5 +1,49 @@
 // Type definitions for ITROPA
 
+// ============ CONSTRAINTS PROFILE ============
+
+export interface ConstraintsProfile {
+  // Skills
+  techStack: string[];           // e.g., ["React", "TypeScript", "Node.js", "Python"]
+  experienceLevel: 'beginner' | 'intermediate' | 'advanced';
+  hasAIAccess: boolean;          // Can use AI APIs?
+
+  // Time
+  availableTime: 'weekend' | '1-2 weeks' | '2-4 weeks' | '1-2 months' | 'unlimited';
+  workStyle: 'side-project' | 'full-time' | 'exploring';
+
+  // Revenue Goals
+  revenueGoal: 'learning' | 'side-income' | 'replace-salary' | 'build-business';
+  targetMRR?: string;            // e.g., "$1-5k"
+
+  // Preferences
+  preferredFormFactors: Array<'saas' | 'tool' | 'api' | 'marketplace' | 'extension' | 'mobile'>;
+  avoidCategories: string[];     // e.g., ["crypto", "gambling", "adult"]
+  preferB2B: boolean;
+  preferB2C: boolean;
+
+  // Risk Tolerance
+  riskTolerance: 'low' | 'medium' | 'high';  // Low = proven markets, High = blue ocean
+
+  // Meta
+  lastUpdated: number;
+}
+
+export const DEFAULT_CONSTRAINTS: ConstraintsProfile = {
+  techStack: ['React', 'TypeScript', 'Node.js'],
+  experienceLevel: 'intermediate',
+  hasAIAccess: true,
+  availableTime: '2-4 weeks',
+  workStyle: 'side-project',
+  revenueGoal: 'side-income',
+  preferredFormFactors: ['saas', 'tool', 'api'],
+  avoidCategories: [],
+  preferB2B: true,
+  preferB2C: true,
+  riskTolerance: 'medium',
+  lastUpdated: Date.now()
+};
+
 export interface Inspiration {
   source: string;
   mechanism: string;
@@ -129,6 +173,34 @@ export interface DeepDiveDetails {
   priorArtLeverage?: string;
   keyPlayers?: string[];
   risks?: string[];
+  // Enhanced Deep Dive - Opportunity Scoring
+  opportunityScore?: {
+    marketTiming: number;        // 0-100: Is the window now?
+    technicalFit: number;        // 0-100: Can you build this?
+    effortEstimate: number;      // 0-100: How much work? (100=easy)
+    monetizationClarity: number; // 0-100: How obvious is revenue?
+    competitionDensity: number;  // 0-100: Blue ocean score (100=wide open)
+    overallScore: number;        // Weighted average
+  };
+  soloDevAssessment?: {
+    feasibility: 'high' | 'medium' | 'low';
+    timeToMVP: string;           // e.g., "2-4 weeks"
+    techStack: string[];         // e.g., ["React", "Node", "Gemini API"]
+    biggestChallenge: string;
+    unfairAdvantage: string;     // What edge could you have?
+  };
+  monetizationModels?: Array<{
+    model: string;               // e.g., "SaaS Subscription"
+    description: string;
+    revenueRange: string;        // e.g., "$500-2000/mo"
+    difficulty: 'easy' | 'medium' | 'hard';
+  }>;
+  buildRecommendation?: {
+    verdict: 'build' | 'explore' | 'skip';
+    confidence: number;          // 0-100
+    reasoning: string;
+    nextStep: string;            // Actionable next step
+  };
 }
 
 export interface SuggestedNeed {
@@ -557,6 +629,40 @@ export interface ChainAnalysis {
   innovationPotential?: number; // 0-100
   strategicValue?: 'low' | 'medium' | 'high' | 'critical';
   recommendedActions?: string[];
+}
+
+// ============ APP CONCEPT GENERATOR ============
+
+export interface AppConcept {
+  id: string;
+  name: string;                    // e.g., "InsightFlow"
+  tagline: string;                 // e.g., "AI-powered industry analysis for indie hackers"
+  formFactor: 'saas' | 'tool' | 'api' | 'marketplace' | 'extension' | 'mobile';
+  targetUser: string;              // e.g., "Solo entrepreneurs exploring new markets"
+  problemSolved: string;           // One sentence
+  coreFeature: string;             // The ONE thing it does
+  monetization: {
+    model: string;                 // e.g., "Freemium SaaS"
+    pricing: string;               // e.g., "$19/mo Pro, $49/mo Team"
+    revenueEstimate: string;       // e.g., "$2-5k MRR at 100 users"
+  };
+  techStack: string[];             // e.g., ["React", "Supabase", "Gemini"]
+  mvpScope: string;                // What's the smallest viable version?
+  effortEstimate: 'weekend' | '1-2 weeks' | '2-4 weeks' | '1-2 months' | '3+ months';
+  competitiveEdge: string;         // Why would this win?
+  risks: string[];                 // Top 2-3 risks
+  score: number;                   // 0-100 overall viability
+}
+
+export interface AppConceptAnalysis {
+  industryId: string;
+  industryName: string;
+  concepts: AppConcept[];
+  generatedAt: number;
+  inputContext?: {
+    deepDiveAvailable: boolean;
+    marketOpportunity?: string;
+  };
 }
 
 // Re-export manager interfaces for convenience

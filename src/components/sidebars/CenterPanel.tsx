@@ -3,12 +3,15 @@
  * Contains the main canvas with NeedView and toolbar.
  */
 
-import { Lightbulb, Maximize2, Minimize2, PanelRight } from "lucide-react";
+import { useState, useEffect } from "react";
+import { Lightbulb, Maximize2, Minimize2, PanelRight, Target } from "lucide-react";
 import { NeedView } from "../NeedView";
 import { Breadcrumb } from "../Breadcrumb";
 import { IndustryBranch } from "../IndustryBranch";
-import type { IndustryExpression, Need, Era, HomePageManager } from "../../types";
+import type { IndustryExpression, Need, Era, HomePageManager, ConstraintsProfile, DeepDiveDetails } from "../../types";
 import type { Theme } from "../../config/theme";
+import { calculateMatchScore, MatchScoreResult } from "../../utils/match-score";
+import { DBService } from "../../services/db.service";
 import toast from "react-hot-toast";
 
 export interface CenterPanelProps {
@@ -24,7 +27,11 @@ export interface CenterPanelProps {
   analyzedExpressions: {
     mechanisms: Set<string>;
     deepDives: Set<string>;
+    appConcepts?: Set<string>;
   };
+  constraintsProfile: ConstraintsProfile;
+  filterEnabled: boolean;
+  setFilterEnabled: (enabled: boolean) => void;
 }
 
 export const CenterPanel = ({
@@ -37,8 +44,45 @@ export const CenterPanel = ({
   breadcrumbPath,
   rightSidebarOpen,
   setRightSidebarOpen,
-  analyzedExpressions
+  analyzedExpressions,
+  constraintsProfile,
+  filterEnabled,
+  setFilterEnabled,
 }: CenterPanelProps) => {
+  // Cache of deep dive data for match score calculation
+  const [deepDiveCache, setDeepDiveCache] = useState<Map<string, DeepDiveDetails>>(new Map());
+
+  // Load deep dive data for scoring
+  useEffect(() => {
+    const loadDeepDives = async () => {
+      if (!manager.activeNeed) return;
+
+      try {
+        const deepDives = await DBService.getDeepDivesByNeed(manager.activeNeed.id);
+        const cache = new Map<string, DeepDiveDetails>();
+        for (const dd of deepDives) {
+          // Type assertion since DB may have partial data
+          if (dd.details?.marketOpportunity) {
+            cache.set(dd.id, dd.details as DeepDiveDetails);
+          }
+        }
+        setDeepDiveCache(cache);
+      } catch (e) {
+        console.error('Failed to load deep dives for scoring:', e);
+      }
+    };
+
+    loadDeepDives();
+  }, [manager.activeNeed?.id, analyzedExpressions.deepDives]);
+
+  // Calculate match score for an expression
+  const getMatchScore = (expr: IndustryExpression): MatchScoreResult | null => {
+    // Only show match scores for industries with deep dive data
+    const deepDive = deepDiveCache.get(expr.id) || null;
+    if (!deepDive) return null;
+
+    return calculateMatchScore(expr, deepDive, constraintsProfile);
+  };
   const renderBranch = (expr: IndustryExpression, depth: number, needId: string): JSX.Element => {
 
     // Delete handler for user-added expressions
@@ -66,6 +110,14 @@ export const CenterPanel = ({
       toast.success("Prediction deleted");
     } : undefined;
 
+    // Get match score for this expression
+    const matchScore = getMatchScore(expr);
+
+    // Filter out low-scoring items if filter is enabled
+    if (filterEnabled && matchScore && matchScore.score < 40) {
+      return <></>;  // Don't render low-scoring items when filter is on
+    }
+
     return (
       <IndustryBranch
         key={expr.id}
@@ -80,12 +132,16 @@ export const CenterPanel = ({
         branchLoading={manager.branchLoading}
         mechanismLoading={manager.mechanismLoading}
         deepDiveLoading={manager.deepDiveLoading}
+        appConceptsLoading={manager.appConceptsLoading}
         hasMechanism={analyzedExpressions.mechanisms.has(expr.id)}
         hasDeepDive={analyzedExpressions.deepDives.has(expr.id)}
+        hasAppConcepts={analyzedExpressions.appConcepts?.has(expr.id)}
+        matchScore={matchScore}
         onToggleExpand={() => manager.setExpandedBranches((p: any) => ({ ...p, [expr.id]: !p[expr.id] }))}
         onBranch={() => manager.branchIndustry(expr, needId)}
         onFetchMechanism={() => manager.fetchMechanism(expr)}
         onFetchDeepDive={() => manager.fetchDeepDive(expr)}
+        onFetchAppConcepts={() => manager.fetchAppConcepts(expr, needId)}
         onToggleCross={() => manager.toggleCrossItem(expr)}
         onAddSubIndustry={() => manager.setModal({ open: true, needId, parentId: expr.id })}
         onDelete={handleDelete}
@@ -120,6 +176,21 @@ export const CenterPanel = ({
               )}
             </div>
             <div className="flex items-center gap-2">
+              {/* Match Score Filter Toggle */}
+              <button
+                onClick={() => setFilterEnabled(!filterEnabled)}
+                className={`px-2 py-1 text-xs flex items-center gap-1.5 rounded-lg border transition-colors ${
+                  filterEnabled
+                    ? "bg-emerald-500/20 text-emerald-300 border-emerald-500/50"
+                    : `${theme.border} ${theme.hover}`
+                }`}
+                title={filterEnabled ? "Showing only matching industries (score >= 40)" : "Show all industries"}
+              >
+                <Target className="w-3.5 h-3.5" />
+                {filterEnabled ? "Filtered" : "Filter"}
+              </button>
+
+              {/* View Density Toggle */}
               <div className={`flex items-center rounded-lg border ${theme.border} overflow-hidden`}>
                 <button
                   onClick={() => setViewDensity("comfortable")}

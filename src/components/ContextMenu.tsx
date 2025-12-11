@@ -1,5 +1,5 @@
 import { useEffect, useRef, useState } from "react";
-import { GitBranch, Layers, TrendingUp, Shuffle, Plus, Trash2 } from "lucide-react";
+import { GitBranch, Layers, TrendingUp, Shuffle, Plus, Trash2, Lightbulb } from "lucide-react";
 import { motion, AnimatePresence } from "framer-motion";
 import type { Theme } from "../config/theme";
 
@@ -10,6 +10,7 @@ interface ContextMenuProps {
   onBranch: () => void;
   onMechanism: () => void;
   onDeepDive: () => void;
+  onAppConcepts: () => void;
   onCrossPollinate: () => void;
   onAddChild: () => void;
   onDelete?: () => void;
@@ -24,6 +25,7 @@ export const ContextMenu = ({
   onBranch,
   onMechanism,
   onDeepDive,
+  onAppConcepts,
   onCrossPollinate,
   onAddChild,
   onDelete,
@@ -69,6 +71,7 @@ export const ContextMenu = ({
     { icon: GitBranch, label: "Branch Further", action: onBranch, color: "text-gray-400" },
     { icon: Layers, label: "View Mechanism", action: onMechanism, color: "text-gray-400" },
     { icon: TrendingUp, label: "Deep Dive", action: onDeepDive, color: "text-gray-400" },
+    { icon: Lightbulb, label: "App Concepts", action: onAppConcepts, color: "text-yellow-400" },
     { icon: Shuffle, label: "Cross-Pollinate", action: onCrossPollinate, color: "text-amber-400" },
     { icon: Plus, label: "Add Child", action: onAddChild, color: "text-emerald-400" },
   ];

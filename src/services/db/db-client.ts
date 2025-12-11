@@ -1,5 +1,5 @@
 import Dexie, { Table } from 'dexie';
-import type { Need, IndustryExpression } from '../../types';
+import type { Need, IndustryExpression, AppConcept } from '../../types';
 
 // Database Schema Design:
 // 1. needs - Store complete Need objects with all nested data
@@ -93,6 +93,15 @@ export interface DBChainAnalysis {
   createdAt: number;
 }
 
+export interface DBAppConcept {
+  id: string;              // industryId
+  industryName: string;
+  needId: string;
+  concepts: AppConcept[];
+  deepDiveAvailable: boolean;
+  createdAt: number;
+}
+
 class IndustryFamilyTreeDB extends Dexie {
   needs!: Table<DBNeed, string>;
   mechanisms!: Table<DBMechanism, string>;
@@ -102,6 +111,7 @@ class IndustryFamilyTreeDB extends Dexie {
   patternAnalyses!: Table<DBPatternAnalysis, string>;
   priorArtAnalyses!: Table<DBPriorArtAnalysis, string>;
   chainAnalyses!: Table<DBChainAnalysis, string>;
+  appConcepts!: Table<DBAppConcept, string>;
 
   constructor() {
     super('IndustryFamilyTreeDB');
@@ -145,6 +155,19 @@ class IndustryFamilyTreeDB extends Dexie {
       patternAnalyses: 'id, patternName, mechanismCount, createdAt',
       priorArtAnalyses: 'id, needName, createdAt',
       chainAnalyses: 'id, expressionId, needId, createdAt'
+    });
+
+    // Add app concepts table in version 5
+    this.version(5).stores({
+      needs: 'id, name, createdAt, updatedAt',
+      mechanisms: 'id, needId, expressionName, createdAt',
+      deepDives: 'id, needId, expressionName, createdAt',
+      crossPollinates: 'id, expression1Id, expression2Id, createdAt',
+      searchCache: 'key, needName, createdAt',
+      patternAnalyses: 'id, patternName, mechanismCount, createdAt',
+      priorArtAnalyses: 'id, needName, createdAt',
+      chainAnalyses: 'id, expressionId, needId, createdAt',
+      appConcepts: 'id, industryName, needId, createdAt'
     });
   }
 }

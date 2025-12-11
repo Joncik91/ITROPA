@@ -6,7 +6,8 @@ import { PriorArtOperation } from './operations/prior-art.operation';
 import { ChainOperation } from './operations/chain.operation';
 import { CrossPollinateOperation } from './operations/cross-pollinate.operation';
 import { DeepDiveOperation } from './operations/deep-dive.operation';
-import type { Need, PriorArt, IndustryExpression, MechanismDetails, DeepDiveDetails } from '../../types';
+import { AppConceptOperation } from './operations/app-concept.operation';
+import type { Need, PriorArt, IndustryExpression, MechanismDetails, DeepDiveDetails, AppConcept } from '../../types';
 
 /**
  * Thin orchestrator service that composes specialized operations.
@@ -21,6 +22,7 @@ class GeminiService {
   private chainOp = new ChainOperation();
   private crossPollinateOp = new CrossPollinateOperation();
   private deepDiveOp = new DeepDiveOperation();
+  private appConceptOp = new AppConceptOperation();
 
   constructor() {
     // No longer needs API key - using backend API
@@ -83,6 +85,15 @@ class GeminiService {
 
   async deepDive(industry: IndustryExpression): Promise<DeepDiveDetails> {
     return this.deepDiveOp.deepDive(industry);
+  }
+
+  // ============ APP CONCEPT OPERATIONS ============
+
+  async generateAppConcepts(
+    industry: IndustryExpression,
+    deepDive?: DeepDiveDetails
+  ): Promise<AppConcept[]> {
+    return this.appConceptOp.generateConcepts(industry, deepDive);
   }
 }
 

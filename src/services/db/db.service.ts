@@ -7,8 +7,9 @@ import { PatternAnalysisRepository } from './repositories/pattern-analysis.repos
 import { PriorArtAnalysisRepository } from './repositories/prior-art-analysis.repository';
 import { ChainAnalysisRepository } from './repositories/chain-analysis.repository';
 import { SearchCacheRepository } from './repositories/search-cache.repository';
+import { AppConceptRepository } from './repositories/app-concept.repository';
 import { SearchService } from './search.service';
-import type { Need, IndustryExpression } from '../../types';
+import type { Need, IndustryExpression, AppConcept } from '../../types';
 
 /**
  * Facade service that delegates to specialized repositories.
@@ -24,6 +25,7 @@ export class DBService {
   private static priorArtAnalysisRepo = new PriorArtAnalysisRepository();
   private static chainAnalysisRepo = new ChainAnalysisRepository();
   private static searchCacheRepo = new SearchCacheRepository();
+  private static appConceptRepo = new AppConceptRepository();
 
   // ============ NEEDS ============
 
@@ -155,6 +157,30 @@ export class DBService {
 
   static async getSearchCache(needName: string) {
     return this.searchCacheRepo.getSearchCache(needName);
+  }
+
+  // ============ APP CONCEPTS ============
+
+  static async saveAppConcepts(
+    industryId: string,
+    industryName: string,
+    needId: string,
+    concepts: AppConcept[],
+    deepDiveAvailable: boolean
+  ): Promise<void> {
+    return this.appConceptRepo.saveAppConcepts(industryId, industryName, needId, concepts, deepDiveAvailable);
+  }
+
+  static async getAppConcepts(industryId: string) {
+    return this.appConceptRepo.getAppConcepts(industryId);
+  }
+
+  static async getAppConceptsByNeed(needId: string) {
+    return this.appConceptRepo.getAppConceptsByNeed(needId);
+  }
+
+  static async getAllAppConcepts() {
+    return this.appConceptRepo.getAll();
   }
 
   // ============ SEARCH & LOOKUP ============

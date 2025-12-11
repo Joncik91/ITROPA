@@ -16,10 +16,13 @@ import {
   UserPlus,
   TreeDeciduous,
   GripVertical,
+  Target,
 } from "lucide-react";
 import type { IndustryExpression } from "../types";
 import type { Theme } from "../config/theme";
 import { ContextMenu } from "./ContextMenu";
+import type { MatchScoreResult } from "../utils/match-score";
+import { getMatchScoreColor, getMatchScoreLabel } from "../utils/match-score";
 
 interface IndustryBranchProps {
   expr: IndustryExpression;
@@ -33,13 +36,17 @@ interface IndustryBranchProps {
   branchLoading: string | null;
   mechanismLoading: boolean;
   deepDiveLoading: boolean;
+  appConceptsLoading?: boolean;
   hasMechanism?: boolean;
   hasDeepDive?: boolean;
+  hasAppConcepts?: boolean;
+  matchScore?: MatchScoreResult | null;  // Match score against user's constraints
   viewDensity?: "compact" | "comfortable";
   onToggleExpand: () => void;
   onBranch: () => void;
   onFetchMechanism: () => void;
   onFetchDeepDive: () => void;
+  onFetchAppConcepts: () => void;
   onToggleCross: () => void;
   onAddSubIndustry: () => void;
   onDelete?: () => void;
@@ -57,13 +64,17 @@ export const IndustryBranch = ({
   theme,
   mechanismLoading,
   deepDiveLoading,
+  appConceptsLoading,
   hasMechanism,
   hasDeepDive,
+  hasAppConcepts,
+  matchScore,
   viewDensity = "comfortable",
   onToggleExpand,
   onBranch,
   onFetchMechanism,
   onFetchDeepDive,
+  onFetchAppConcepts,
   onToggleCross,
   onAddSubIndustry,
   onDelete,
@@ -170,6 +181,17 @@ export const IndustryBranch = ({
               
               {/* Status Badges */}
               <div className="flex items-center gap-1 ml-2">
+                {/* Match Score badge - only show if we have a score */}
+                {matchScore && (
+                  <span
+                    className={`inline-flex items-center gap-0.5 px-1.5 py-0.5 rounded text-[10px] border ${getMatchScoreColor(matchScore.score)}`}
+                    title={`${getMatchScoreLabel(matchScore.score)}: ${matchScore.reasons.join(', ')}`}
+                  >
+                    <Target className="w-2.5 h-2.5" />
+                    {matchScore.score}%
+                  </span>
+                )}
+
                 {/* User-added badge */}
                 {expr.userAdded && (
                   <span className="inline-flex items-center gap-0.5 px-1.5 py-0.5 rounded text-[10px] bg-emerald-500/20 text-emerald-300 border border-emerald-500/30">
@@ -177,7 +199,7 @@ export const IndustryBranch = ({
                     User
                   </span>
                 )}
-                
+
                 {/* Branch depth badge */}
                 {treeDepth > 0 && (
                   <span className="inline-flex items-center gap-0.5 px-1.5 py-0.5 rounded text-[10px] bg-gray-500/20 text-gray-300 border border-gray-500/30">
@@ -185,14 +207,14 @@ export const IndustryBranch = ({
                     {treeDepth}
                   </span>
                 )}
-                
+
                 {/* Mechanism analyzed badge */}
                 {hasMechanism && (
                   <span className="inline-flex items-center gap-0.5 px-1.5 py-0.5 rounded text-[10px] bg-gray-500/20 text-gray-300 border border-gray-500/30">
                     <Microscope className="w-2.5 h-2.5" />
                   </span>
                 )}
-                
+
                 {/* Deep dive analyzed badge */}
                 {hasDeepDive && (
                   <span className="inline-flex items-center gap-0.5 px-1.5 py-0.5 rounded text-[10px] bg-gray-600/20 text-gray-300 border border-gray-600/30">
@@ -302,6 +324,7 @@ export const IndustryBranch = ({
           onBranch={onBranch}
           onMechanism={onFetchMechanism}
           onDeepDive={onFetchDeepDive}
+          onAppConcepts={onFetchAppConcepts}
           onCrossPollinate={onToggleCross}
           onAddChild={onAddSubIndustry}
           onDelete={onDelete}

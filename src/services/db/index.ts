@@ -11,7 +11,8 @@ export type {
   DBSearchCache,
   DBPatternAnalysis,
   DBPriorArtAnalysis,
-  DBChainAnalysis
+  DBChainAnalysis,
+  DBAppConcept
 } from './db-client';
 
 // Repository exports (for advanced usage)
@@ -23,5 +24,6 @@ export { PatternAnalysisRepository } from './repositories/pattern-analysis.repos
 export { PriorArtAnalysisRepository } from './repositories/prior-art-analysis.repository';
 export { ChainAnalysisRepository } from './repositories/chain-analysis.repository';
 export { SearchCacheRepository } from './repositories/search-cache.repository';
+export { AppConceptRepository } from './repositories/app-concept.repository';
 export { SearchService } from './search.service';
 export { BaseRepository } from './base.repository';
