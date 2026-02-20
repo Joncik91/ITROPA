@@ -133,6 +133,6 @@ Browser → Vercel Serverless Function → Google Gemini API
 - Vite
 - Tailwind CSS
 - Framer Motion
-- Google Gemini AI (2.0-flash-exp & 2.5-flash-lite)
+- Google Gemini AI (2.5-flash)
 - Lucide React Icons
 - Vercel Serverless Functions
