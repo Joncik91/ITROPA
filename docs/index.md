@@ -15,7 +15,7 @@
 - **Primary Language:** TypeScript
 - **Architecture:** Client-Server with AI Integration
 - **Database:** IndexedDB (client-side, Dexie)
-- **AI Provider:** Google Gemini (2.0-flash-exp, 2.5-flash-lite)
+- **AI Provider:** Google Gemini (2.5-flash)
 
 ---
 
