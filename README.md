@@ -136,7 +136,3 @@ Browser → Vercel Serverless Function → Google Gemini API
 - Google Gemini AI (2.5-flash)
 - Lucide React Icons
 - Vercel Serverless Functions
-
-## License
-
-[MIT](LICENSE)
