@@ -48,7 +48,7 @@ An interactive tool for exploring human needs and generating future industry pre
 3. **Set environment variables:**
    - In Vercel Dashboard, go to: Project Settings → Environment Variables
    - Add `GEMINI_API_KEY` = `your_actual_api_key`
-   - Add `APP_PASSWORD` = `your_secure_password` (for authentication)
+   - Optionally add `APP_PASSWORD` = `your_secure_password` to enable password protection
    - Select all environments (Production, Preview, Development)
 
 4. **Redeploy:**
@@ -58,8 +58,8 @@ An interactive tool for exploring human needs and generating future industry pre
 
 **Security:** 
 - Your API key is stored as a Vercel environment variable and only accessible by serverless functions
-- Password protection is automatically enabled in production
-- No authentication required for local development
+- Password protection is **opt-in**: set `APP_PASSWORD` to enable it; leave it unset for open access
+- No authentication required when `APP_PASSWORD` is not configured
 
 ## Features
 
@@ -136,3 +136,7 @@ Browser → Vercel Serverless Function → Google Gemini API
 - Google Gemini AI (2.5-flash)
 - Lucide React Icons
 - Vercel Serverless Functions
+
+## License
+
+[MIT](LICENSE)

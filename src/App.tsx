@@ -24,6 +24,7 @@ export default function App() {
   const [page, setPage] = useState<"home" | "library" | "patterns">("home");
   const [authenticated, setAuthenticated] = useState(false);
   const [checkingAuth, setCheckingAuth] = useState(true);
+  const [passwordRequired, setPasswordRequired] = useState(false);
 
   const { dark, toggleTheme } = useTheme();
   const theme = getTheme(dark);
@@ -31,22 +32,31 @@ export default function App() {
   // IMPORTANT: Always call hooks before any conditional returns
   const manager = useNeedManager();
 
-  // Check if running in production (Vercel) or local
-  const isProduction = import.meta.env.PROD;
-
   // Check authentication on mount
   useEffect(() => {
-    if (!isProduction) {
-      // Local development - no auth required
-      setAuthenticated(true);
-      setCheckingAuth(false);
-    } else {
-      // Production - check if already authenticated
-      const isAuth = localStorage.getItem('authenticated') === 'true';
-      setAuthenticated(isAuth);
-      setCheckingAuth(false);
-    }
-  }, [isProduction]);
+    const checkAuth = async () => {
+      try {
+        const response = await fetch('/api/auth');
+        const data = await response.json();
+        if (data.required) {
+          setPasswordRequired(true);
+          const isAuth = localStorage.getItem('authenticated') === 'true';
+          setAuthenticated(isAuth);
+        } else {
+          // No password configured — open access
+          setPasswordRequired(false);
+          setAuthenticated(true);
+        }
+      } catch {
+        // If the API is unreachable (e.g. local dev without Vercel), allow access
+        setPasswordRequired(false);
+        setAuthenticated(true);
+      } finally {
+        setCheckingAuth(false);
+      }
+    };
+    checkAuth();
+  }, []);
 
   useKeyboardShortcuts({
     needs: manager.needs,
@@ -67,7 +77,7 @@ export default function App() {
     return null;
   }
 
-  if (isProduction && !authenticated) {
+  if (passwordRequired && !authenticated) {
     return (
       <>
         <PasswordPrompt 
