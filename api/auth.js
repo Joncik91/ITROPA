@@ -1,12 +1,17 @@
 export default async function handler(req, res) {
   // Set CORS headers for all responses
   res.setHeader('Access-Control-Allow-Origin', '*');
-  res.setHeader('Access-Control-Allow-Methods', 'POST, OPTIONS');
+  res.setHeader('Access-Control-Allow-Methods', 'GET, POST, OPTIONS');
   res.setHeader('Access-Control-Allow-Headers', 'Content-Type');
   
   // Handle CORS preflight
   if (req.method === 'OPTIONS') {
     return res.status(200).json({});
+  }
+
+  // GET: return whether a password is required (opt-in based on APP_PASSWORD being set)
+  if (req.method === 'GET') {
+    return res.status(200).json({ required: !!process.env.APP_PASSWORD });
   }
 
   if (req.method !== 'POST') {
@@ -17,15 +22,9 @@ export default async function handler(req, res) {
     const { password } = req.body;
     const correctPassword = process.env.APP_PASSWORD;
 
-    console.log('Environment variable APP_PASSWORD exists:', !!correctPassword);
-    console.log('Received password length:', password?.length || 0);
-    console.log('Expected password length:', correctPassword?.length || 0);
-    
+    // If no password is configured, access is open to everyone
     if (!correctPassword) {
-      console.error('APP_PASSWORD environment variable is not set!');
-      return res.status(500).json({ 
-        error: 'Password not configured on server. Please set APP_PASSWORD environment variable in Vercel.' 
-      });
+      return res.status(200).json({ success: true });
     }
 
     // Trim whitespace from both passwords for comparison
