@@ -27,3 +27,6 @@ npm-debug.log*
 .claude
 claude.md
 .claude-bridge
+
+# Local SQLite mirror (dev-only persistence)
+local-mirror.db

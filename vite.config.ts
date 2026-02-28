@@ -2,10 +2,12 @@ import { defineConfig } from 'vite'
 import react from '@vitejs/plugin-react'
 import { copyFileSync, mkdirSync, existsSync } from 'fs'
 import { resolve } from 'path'
+import { sqliteMirrorPlugin } from './vite-plugin-sqlite-mirror'
 
 export default defineConfig({
   plugins: [
     react(),
+    sqliteMirrorPlugin(),
     {
       name: 'copy-docs',
       closeBundle() {

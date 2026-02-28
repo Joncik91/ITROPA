@@ -1,4 +1,5 @@
 import { db } from './db-client';
+import { mirrorService } from './mirror.service';
 import { NeedRepository } from './repositories/need.repository';
 import { MechanismRepository } from './repositories/mechanism.repository';
 import { DeepDiveRepository } from './repositories/deep-dive.repository';
@@ -26,6 +27,35 @@ export class DBService {
   private static chainAnalysisRepo = new ChainAnalysisRepository();
   private static searchCacheRepo = new SearchCacheRepository();
   private static appConceptRepo = new AppConceptRepository();
+
+  // ============ MIRROR SYNC ============
+
+  /**
+   * On startup: restore IndexedDB from the SQLite mirror.
+   * Runs only in dev mode; silently no-ops in production.
+   */
+  static async syncFromMirror(): Promise<void> {
+    const data = await mirrorService.loadAll();
+    if (!Object.keys(data).length) return;
+
+    await db.transaction('rw', [
+      db.needs, db.mechanisms, db.deepDives, db.crossPollinates,
+      db.searchCache, db.patternAnalyses, db.priorArtAnalyses,
+      db.chainAnalyses, db.appConcepts,
+    ], async () => {
+      if (data.needs?.length)            await db.needs.bulkPut(data.needs);
+      if (data.mechanisms?.length)       await db.mechanisms.bulkPut(data.mechanisms);
+      if (data.deepDives?.length)        await db.deepDives.bulkPut(data.deepDives);
+      if (data.crossPollinates?.length)  await db.crossPollinates.bulkPut(data.crossPollinates);
+      if (data.searchCache?.length)      await db.searchCache.bulkPut(data.searchCache);
+      if (data.patternAnalyses?.length)  await db.patternAnalyses.bulkPut(data.patternAnalyses);
+      if (data.priorArtAnalyses?.length) await db.priorArtAnalyses.bulkPut(data.priorArtAnalyses);
+      if (data.chainAnalyses?.length)    await db.chainAnalyses.bulkPut(data.chainAnalyses);
+      if (data.appConcepts?.length)      await db.appConcepts.bulkPut(data.appConcepts);
+    });
+
+    console.log('🔄 Restored from SQLite mirror');
+  }
 
   // ============ NEEDS ============
 

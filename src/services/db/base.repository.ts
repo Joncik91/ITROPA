@@ -1,4 +1,5 @@
 import { Table } from 'dexie';
+import { mirrorService } from './mirror.service';
 
 /**
  * Generic base repository providing CRUD operations for any entity type.
@@ -10,11 +11,17 @@ import { Table } from 'dexie';
 export abstract class BaseRepository<T extends { createdAt: number }, K = string> {
   constructor(protected table: Table<T, K>) {}
 
+  /** Extract the primary key value from an entity for mirroring. */
+  protected mirrorKey(entity: T): string {
+    return (entity as any).id ?? (entity as any).key;
+  }
+
   /**
    * Save or update an entity
    */
   async save(entity: T): Promise<void> {
     await this.table.put(entity as any);
+    mirrorService.save(this.table.name, this.mirrorKey(entity), entity);
   }
 
   /**
@@ -36,6 +43,7 @@ export abstract class BaseRepository<T extends { createdAt: number }, K = string
    */
   async delete(key: K): Promise<void> {
     await this.table.delete(key);
+    mirrorService.delete(this.table.name, String(key));
   }
 
   /**
@@ -43,6 +51,7 @@ export abstract class BaseRepository<T extends { createdAt: number }, K = string
    */
   async clear(): Promise<void> {
     await this.table.clear();
+    mirrorService.clear(this.table.name);
   }
 
   /**
