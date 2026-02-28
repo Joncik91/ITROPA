@@ -21,7 +21,7 @@ class APIClient {
     }
 
     const response = await fetch(
-      `https://generativelanguage.googleapis.com/v1beta/models/gemini-2.5-flash:generateContent?key=${GEMINI_API_KEY}`,
+      `https://generativelanguage.googleapis.com/v1beta/models/gemma-3-27b-it:generateContent?key=${GEMINI_API_KEY}`,
       {
         method: 'POST',
         headers: {
@@ -31,15 +31,9 @@ class APIClient {
           contents: [{
             parts: [{ text: prompt }]
           }],
-          systemInstruction: {
-            parts: [{
-              text: "You are a JSON API. You MUST respond with ONLY valid JSON - no markdown code blocks, no explanations, no conversational text like 'Okay' or 'Sure'. Start your response directly with { or [. Any non-JSON text will cause a system error."
-            }]
-          },
           generationConfig: {
             temperature,
             maxOutputTokens: maxTokens,
-            responseMimeType: "application/json",
           }
         })
       }

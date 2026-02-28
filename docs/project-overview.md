@@ -79,7 +79,7 @@ User Browser → React Frontend (no secrets)
 |-----------|---------|
 | Node.js + Express | API runtime |
 | Vercel Functions | Serverless deployment |
-| Google Generative AI | AI models (Gemini 2.5 Flash) |
+| Google Generative AI | AI models (Gemma 3 27B IT) |
 
 ### Development Tools
 

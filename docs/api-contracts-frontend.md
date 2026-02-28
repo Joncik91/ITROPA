@@ -100,14 +100,14 @@ The frontend communicates with Vercel Serverless Functions via REST API calls. T
 ### Development Mode
 - **Condition:** No `VITE_API_URL` set AND `VITE_GEMINI_API_KEY` present
 - **Behavior:** Direct calls to Google Gemini API
-- **Endpoint:** `https://generativelanguage.googleapis.com/v1beta/models/gemini-2.5-flash:generateContent`
-- **Model:** `gemini-2.5-flash`
+- **Endpoint:** `https://generativelanguage.googleapis.com/v1beta/models/gemma-3-27b-it:generateContent`
+- **Model:** `gemma-3-27b-it`
 
 ### Production Mode
 - **Condition:** `VITE_API_URL` is set
 - **Behavior:** Calls to Vercel Serverless Functions
 - **Endpoints:** `/api/gemini`, `/api/ai-assistant`
-- **Model:** `gemini-2.5-flash` (backend)
+- **Model:** `gemma-3-27b-it` (backend)
 
 ---
 

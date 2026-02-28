@@ -12,12 +12,51 @@ export interface ParseOptions {
 }
 
 /**
+ * Repair truncated JSON by closing any open structures.
+ * Walks the string tracking brackets/braces and string state,
+ * trims to the last complete value, then closes open structures.
+ */
+function repairTruncatedJSON(str: string): string {
+  const stack: string[] = [];
+  let inString = false;
+  let escaped = false;
+  let lastSafePos = 0;
+
+  for (let i = 0; i < str.length; i++) {
+    const ch = str[i];
+    if (escaped) { escaped = false; continue; }
+    if (ch === '\\' && inString) { escaped = true; continue; }
+    if (ch === '"') {
+      inString = !inString;
+      if (!inString) lastSafePos = i + 1;
+      continue;
+    }
+    if (inString) continue;
+    if (ch === '{' || ch === '[') {
+      stack.push(ch);
+    } else if (ch === '}' || ch === ']') {
+      stack.pop();
+      lastSafePos = i + 1;
+    }
+  }
+
+  if (stack.length === 0) return str;
+
+  let result = str.substring(0, lastSafePos).trimEnd().replace(/,\s*$/, '');
+  for (let i = stack.length - 1; i >= 0; i--) {
+    result += stack[i] === '{' ? '}' : ']';
+  }
+  return result;
+}
+
+/**
  * Extract and parse JSON from AI-generated text responses.
  *
  * Handles:
  * - Markdown code blocks (```json ... ```)
  * - Text before/after JSON
  * - Trailing commas in arrays/objects
+ * - Truncated responses (closes open brackets/braces)
  *
  * @param text - Raw text response from AI
  * @param options - Parsing options
@@ -41,17 +80,22 @@ export function extractJSON<T = any>(text: string, options: ParseOptions = {}): 
   try {
     return JSON.parse(jsonStr);
   } catch (e: any) {
-    // Try to fix common JSON issues
-    // Remove trailing commas before closing brackets/braces
-    jsonStr = jsonStr.replace(/,(\s*[}\]])/g, '$1');
+    // Fix trailing commas before closing brackets/braces
+    const fixedStr = jsonStr.replace(/,(\s*[}\]])/g, '$1');
 
     try {
-      return JSON.parse(jsonStr);
-    } catch (e2) {
-      if (logErrors) {
-        console.error("Failed to parse JSON:", jsonStr.substring(0, errorLogLimit));
+      return JSON.parse(fixedStr);
+    } catch {
+      // Try to repair truncated JSON
+      try {
+        const repairedStr = repairTruncatedJSON(fixedStr).replace(/,(\s*[}\]])/g, '$1');
+        return JSON.parse(repairedStr);
+      } catch {
+        if (logErrors) {
+          console.error("Failed to parse JSON:", jsonStr.substring(0, errorLogLimit));
+        }
+        throw new Error(`JSON Parse Error: ${e.message}`);
       }
-      throw new Error(`JSON Parse Error: ${e.message}`);
     }
   }
 }
