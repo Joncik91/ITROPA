@@ -59,7 +59,7 @@ export async function runFrameworkAnalysis<TResult, TType extends string = strin
     )
   );
 
-  return analyses.filter((analysis): analysis is TResult => analysis !== null);
+  return analyses.filter((analysis) => analysis !== null) as TResult[];
 }
 
 /**

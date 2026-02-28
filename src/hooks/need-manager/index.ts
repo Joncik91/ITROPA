@@ -55,6 +55,8 @@ export function useNeedManager() {
     setMechanismLoading: uiState.setMechanismLoading,
     setDeepDive: uiState.setDeepDive,
     setDeepDiveLoading: uiState.setDeepDiveLoading,
+    setAppConcepts: uiState.setAppConcepts,
+    setAppConceptsLoading: uiState.setAppConceptsLoading,
   });
 
   // Initialize cross-pollination with dependencies
@@ -98,7 +100,7 @@ export function useNeedManager() {
       case 'close_need':
         if (action.data.previousState) {
           needState.setNeeds((prev: Need[]) => [...prev, action.data.previousState]);
-          needState.setActiveTab(action.data.needId);
+          needState.setActiveTab(action.data.needId ?? null);
           toast.success('Undid: Close need');
         }
         break;
@@ -128,7 +130,7 @@ export function useNeedManager() {
       case 'add_need':
         if (action.data.newState) {
           needState.setNeeds((prev: Need[]) => [...prev, action.data.newState]);
-          needState.setActiveTab(action.data.needId);
+          needState.setActiveTab(action.data.needId ?? null);
           toast.success('Redid: Add need');
         }
         break;

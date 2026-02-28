@@ -2,7 +2,7 @@ import toast from 'react-hot-toast';
 import { getGeminiService } from '../../services/gemini.service';
 import { DBService } from '../../services/db.service';
 import type { Need, IndustryExpression } from '../../types';
-import type { HistoryManager } from '../useHistory';
+import type { UseHistoryReturn } from '../useHistory';
 
 /**
  * Tree manipulation operations (branching, adding children)
@@ -18,7 +18,7 @@ export function useTreeOperations(deps: {
   formData: { name: string; mutation: string; insight: string };
   setFormData: (data: any) => void;
   crossPollinate: { items: IndustryExpression[] };
-  history: HistoryManager;
+  history: UseHistoryReturn;
 }) {
   const {
     needs,

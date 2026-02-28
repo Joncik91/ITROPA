@@ -1,4 +1,4 @@
-import { useState, useEffect } from "react";
+import { useState } from "react";
 import { motion, AnimatePresence } from "framer-motion";
 import { List, ChevronRight, ChevronDown } from "lucide-react";
 import type { IndustryExpression, Era } from "../types";

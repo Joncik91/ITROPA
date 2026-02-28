@@ -140,7 +140,7 @@ const AISuggestionList = ({
     {suggestions.map((suggestion) => (
       <div key={suggestion.id} className={`p-3 rounded-lg border ${theme.border} ${theme.card}`}>
         <div className="text-xs font-medium mb-1">{suggestion.action}</div>
-        <div className={`text-xs ${theme.muted} mb-2`}>{suggestion.reason}</div>
+        <div className={`text-xs ${theme.muted} mb-2`}>{suggestion.reasoning}</div>
         <button
           onClick={() => onExecute(suggestion)}
           disabled={disabled}

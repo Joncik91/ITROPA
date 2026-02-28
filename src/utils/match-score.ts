@@ -216,7 +216,7 @@ function calculateTechFit(
 
 function calculateMarketFit(
   industry: IndustryExpression,
-  deepDive: DeepDiveDetails | null,
+  _deepDive: DeepDiveDetails | null,
   profile: ConstraintsProfile
 ): { score: number; reason?: string } {
   // Simple heuristics based on industry name/description
@@ -284,7 +284,7 @@ function calculateRiskFit(
 
 function calculateFormFactorFit(
   industry: IndustryExpression,
-  deepDive: DeepDiveDetails | null,
+  _deepDive: DeepDiveDetails | null,
   profile: ConstraintsProfile
 ): { score: number; reason?: string } {
   // Infer likely form factor from industry characteristics

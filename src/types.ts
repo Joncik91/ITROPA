@@ -388,14 +388,7 @@ export interface PriorArtAnalysis {
   disruptiveTriggers?: string[];
   
   // Innovation Potential Assessment
-  innovationOpportunities?: Array<{
-    type: string; // incremental/adjacent/breakthrough
-    description: string;
-    riskLevel: 'low' | 'medium' | 'high';
-    expectedImpact: 'low' | 'medium' | 'high';
-    timeToMarket: string;
-    resourceRequirements: string;
-  }>;
+  innovationOpportunities?: any;
   quickWins?: Array<{
     opportunity: string;
     effort: string;
@@ -443,7 +436,9 @@ export interface PriorArtAnalysis {
   customerSatisfaction?: 'low' | 'medium' | 'high'; // Current satisfaction
   
   // Core insights
+  summary?: string;
   keyInsight?: string;
+  keyInsights?: string[];
   strategicImperatives?: string[];
   criticalRisks?: string[];
 }

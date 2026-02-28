@@ -2,7 +2,7 @@ import { useCallback } from 'react';
 import toast from 'react-hot-toast';
 import { getGeminiService } from '../../services/gemini.service';
 import { DBService } from '../../services/db.service';
-import type { HistoryManager } from '../useHistory';
+import type { UseHistoryReturn } from '../useHistory';
 
 /**
  * CRUD operations for needs
@@ -20,7 +20,7 @@ export function useNeedCRUD(deps: {
   setError: (error: string | null) => void;
   setShowPriorArt: (fn: any) => void;
   setExpandedBranches: (fn: any) => void;
-  history: HistoryManager;
+  history: UseHistoryReturn;
 }) {
   const {
     needs,

@@ -18,7 +18,6 @@ export function useAIAssistant(deps: {
   branchIndustry: (expr: IndustryExpression, needId: string) => Promise<void>;
 }) {
   const {
-    needs,
     setNeeds,
     activeNeed,
     fetchMechanism,
@@ -36,7 +35,7 @@ export function useAIAssistant(deps: {
   const requestMechanismAIAssist = async (mechanismId: string) => {
     setAILoading(true);
     try {
-      const suggestions = await getAIAssistant('mechanism', { mechanismId });
+      const suggestions = await getAIAssistant().suggestMechanismActions(mechanismId);
       setMechanismAISuggestions(suggestions);
     } catch (e: any) {
       toast.error(`AI assist failed: ${e.message}`);
@@ -48,7 +47,7 @@ export function useAIAssistant(deps: {
   const requestDeepDiveAIAssist = async (deepDiveId: string) => {
     setAILoading(true);
     try {
-      const suggestions = await getAIAssistant('deep-dive', { deepDiveId });
+      const suggestions = await getAIAssistant().suggestDeepDiveActions(deepDiveId);
       setDeepDiveAISuggestions(suggestions);
     } catch (e: any) {
       toast.error(`AI assist failed: ${e.message}`);
@@ -60,7 +59,7 @@ export function useAIAssistant(deps: {
   const requestNeedAIAssist = async (needId: string) => {
     setAILoading(true);
     try {
-      const suggestions = await getAIAssistant('need', { needId });
+      const suggestions = await getAIAssistant().suggestNeedActions(needId);
       setNeedAISuggestions(suggestions);
     } catch (e: any) {
       toast.error(`AI assist failed: ${e.message}`);
@@ -70,55 +69,55 @@ export function useAIAssistant(deps: {
   };
 
   const executeAIAction = async (suggestion: AIActionSuggestion) => {
-    const toastId = toast.loading(suggestion.description);
+    const toastId = toast.loading(suggestion.action);
     try {
-      switch (suggestion.action) {
-        case 'branch_industry': {
+      switch (suggestion.actionType) {
+        case 'branch': {
           if (!activeNeed) throw new Error('No active need');
-          const expr = suggestion.data.expressionName
-            ? findExpressionByNameInNeed(activeNeed, suggestion.data.expressionName)
-            : findExpressionInNeed(activeNeed, suggestion.data.expressionId);
+          const expr = suggestion.params.expressionName
+            ? findExpressionByNameInNeed(activeNeed, suggestion.params.expressionName)
+            : findExpressionInNeed(activeNeed, suggestion.params.expressionId);
           if (!expr) throw new Error('Expression not found');
           await branchIndustry(expr, activeNeed.id);
-          toast.success(suggestion.description, { id: toastId });
+          toast.success(suggestion.action, { id: toastId });
           break;
         }
 
-        case 'extract_mechanism': {
+        case 'analyze': {
           if (!activeNeed) throw new Error('No active need');
-          const expr = suggestion.data.expressionName
-            ? findExpressionByNameInNeed(activeNeed, suggestion.data.expressionName)
-            : findExpressionInNeed(activeNeed, suggestion.data.expressionId);
+          const expr = suggestion.params.expressionName
+            ? findExpressionByNameInNeed(activeNeed, suggestion.params.expressionName)
+            : findExpressionInNeed(activeNeed, suggestion.params.expressionId);
           if (!expr) throw new Error('Expression not found');
           await fetchMechanism(expr);
-          toast.success(suggestion.description, { id: toastId });
+          toast.success(suggestion.action, { id: toastId });
           break;
         }
 
-        case 'deep_dive': {
+        case 'extract': {
           if (!activeNeed) throw new Error('No active need');
-          const expr = suggestion.data.expressionName
-            ? findExpressionByNameInNeed(activeNeed, suggestion.data.expressionName)
-            : findExpressionInNeed(activeNeed, suggestion.data.expressionId);
+          const expr = suggestion.params.expressionName
+            ? findExpressionByNameInNeed(activeNeed, suggestion.params.expressionName)
+            : findExpressionInNeed(activeNeed, suggestion.params.expressionId);
           if (!expr) throw new Error('Expression not found');
           await fetchDeepDive(expr);
-          toast.success(suggestion.description, { id: toastId });
+          toast.success(suggestion.action, { id: toastId });
           break;
         }
 
-        case 'generate_related_need': {
+        case 'create_need': {
           const newNeed = await geminiService.generateNeed(
-            suggestion.data.needName,
+            suggestion.params.needName,
             activeNeed?.priorArt || {},
-            suggestion.data.needDescription
+            suggestion.params.needDescription
           );
           setNeeds((prev: Need[]) => [...prev, newNeed]);
-          toast.success(suggestion.description, { id: toastId });
+          toast.success(suggestion.action, { id: toastId });
           break;
         }
 
         default:
-          throw new Error(`Unknown action: ${suggestion.action}`);
+          throw new Error(`Unknown action: ${suggestion.actionType}`);
       }
     } catch (e: any) {
       toast.error(`Action failed: ${e.message}`, { id: toastId });

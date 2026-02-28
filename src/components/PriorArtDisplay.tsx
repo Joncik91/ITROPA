@@ -461,9 +461,9 @@ export const PriorArtDisplay = ({ needName, priorArt, theme }: PriorArtDisplayPr
                   <div>
                     <p className="text-xs font-medium mb-2">Differentiation Pillars</p>
                     <div className="flex flex-wrap gap-2">
-                      {analysis.differentiationPillars.map((pillar: string, i: number) => (
+                      {analysis.differentiationPillars.map((pillar: any, i: number) => (
                         <span key={i} className="px-2 py-1 rounded bg-gray-500/20 text-gray-300 text-xs">
-                          {pillar}
+                          {typeof pillar === 'string' ? pillar : pillar.pillar}
                         </span>
                       ))}
                     </div>

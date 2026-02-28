@@ -18,7 +18,7 @@ interface HomePageProps {
 }
 
 export const HomePage = ({ theme, dark, manager }: HomePageProps) => {
-  const [breadcrumbPath, setBreadcrumbPath] = useState<string[]>([]);
+  const [breadcrumbPath] = useState<string[]>([]);
   const [viewDensity, setViewDensity] = useState<"compact" | "comfortable">("comfortable");
   const [leftSidebarOpen, setLeftSidebarOpen] = useState(false);
   const [rightSidebarOpen, setRightSidebarOpen] = useState(false);

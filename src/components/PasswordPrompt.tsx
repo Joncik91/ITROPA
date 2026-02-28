@@ -10,7 +10,7 @@ interface PasswordPromptProps {
   dark: boolean;
 }
 
-export const PasswordPrompt = ({ onAuthenticated, theme, dark }: PasswordPromptProps) => {
+export const PasswordPrompt = ({ onAuthenticated, theme }: PasswordPromptProps) => {
   const [password, setPassword] = useState('');
   const [loading, setLoading] = useState(false);
 

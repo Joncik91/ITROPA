@@ -1,5 +1,5 @@
 import { useState } from 'react';
-import type { IndustryExpression, FormData, CrossPollinateState } from '../../types';
+import type { IndustryExpression, FormData, CrossPollinateState, AppConcept } from '../../types';
 
 /**
  * UI state management
@@ -20,6 +20,8 @@ export function useUIState() {
   const [mechanismLoading, setMechanismLoading] = useState(false);
   const [deepDiveLoading, setDeepDiveLoading] = useState(false);
   const [crossLoading, setCrossLoading] = useState(false);
+  const [appConcepts, setAppConcepts] = useState<AppConcept[] | null>(null);
+  const [appConceptsLoading, setAppConceptsLoading] = useState(false);
 
   const closeAllModals = () => {
     setDeepDive(null);
@@ -72,6 +74,10 @@ export function useUIState() {
     setDeepDiveLoading,
     crossLoading,
     setCrossLoading,
+    appConcepts,
+    setAppConcepts,
+    appConceptsLoading,
+    setAppConceptsLoading,
 
     // Actions
     closeAllModals,

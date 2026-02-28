@@ -40,6 +40,7 @@ export interface LoadingState {
   deepDiveLoading: boolean;
   crossLoading: boolean;
   aiLoading: boolean;
+  appConceptsLoading: boolean;
   error: string | null;
 }
 
@@ -77,6 +78,7 @@ export interface ExpressionOperations {
 export interface AnalysisOperations {
   fetchMechanism: (expr: IndustryExpression) => Promise<void>;
   fetchDeepDive: (expr: IndustryExpression) => Promise<void>;
+  fetchAppConcepts: (expr: IndustryExpression, needId: string) => Promise<void>;
 }
 
 /** Operations for cross-pollination */

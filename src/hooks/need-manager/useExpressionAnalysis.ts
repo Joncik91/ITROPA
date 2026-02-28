@@ -92,7 +92,7 @@ export function useExpressionAnalysis(deps: {
       const deepDiveCache = await DBService.getDeepDive(expr.id, needId);
       const deepDive = deepDiveCache?.details;
 
-      const concepts = await geminiService.generateAppConcepts(expr, deepDive);
+      const concepts = await geminiService.generateAppConcepts(expr, deepDive as any);
       setAppConcepts(concepts);
       // Save to database
       if (concepts.length > 0) {

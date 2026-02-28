@@ -34,7 +34,7 @@ export const LeftSidebar = ({
   dark,
   manager,
   isOpen,
-  onClose,
+  onClose: _onClose,
   scrollContainerRef,
   analyzedExpressions,
   constraintsProfile,
