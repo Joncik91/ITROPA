@@ -1,324 +1,221 @@
 /**
- * Modal content for displaying mechanism analysis results.
- * Shows multi-framework analysis with key principles, structural elements,
- * causal chains, and other mechanism details.
+ * Mechanism analysis: how an industry works, seen through several frameworks.
  */
 
 import type { AIActionSuggestion } from "../../types";
-import type { Theme } from "../../config/theme";
 import { AIAssistant, AIAssistButton } from "../AIAssistant";
-import { createRatingBadgeGetter } from "../../utils/badge-styles";
-import { getFrameworkLabel } from "../../config/analysis-frameworks";
+import { Badge } from "../ui";
+import { ratingTone } from "../../utils/badge-styles";
+import { getFrameworkLabel, MECHANISM_FRAMEWORKS } from "../../config/analysis-frameworks";
+import { Block, Item, Line, Meter, Disclosure, asArray } from "./parts";
 
 export interface MechanismModalContentProps {
   mechanism: any;
-  theme: Theme;
-  dark: boolean;
   aiSuggestions?: { suggestions: AIActionSuggestion[]; reasoning: string } | null;
   onAIAssist?: () => void;
   aiLoading?: boolean;
   onExecuteAction?: (suggestion: AIActionSuggestion) => Promise<boolean>;
 }
 
-export const MechanismModalContent = ({
-  mechanism,
-  theme,
-  dark,
-  aiSuggestions,
-  onAIAssist,
-  aiLoading,
-  onExecuteAction
-}: MechanismModalContentProps) => {
-  // Handle both formats:
-  // 1. mechanism is the array directly (from extractMechanism or cache)
-  // 2. mechanism.details is the array (legacy format)
-  const rawAnalyses = Array.isArray(mechanism)
+const RATINGS: Array<[key: string, label: string]> = [
+  ["abstractionLevel", "Abstraction"],
+  ["complexityRating", "Complexity"],
+  ["universality", "Universality"],
+  ["disruptionPotential", "Disruption"],
+];
+
+const frameworkDescription = (type?: string) =>
+  type && type in MECHANISM_FRAMEWORKS ? MECHANISM_FRAMEWORKS[type as keyof typeof MECHANISM_FRAMEWORKS].description : undefined;
+
+export const MechanismModalContent = ({ mechanism, aiSuggestions, onAIAssist, aiLoading, onExecuteAction }: MechanismModalContentProps) => {
+  // Accept the analyses array directly, or the legacy { details } shape.
+  const raw = Array.isArray(mechanism)
     ? mechanism
     : Array.isArray(mechanism?.details)
       ? mechanism.details
       : mechanism?.details
         ? [mechanism.details]
         : [];
-  // Filter out undefined/null entries to prevent rendering errors
-  const analyses = rawAnalyses.filter((a: any) => a != null);
-
-  // Use shared framework labels from config
-  const getAnalysisTypeLabel = (type?: string) => getFrameworkLabel(type);
-
-  const getScoreColor = (score: number) => {
-    if (score >= 80) return dark ? 'text-green-400' : 'text-green-600';
-    if (score >= 60) return dark ? 'text-yellow-400' : 'text-yellow-600';
-    return dark ? 'text-orange-400' : 'text-orange-600';
-  };
-
-  // Use shared badge utility
-  const getRatingBadge = createRatingBadgeGetter(dark);
+  const analyses = asArray<any>(raw);
 
   return (
-    <div className="space-y-6 text-sm">
-      {/* AI Assistant */}
-      {onAIAssist && (
-        <div className="mb-4">
-          <AIAssistButton onClick={onAIAssist} loading={!!aiLoading} theme={theme} />
-        </div>
-      )}
+    <div className="space-y-4">
+      {onAIAssist && <AIAssistButton onClick={onAIAssist} loading={!!aiLoading} />}
       {aiSuggestions && onExecuteAction && (
-        <div className="mb-4">
-          <AIAssistant
-            suggestions={aiSuggestions.suggestions}
-            reasoning={aiSuggestions.reasoning}
-            theme={theme}
-            onExecuteAction={onExecuteAction}
-          />
-        </div>
+        <AIAssistant suggestions={aiSuggestions.suggestions} reasoning={aiSuggestions.reasoning} onExecuteAction={onExecuteAction} />
       )}
 
-      {/* Display each mechanism analysis */}
-      {analyses.length === 0 && (
-        <div className={`p-4 rounded-lg border ${dark ? 'bg-gray-800/50 border-gray-700' : 'bg-gray-50 border-gray-200'}`}>
-          <p className={theme.muted}>No mechanism analysis data available.</p>
-        </div>
+      {analyses.length === 0 ? (
+        <p className="p-4 rounded-card border border-line text-sm text-ink-2">
+          No mechanism analysis was saved for this industry. Close this and run Mechanism again.
+        </p>
+      ) : (
+        <p className="text-sm text-ink-2">
+          {analyses.length} {analyses.length === 1 ? "framework" : "frameworks"}. Tap one to open it.
+        </p>
       )}
-      {analyses.map((analysis: any, idx: number) => (
-        <div key={idx} className={`space-y-4 p-4 rounded-lg border ${dark ? 'bg-gray-800/50 border-gray-700' : 'bg-gray-50 border-gray-200'}`}>
-          {/* Analysis Type Header */}
-          <div className="flex items-center justify-between mb-3">
-            <h3 className={`font-semibold ${theme.accent}`}>
-              {getAnalysisTypeLabel(analysis.analysisType)}
-            </h3>
-            {analysis.analysisType && (
-              <span className={getRatingBadge(analysis.analysisType)}>
-                Framework {idx + 1}
-              </span>
+
+      {analyses.map((a: any, idx: number) => {
+        const desc = frameworkDescription(a.analysisType);
+        const ratings = RATINGS.filter(([k]) => a[k]);
+        const causal = a.causalChain;
+        const scale = a.scaleContextInsights;
+        return (
+          <Disclosure key={idx} defaultOpen={idx === 0} title={getFrameworkLabel(a.analysisType)}>
+            {desc && <p className="text-sm text-ink-2">{desc}.</p>}
+
+            {a.coreMechanism && (
+              <div className="p-3 rounded-control border-l-2 border-accent bg-accent/5">
+                <p className="text-xs text-ink-2 mb-0.5">Core mechanism</p>
+                <p className="font-medium">{a.coreMechanism}</p>
+              </div>
             )}
-          </div>
 
-          {/* Core Mechanism */}
-          <div className={`p-3 rounded-lg ${dark ? "bg-gray-500/10 border-gray-500/30" : "bg-gray-50 border-gray-200"} border`}>
-            <p className={`text-xs ${theme.muted} mb-1`}>Core Mechanism</p>
-            <p className="font-medium">{analysis.coreMechanism}</p>
-          </div>
+            {a.abstractPattern && (
+              <Block title="Abstract pattern">
+                <p className="text-sm">{a.abstractPattern}</p>
+              </Block>
+            )}
 
-          {/* Abstract Pattern */}
-          <div className={`p-3 rounded-lg ${theme.itemBg}`}>
-            <p className={`text-xs ${theme.muted} mb-1`}>Abstract Pattern</p>
-            <p className={theme.accent}>{analysis.abstractPattern}</p>
-          </div>
-
-          {/* Metadata Scores */}
-          {(analysis.transferPotential !== undefined || analysis.maturityScore !== undefined) && (
-            <div className="grid grid-cols-2 gap-3">
-              {analysis.transferPotential !== undefined && (
-                <div className={`p-3 rounded-lg ${theme.itemBgAlt}`}>
-                  <p className={`text-xs ${theme.muted} mb-1`}>Transfer Potential</p>
-                  <div className="flex items-center gap-2">
-                    <div className="flex-1 h-2 bg-gray-200 dark:bg-gray-700 rounded-full overflow-hidden">
-                      <div
-                        className={`h-full transition-all ${analysis.transferPotential >= 80 ? 'bg-green-500' : analysis.transferPotential >= 60 ? 'bg-yellow-500' : 'bg-orange-500'}`}
-                        style={{ width: `${analysis.transferPotential}%` }}
-                      />
-                    </div>
-                    <span className={`font-semibold ${getScoreColor(analysis.transferPotential)}`}>
-                      {analysis.transferPotential}
-                    </span>
-                  </div>
-                </div>
-              )}
-              {analysis.maturityScore !== undefined && (
-                <div className={`p-3 rounded-lg ${theme.itemBgAlt}`}>
-                  <p className={`text-xs ${theme.muted} mb-1`}>Maturity Score</p>
-                  <div className="flex items-center gap-2">
-                    <div className="flex-1 h-2 bg-gray-200 dark:bg-gray-700 rounded-full overflow-hidden">
-                      <div
-                        className={`h-full transition-all ${analysis.maturityScore >= 80 ? 'bg-green-500' : analysis.maturityScore >= 60 ? 'bg-yellow-500' : 'bg-orange-500'}`}
-                        style={{ width: `${analysis.maturityScore}%` }}
-                      />
-                    </div>
-                    <span className={`font-semibold ${getScoreColor(analysis.maturityScore)}`}>
-                      {analysis.maturityScore}
-                    </span>
-                  </div>
-                </div>
-              )}
-            </div>
-          )}
-
-          {/* Categorical Ratings */}
-          {(analysis.abstractionLevel || analysis.complexityRating || analysis.universality || analysis.disruptionPotential) && (
-            <div className="flex flex-wrap gap-2">
-              {analysis.abstractionLevel && (
-                <div className="flex items-center gap-1.5">
-                  <span className={`text-xs ${theme.muted}`}>Abstraction:</span>
-                  <span className={getRatingBadge(analysis.abstractionLevel)}>{analysis.abstractionLevel}</span>
-                </div>
-              )}
-              {analysis.complexityRating && (
-                <div className="flex items-center gap-1.5">
-                  <span className={`text-xs ${theme.muted}`}>Complexity:</span>
-                  <span className={getRatingBadge(analysis.complexityRating)}>{analysis.complexityRating}</span>
-                </div>
-              )}
-              {analysis.universality && (
-                <div className="flex items-center gap-1.5">
-                  <span className={`text-xs ${theme.muted}`}>Universality:</span>
-                  <span className={getRatingBadge(analysis.universality)}>{analysis.universality}</span>
-                </div>
-              )}
-              {analysis.disruptionPotential && (
-                <div className="flex items-center gap-1.5">
-                  <span className={`text-xs ${theme.muted}`}>Disruption:</span>
-                  <span className={getRatingBadge(analysis.disruptionPotential)}>{analysis.disruptionPotential}</span>
-                </div>
-              )}
-            </div>
-          )}
-
-          {/* Framework-Specific Fields */}
-          {Array.isArray(analysis.keyPrinciples) && analysis.keyPrinciples.length > 0 && (
-            <div>
-              <p className={`text-xs font-medium ${theme.muted} mb-2`}>Key Principles (Functional)</p>
-              {analysis.keyPrinciples.map((p: any, i: number) => (
-                <div key={i} className={`mb-2 p-2 rounded ${theme.itemBgAlt}`}>
-                  <span className="font-medium">{p.principle}</span>
-                  <p className="text-xs mt-1">{p.function}</p>
-                  <p className={`text-xs mt-1 ${theme.muted}`}>Why critical: {p.criticality}</p>
-                </div>
-              ))}
-            </div>
-          )}
-
-          {Array.isArray(analysis.structuralElements) && analysis.structuralElements.length > 0 && (
-            <div>
-              <p className={`text-xs font-medium ${theme.muted} mb-2`}>Structural Elements</p>
-              {analysis.structuralElements.map((e: any, i: number) => (
-                <div key={i} className={`mb-2 p-2 rounded ${theme.itemBgAlt}`}>
-                  <span className="font-medium">{e.element}</span>
-                  <p className="text-xs mt-1">Role: {e.role}</p>
-                  <p className={`text-xs mt-1 ${theme.muted}`}>Interactions: {e.interactions}</p>
-                </div>
-              ))}
-            </div>
-          )}
-
-          {analysis.causalChain && (
-            <div>
-              <p className={`text-xs font-medium ${theme.muted} mb-2`}>Causal Chain</p>
-              <div className={`p-3 rounded-lg ${theme.itemBgAlt} space-y-2`}>
-                <div><span className="font-medium">Trigger:</span> {analysis.causalChain.trigger}</div>
-                <div>
-                  <span className="font-medium">Sequence:</span>
-                  <ol className="list-decimal list-inside ml-2 mt-1 space-y-1">
-                    {(Array.isArray(analysis.causalChain.sequence) ? analysis.causalChain.sequence : []).map((step: string, i: number) => (
-                      <li key={i} className="text-xs">{step}</li>
-                    ))}
-                  </ol>
-                </div>
-                <div><span className="font-medium">Outcome:</span> {analysis.causalChain.outcome}</div>
-                {Array.isArray(analysis.causalChain.interventionPoints) && analysis.causalChain.interventionPoints.length > 0 && (
-                  <div>
-                    <span className="font-medium">Intervention Points:</span>
-                    <ul className="list-disc list-inside ml-2 mt-1">
-                      {analysis.causalChain.interventionPoints.map((point: string, i: number) => (
-                        <li key={i} className="text-xs">{point}</li>
-                      ))}
-                    </ul>
-                  </div>
+            {(a.transferPotential !== undefined || a.maturityScore !== undefined) && (
+              <div className="grid gap-2 sm:grid-cols-2">
+                {a.transferPotential !== undefined && (
+                  <Meter label="Transfer potential" value={a.transferPotential} hint="How easily this mechanism moves to other domains." />
+                )}
+                {a.maturityScore !== undefined && (
+                  <Meter label="Maturity" value={a.maturityScore} hint="How established and proven it already is." />
                 )}
               </div>
-            </div>
-          )}
+            )}
 
-          {Array.isArray(analysis.constraintOpportunities) && analysis.constraintOpportunities.length > 0 && (
-            <div>
-              <p className={`text-xs font-medium ${theme.muted} mb-2`}>Constraint-Opportunity Pairs</p>
-              {analysis.constraintOpportunities.map((co: any, i: number) => (
-                <div key={i} className={`mb-2 p-2 rounded ${theme.itemBgAlt}`}>
-                  <div className="text-xs"><span className="font-medium">Constraint:</span> {co.constraint}</div>
-                  <div className="text-xs mt-1"><span className="font-medium">Opportunity:</span> {co.opportunity}</div>
-                  <div className={`text-xs mt-1 ${theme.muted}`}>Application: {co.application}</div>
-                </div>
-              ))}
-            </div>
-          )}
-
-          {analysis.scaleContextInsights && (
-            <div>
-              <p className={`text-xs font-medium ${theme.muted} mb-2`}>Scale-Context Insights</p>
-              <div className={`p-3 rounded-lg ${theme.itemBgAlt} space-y-2`}>
-                <div><span className="font-medium">Micro Scale:</span> {analysis.scaleContextInsights.microScale}</div>
-                <div><span className="font-medium">Meso Scale:</span> {analysis.scaleContextInsights.mesoScale}</div>
-                <div><span className="font-medium">Macro Scale:</span> {analysis.scaleContextInsights.macroScale}</div>
-                {Array.isArray(analysis.scaleContextInsights.contextVariations) && analysis.scaleContextInsights.contextVariations.length > 0 && (
-                  <div>
-                    <span className="font-medium">Context Variations:</span>
-                    <ul className="list-disc list-inside ml-2 mt-1">
-                      {analysis.scaleContextInsights.contextVariations.map((v: string, i: number) => (
-                        <li key={i} className="text-xs">{v}</li>
-                      ))}
-                    </ul>
+            {ratings.length > 0 && (
+              <dl className="flex flex-wrap gap-x-4 gap-y-2">
+                {ratings.map(([k, label]) => (
+                  <div key={k} className="flex items-center gap-1.5">
+                    <dt className="text-sm text-ink-2">{label}</dt>
+                    <dd><Badge tone={ratingTone(a[k])}>{a[k]}</Badge></dd>
                   </div>
-                )}
-              </div>
-            </div>
-          )}
-
-          {/* Historical Applications */}
-          {Array.isArray(analysis.historicalApplications) && analysis.historicalApplications.length > 0 && (
-            <div>
-              <p className={`text-xs font-medium ${theme.muted} mb-2`}>Historical Applications</p>
-              {analysis.historicalApplications.map((h: any, i: number) => (
-                <div key={i} className={`mb-2 p-2 rounded ${theme.itemBgAlt}`}>
-                  <div className="flex items-center justify-between">
-                    <span className="font-medium">{h.domain}</span>
-                    <span className={`text-xs ${theme.muted}`}>({h.era})</span>
-                  </div>
-                  <p className="text-xs mt-1">{h.example}</p>
-                  {h.successFactors && <p className="text-xs mt-1"><span className="font-medium">Success:</span> {h.successFactors}</p>}
-                  {h.limitations && <p className={`text-xs mt-1 ${theme.muted}`}><span className="font-medium">Limitations:</span> {h.limitations}</p>}
-                  {h.evolutionPath && <p className="text-xs mt-1"><span className="font-medium">Evolution:</span> {h.evolutionPath}</p>}
-                </div>
-              ))}
-            </div>
-          )}
-
-          {/* Untapped Domains */}
-          {Array.isArray(analysis.untappedDomains) && analysis.untappedDomains.length > 0 && (
-            <div>
-              <p className={`text-xs font-medium ${theme.muted} mb-2`}>Untapped Domains</p>
-              {analysis.untappedDomains.map((u: any, i: number) => (
-                <div key={i} className={`mb-2 p-3 rounded-lg border ${dark ? 'bg-gray-600/10 border-gray-600/30' : 'bg-gray-100 border-gray-300'}`}>
-                  <div className="flex items-center justify-between mb-1">
-                    <span className="font-medium">{u.domain}</span>
-                    {u.impactPotential && (
-                      <span className={getRatingBadge(u.impactPotential)}>
-                        {u.impactPotential} impact
-                      </span>
-                    )}
-                  </div>
-                  <p className="text-xs mt-1"><span className="font-medium">Opportunity:</span> {u.opportunity}</p>
-                  <p className="text-xs mt-1"><span className="font-medium">Novelty:</span> {u.novelty}</p>
-                  {u.transferBarriers && <p className={`text-xs mt-1 ${theme.muted}`}><span className="font-medium">Barriers:</span> {u.transferBarriers}</p>}
-                  {u.requiredAdaptations && <p className="text-xs mt-1"><span className="font-medium">Adaptations:</span> {u.requiredAdaptations}</p>}
-                </div>
-              ))}
-            </div>
-          )}
-
-          {/* Combination Potential */}
-          {Array.isArray(analysis.combinationPotential) && analysis.combinationPotential.length > 0 && (
-            <div>
-              <p className={`text-xs font-medium ${theme.muted} mb-2`}>Combination Potential</p>
-              <div className="flex flex-wrap gap-2">
-                {analysis.combinationPotential.map((combo: string, i: number) => (
-                  <span key={i} className={`px-2 py-1 rounded text-xs ${theme.itemBgAlt}`}>
-                    {combo}
-                  </span>
                 ))}
-              </div>
-            </div>
-          )}
-        </div>
-      ))}
+              </dl>
+            )}
+
+            {asArray<any>(a.keyPrinciples).length > 0 && (
+              <Block title="Key principles">
+                {asArray<any>(a.keyPrinciples).map((p, i) => (
+                  <Item key={i}>
+                    <p className="font-medium">{p.principle}</p>
+                    {p.function && <p>{p.function}</p>}
+                    <Line label="Why it's critical" muted>{p.criticality}</Line>
+                  </Item>
+                ))}
+              </Block>
+            )}
+
+            {asArray<any>(a.structuralElements).length > 0 && (
+              <Block title="Structural elements">
+                {asArray<any>(a.structuralElements).map((e, i) => (
+                  <Item key={i}>
+                    <p className="font-medium">{e.element}</p>
+                    <Line label="Role">{e.role}</Line>
+                    <Line label="Interacts with" muted>{e.interactions}</Line>
+                  </Item>
+                ))}
+              </Block>
+            )}
+
+            {causal && (
+              <Block title="Cause and effect">
+                <Item className="space-y-2">
+                  <Line label="Trigger">{causal.trigger}</Line>
+                  {asArray<string>(causal.sequence).length > 0 && (
+                    <ol className="list-decimal pl-5 space-y-1">
+                      {asArray<string>(causal.sequence).map((step, i) => <li key={i}>{step}</li>)}
+                    </ol>
+                  )}
+                  <Line label="Outcome">{causal.outcome}</Line>
+                  {asArray<string>(causal.interventionPoints).length > 0 && (
+                    <div>
+                      <p className="font-medium">Where to intervene</p>
+                      <ul className="list-disc pl-5 space-y-1 mt-1">
+                        {asArray<string>(causal.interventionPoints).map((p, i) => <li key={i}>{p}</li>)}
+                      </ul>
+                    </div>
+                  )}
+                </Item>
+              </Block>
+            )}
+
+            {asArray<any>(a.constraintOpportunities).length > 0 && (
+              <Block title="Constraints that open opportunities">
+                {asArray<any>(a.constraintOpportunities).map((co, i) => (
+                  <Item key={i}>
+                    <Line label="Constraint">{co.constraint}</Line>
+                    <Line label="Opportunity">{co.opportunity}</Line>
+                    <Line label="Application" muted>{co.application}</Line>
+                  </Item>
+                ))}
+              </Block>
+            )}
+
+            {scale && (
+              <Block title="At different scales">
+                <Item className="space-y-1.5">
+                  <Line label="Individual">{scale.microScale}</Line>
+                  <Line label="Organisation">{scale.mesoScale}</Line>
+                  <Line label="Society">{scale.macroScale}</Line>
+                  {asArray<string>(scale.contextVariations).length > 0 && (
+                    <ul className="list-disc pl-5 space-y-1">
+                      {asArray<string>(scale.contextVariations).map((v, i) => <li key={i}>{v}</li>)}
+                    </ul>
+                  )}
+                </Item>
+              </Block>
+            )}
+
+            {asArray<any>(a.historicalApplications).length > 0 && (
+              <Block title="Where it has worked before">
+                {asArray<any>(a.historicalApplications).map((h, i) => (
+                  <Item key={i}>
+                    <div className="flex items-baseline justify-between gap-2">
+                      <p className="font-medium">{h.domain}</p>
+                      {h.era && <span className="text-xs text-ink-2 shrink-0">{h.era}</span>}
+                    </div>
+                    {h.example && <p>{h.example}</p>}
+                    <Line label="Why it worked">{h.successFactors}</Line>
+                    <Line label="Limits" muted>{h.limitations}</Line>
+                    <Line label="How it evolved">{h.evolutionPath}</Line>
+                  </Item>
+                ))}
+              </Block>
+            )}
+
+            {asArray<any>(a.untappedDomains).length > 0 && (
+              <Block title="Untapped domains">
+                {asArray<any>(a.untappedDomains).map((u, i) => (
+                  <Item key={i} className="border-pollen/40">
+                    <div className="flex items-start justify-between gap-2">
+                      <p className="font-medium">{u.domain}</p>
+                      {u.impactPotential && <Badge tone={ratingTone(u.impactPotential)}>{u.impactPotential} impact</Badge>}
+                    </div>
+                    <Line label="Opportunity">{u.opportunity}</Line>
+                    <Line label="What's new">{u.novelty}</Line>
+                    <Line label="Barriers" muted>{u.transferBarriers}</Line>
+                    <Line label="Needed changes">{u.requiredAdaptations}</Line>
+                  </Item>
+                ))}
+              </Block>
+            )}
+
+            {asArray<string>(a.combinationPotential).length > 0 && (
+              <Block title="Combines well with">
+                <div className="flex flex-wrap gap-1.5">
+                  {asArray<string>(a.combinationPotential).map((c, i) => <Badge key={i}>{c}</Badge>)}
+                </div>
+              </Block>
+            )}
+          </Disclosure>
+        );
+      })}
     </div>
   );
 };

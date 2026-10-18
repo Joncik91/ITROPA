@@ -72,16 +72,10 @@ Main page views that display different aspects of the application.
 
 Dialog components for specific operations and information display.
 
-#### 6. **ModalWrapper**
-- **Location**: `src/components/ModalWrapper.tsx`
-- **Purpose**: Container for all modal dialogs
-- **Features**:
-  - Modal overlay management
-  - Animation transitions
-  - Close button handling
-  - Keyboard escape support
-- **Props**: isOpen, onClose, children
-- **Children**: Modal content components
+#### 6. **Sheet** (`src/components/ui/Sheet.tsx`)
+- Responsive dialog: bottom sheet on phones, centered dialog from `md`.
+- Escape closes; focus moves in, is trapped and restored; background scroll locks.
+- Props: isOpen, onClose, title, description, icon, footer, size.
 
 #### 7. **AddPredictionModalContent**
 - **Location**: `src/components/modals/AddPredictionModalContent.tsx`
@@ -142,182 +136,23 @@ Dialog components for specific operations and information display.
 - **Props**: onClose
 - **Used in**: Help menu
 
-### Sidebar Components (4 components)
+### Workspace panels (`src/components/sidebars/`)
 
-Layout panels for navigation and information.
+On `lg` and up these are static columns; below `lg` they open as bottom sheets from the
+canvas toolbar.
 
-#### 12. **LeftSidebar**
-- **Location**: `src/components/sidebars/LeftSidebar.tsx`
-- **Purpose**: Navigation and controls panel
-- **Features**:
-  - Needs list navigation
-  - Industry search
-  - Filter controls
-  - Favorite/bookmark management
-  - View mode toggles (list/grid)
-- **Props**: Data, selection callbacks
-- **State**: Active selections, search filters
-- **Used in**: App layout
-
-#### 13. **RightSidebar**
-- **Location**: `src/components/sidebars/RightSidebar.tsx`
-- **Purpose**: Details and metadata display
-- **Features**:
-  - Selected item details
-  - Related items list
-  - Export options
-  - Metadata display
-- **Props**: Selected data
-- **Used in**: App layout
-
-#### 14. **CenterPanel**
-- **Location**: `src/components/sidebars/CenterPanel.tsx`
-- **Purpose**: Main content area
-- **Features**:
-  - Current view container
-  - Breadcrumb navigation
-  - View switching logic
-- **Props**: Current view, data
-- **Used in**: App layout
-
-#### 15. **HistoryPanel**
-- **Location**: `src/components/HistoryPanel.tsx`
-- **Purpose**: User action history
-- **Features**:
-  - Timeline of recent actions
-  - Action revert capability
-  - Search history
-  - Clear history button
-- **Props**: History items, onSelect
-- **State**: History list from custom hook
-
-### Display Components (5 components)
-
-Data visualization and presentation components.
-
-#### 16. **PriorArtDisplay**
-- **Location**: `src/components/PriorArtDisplay.tsx`
-- **Purpose**: Prior art and competitive intelligence
-- **Features**:
-  - Competitive landscape mapping
-  - Market segments visualization
-  - Leader profiles
-  - Market dynamics analysis
-  - Gap analysis results
-  - Evolution pattern timeline
-  - Innovation opportunity matrix
-  - Strategic positioning recommendations
-  - Actionable insights for entrepreneurs/investors
-- **Props**: Industry data, analysis results
-- **AI Integration**: 5-framework analysis
-
-#### 17. **TimelineView**
-- **Location**: `src/components/TimelineView.tsx`
-- **Purpose**: Historical and predictive timeline
-- **Features**:
-  - Timeline visualization
-  - Event markers
-  - Date labels
-  - Connective lines between events
-  - Interactive event details
-- **Props**: Timeline data
-- **Animation**: Framer Motion transitions
-
-#### 18. **IndustryBranch**
-- **Location**: `src/components/IndustryBranch.tsx`
-- **Purpose**: Industry hierarchy tree display
-- **Features**:
-  - Tree node rendering
-  - Parent-child relationships
-  - Collapsible branches
-  - Expand/collapse animations
-  - Selection highlighting
-- **Props**: Branch data, onSelect
-- **Animation**: Smooth expand/collapse
-
-#### 19. **Breadcrumb**
-- **Location**: `src/components/Breadcrumb.tsx`
-- **Purpose**: Navigation path indicator
-- **Features**:
-  - Current location display
-  - Clickable path segments
-  - Separator icons
-- **Props**: Path items, onNavigate
-- **Used in**: CenterPanel
-
-#### 20. **MiniMap**
-- **Location**: `src/components/MiniMap.tsx`
-- **Purpose**: Overview map of current data
-- **Features**:
-  - Compact data visualization
-  - Navigation helper
-  - Zoom/pan overview
-  - Highlighted current view
-- **Props**: Data tree, viewPort
-- **Used in**: App layout
-
-### Interaction Components (3 components)
-
-Components for user interactions and system feedback.
-
-#### 21. **AIAssistant**
-- **Location**: `src/components/AIAssistant.tsx`
-- **Purpose**: AI chat interface
-- **Features**:
-  - Message input field
-  - Chat history display
-  - Typing indicators
-  - Response streaming (if supported)
-  - Quick action buttons
-- **Props**: onQuery, assistantState
-- **State**: Message history, loading state
-- **AI Integration**: Calls ai-assistant.service
-
-#### 22. **ContextMenu**
-- **Location**: `src/components/ContextMenu.tsx`
-- **Purpose**: Right-click context menu
-- **Features**:
-  - Dynamic menu items
-  - Click handling
-  - Mouse position tracking
-  - Auto-close on selection
-- **Props**: Items, onSelect, position
-- **Interaction**: Right-click trigger
-
-#### 24. **ModalContent**
-- **Location**: `src/components/ModalContent.tsx`
-- **Purpose**: Base modal content wrapper
-- **Features**:
-  - Title display
-  - Content container
-  - Footer/action area
-- **Props**: title, children, actions
-- **Used in**: Other modal components
-
----
-
-## Design System
+- **ResearchForm**: need name and optional meaning, each with a hint; suggested needs.
+- **OpenNeeds**: open needs as a list (desktop) or horizontal strip (phone).
+- **NeedTools**: fit filter, card density, cross-pollination status, export, prior art summary, tree map.
+- **AssistantPanel**: next-step suggestions and the undo history.
+- **CenterPanel**: the canvas and the cross-pollination bar.
 
 ### Styling Approach
 
-All components follow a consistent design system:
-
-**Framework**: Tailwind CSS 3.4.1
-- Utility-first CSS
-- Responsive design classes (sm, md, lg, xl)
-- Custom color palette
-- Spacing and sizing scale
-
-**Colors**:
-- Primary: Blue shades
-- Secondary: Gray scale
-- Status: Green (success), Red (error), Yellow (warning)
-- Backgrounds: Light/dark themes
-
-**Typography**:
-- Font Stack: System fonts + Inclusive Sans (custom)
-- Sizes: 12px to 48px scale
-- Weights: Regular, Medium, Semibold, Bold
+See [ui-design.md](./ui-design.md): color tokens as CSS variables exposed to Tailwind
+(`paper`, `sheet`, `well`, `line`, `ink`, `ink-2`, `accent`, `pollen`, `ok`, `warn`, `bad`),
+Schibsted Grotesk, mobile-first layout, and the rule that every input and selection explains
+itself before the user commits.
 
 ### Animation Library
 

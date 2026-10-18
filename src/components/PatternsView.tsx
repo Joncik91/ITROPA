@@ -1,362 +1,267 @@
-import { motion } from "framer-motion";
-import { Loader2, Layers, ArrowRight, TrendingUp, Network, Target, Shuffle, BarChart3, RefreshCw, AlertCircle } from "lucide-react";
+import { Loader2, Layers, TrendingUp, Network, Target, Shuffle, BarChart3, RefreshCw, AlertCircle, ChevronRight } from "lucide-react";
+import type { ReactNode } from "react";
 import { usePatterns } from "../hooks/usePatterns";
-import { createRatingBadgeGetter } from "../utils/badge-styles";
+import { ratingTone } from "../utils/badge-styles";
 import { getFrameworkLabel } from "../config/analysis-frameworks";
-import type { Theme } from "../config/theme";
+import { Badge, Button, Hint, cx } from "./ui";
 
 interface PatternsViewProps {
-  theme: Theme;
-  dark: boolean;
   onOpenNeed: (needId: string) => void;
 }
 
-export const PatternsView = ({ theme, dark, onOpenNeed }: PatternsViewProps) => {
+const REFRESH_HINT =
+  "Refresh re-scans your saved mechanisms. Patterns that are new or changed get an AI analysis (10–30 s each); unchanged ones load from cache.";
+
+const scoreTone = (score: number) => (score >= 80 ? "bg-ok" : score >= 60 ? "bg-warn" : "bg-bad");
+
+const FRAMEWORK_ICONS: Record<string, ReactNode> = {
+  "frequency-distribution": <BarChart3 className="w-4 h-4" />,
+  "need-mapping": <Target className="w-4 h-4" />,
+  "evolution-trajectory": <TrendingUp className="w-4 h-4" />,
+  "combination-synergies": <Network className="w-4 h-4" />,
+  "transfer-potential": <Shuffle className="w-4 h-4" />,
+};
+
+const Meter = ({ label, value, hint }: { label: string; value: number; hint: string }) => (
+  <div className="p-2.5 rounded-control bg-well border border-line" title={hint}>
+    <div className="flex items-baseline justify-between gap-2">
+      <span className="text-xs text-ink-2">{label}</span>
+      <span className="text-sm font-semibold">{value}</span>
+    </div>
+    <div className="mt-1.5 h-1.5 rounded-full bg-line overflow-hidden" role="meter" aria-label={label} aria-valuenow={value} aria-valuemin={0} aria-valuemax={100}>
+      <div className={cx("h-full", scoreTone(value))} style={{ width: `${Math.max(0, Math.min(100, value))}%` }} />
+    </div>
+  </div>
+);
+
+const Rating = ({ label, value }: { label: string; value?: string }) =>
+  value ? (
+    <span className="inline-flex items-center gap-1.5 text-xs text-ink-2">
+      {label}
+      <Badge tone={ratingTone(value)}>{value}</Badge>
+    </span>
+  ) : null;
+
+const SubHeading = ({ children }: { children: ReactNode }) => (
+  <p className="text-xs font-semibold text-ink-2 mb-1.5">{children}</p>
+);
+
+export const PatternsView = ({ onOpenNeed }: PatternsViewProps) => {
   const { patterns, loading, refreshPatterns } = usePatterns();
 
-  const getScoreColor = (score: number) => {
-    if (score >= 80) return dark ? 'text-green-400' : 'text-green-600';
-    if (score >= 60) return dark ? 'text-yellow-400' : 'text-yellow-600';
-    return dark ? 'text-orange-400' : 'text-orange-600';
-  };
-
-  // Use shared badge utility
-  const getRatingBadge = createRatingBadgeGetter(dark);
-
-  const getFrameworkIcon = (type?: string) => {
-    switch (type) {
-      case 'frequency-distribution': return <BarChart3 className="w-4 h-4" />;
-      case 'need-mapping': return <Target className="w-4 h-4" />;
-      case 'evolution-trajectory': return <TrendingUp className="w-4 h-4" />;
-      case 'combination-synergies': return <Network className="w-4 h-4" />;
-      case 'transfer-potential': return <Shuffle className="w-4 h-4" />;
-      default: return <Layers className="w-4 h-4" />;
-    }
-  };
-
-  // getFrameworkLabel is now imported from config/analysis-frameworks
+  const header = (subtitle: ReactNode) => (
+    <header className="space-y-3">
+      <div className="flex items-start justify-between gap-3">
+        <div className="min-w-0">
+          <h2 className="text-2xl font-extrabold tracking-tight">Patterns</h2>
+          <p className="text-sm text-ink-2 mt-1">{subtitle}</p>
+        </div>
+        <Button size="sm" icon={<RefreshCw className="w-4 h-4" />} onClick={refreshPatterns} disabled={loading} aria-describedby="patterns-refresh-hint">
+          Refresh
+        </Button>
+      </div>
+      <Hint id="patterns-refresh-hint">{REFRESH_HINT}</Hint>
+    </header>
+  );
 
   if (loading) {
     return (
-      <div className="flex items-center justify-center py-16">
-        <Loader2 className={`w-8 h-8 ${theme.accent} animate-spin`} />
+      <div className="max-w-3xl mx-auto space-y-6">
+        {header("Mechanisms that repeat across industries, and what they suggest.")}
+        <div className="flex items-center gap-2 py-12 justify-center text-ink-2" aria-live="polite">
+          <Loader2 className="w-5 h-5 animate-spin text-accent" /> Scanning your mechanisms…
+        </div>
       </div>
     );
   }
 
   if (patterns.length === 0) {
     return (
-      <div className="text-center py-16">
-        <Layers className={`w-12 h-12 ${theme.muted} mx-auto mb-4 opacity-50`} />
-        <p className={`${theme.muted} mb-2`}>No patterns found</p>
-        <p className={`text-xs ${theme.muted} max-w-md mx-auto`}>
-          Extract mechanisms from several industries. Patterns appear when two or more share a similar abstract mechanism.
-        </p>
-        <button onClick={refreshPatterns} className={`mt-4 px-3 py-1.5 rounded-lg text-xs ${theme.btn} inline-flex items-center gap-1.5`}>
-          <RefreshCw className="w-3.5 h-3.5" /> Refresh
-        </button>
+      <div className="max-w-3xl mx-auto space-y-6">
+        {header("Mechanisms that repeat across industries, and what they suggest.")}
+        <div className="rounded-card border border-dashed border-line p-6 space-y-2">
+          <Layers className="w-8 h-8 text-ink-2" aria-hidden />
+          <h3 className="text-lg font-semibold">No patterns yet</h3>
+          <p className="text-sm text-ink-2">
+            Run Mechanism on several industries in Explore. A pattern appears here once two or more industries share a similar underlying mechanism.
+          </p>
+        </div>
       </div>
     );
   }
 
+  const industryCount = new Set(patterns.flatMap((p) => p.mechanisms.map((m) => m.id))).size;
+
   return (
-    <div className="space-y-6">
-      <div className="mb-6 flex items-start justify-between gap-4">
-        <div>
-          <h2 className="text-xl font-bold mb-1">Pattern Intelligence</h2>
-          <p className={`text-sm ${theme.muted}`}>
-            AI-powered analysis of {patterns.length} patterns discovered across {new Set(patterns.flatMap((p) => p.mechanisms.map((m) => m.id))).size} industries
-          </p>
-        </div>
-        <button onClick={refreshPatterns} className={`px-3 py-1.5 rounded-lg text-xs ${theme.btn} flex items-center gap-1.5 flex-shrink-0`} title="Re-scan mechanisms and retry failed analyses">
-          <RefreshCw className="w-3.5 h-3.5" /> Refresh
-        </button>
-      </div>
+    <div className="max-w-3xl mx-auto space-y-6">
+      {header(`${patterns.length} mechanism${patterns.length === 1 ? "" : "s"} repeat across ${industryCount} industries. Each is analysed for where else it could work.`)}
 
-      <div className="space-y-8">
-        {patterns.map((patternGroup, index) => (
-          <motion.div
-            key={patternGroup.pattern}
-            initial={{ opacity: 0, y: 20 }}
-            animate={{ opacity: 1, y: 0 }}
-            transition={{ delay: index * 0.05 }}
-            className={`rounded-xl ${theme.card} border ${theme.border} overflow-hidden`}
-          >
-            {/* Pattern Header */}
-            <div className={`p-4 ${dark ? "bg-gray-500/5" : "bg-gray-50/50"} border-b ${theme.border}`}>
-              <div className="flex items-start justify-between gap-4">
-                <div className="flex-1">
-                  <div className="flex items-center gap-2 mb-2">
-                    <Layers className={`w-5 h-5 ${theme.accent}`} />
-                    <h3 className="font-bold">Pattern: {patternGroup.pattern}</h3>
+      <div className="space-y-5">
+        {patterns.map((patternGroup) => {
+          const first = patternGroup.analyses?.[0];
+          return (
+            <article key={patternGroup.pattern} className="rounded-card bg-sheet border border-line overflow-hidden">
+              <div className="p-4 space-y-3 border-b border-line">
+                <div className="flex items-start justify-between gap-3">
+                  <div className="min-w-0">
+                    <h3 className="text-lg font-semibold flex items-center gap-2">
+                      <Layers className="w-4 h-4 text-accent shrink-0" aria-hidden />
+                      {patternGroup.pattern}
+                    </h3>
+                    {first?.abstractDescription && <p className="text-sm text-ink-2 mt-1">{first.abstractDescription}</p>}
                   </div>
-                  {patternGroup.analyses?.[0]?.abstractDescription && (
-                    <p className={`text-sm ${theme.muted} mb-2`}>{patternGroup.analyses[0].abstractDescription}</p>
-                  )}
+                  <Badge tone="accent">{patternGroup.mechanisms.length} industries</Badge>
                 </div>
-                <div className={`px-3 py-1 rounded-full ${dark ? "bg-gray-500/20 text-gray-300" : "bg-gray-100 text-gray-700"} text-xs font-medium`}>
-                  {patternGroup.mechanisms.length} instances
-                </div>
+
+                {first && first.strengthScore !== undefined && (
+                  <div className="grid grid-cols-2 md:grid-cols-4 gap-2">
+                    <Meter label="Strength" value={first.strengthScore} hint="How consistently the mechanism produces results" />
+                    {first.universalityScore !== undefined && <Meter label="Universality" value={first.universalityScore} hint="How many different needs it applies to" />}
+                    {first.maturityLevel !== undefined && <Meter label="Maturity" value={first.maturityLevel} hint="How established it already is" />}
+                    {first.adoptionRate !== undefined && <Meter label="Adoption" value={first.adoptionRate} hint="How widely it is used today" />}
+                  </div>
+                )}
+
+                {first && (
+                  <div className="flex flex-wrap gap-x-4 gap-y-2">
+                    <Rating label="Coverage" value={first.needCoverage} />
+                    <Rating label="Stability" value={first.stabilityRating} />
+                    <Rating label="Combines" value={first.combinationAffinity} />
+                    <Rating label="Transfer" value={first.transferReadiness} />
+                  </div>
+                )}
               </div>
 
-              {/* Overall Metadata (from first analysis) */}
-              {patternGroup.analyses && patternGroup.analyses.length > 0 && patternGroup.analyses[0].strengthScore !== undefined && (
-                <div className="mt-4 grid grid-cols-2 md:grid-cols-4 gap-3">
-                  {patternGroup.analyses[0].strengthScore !== undefined && (
-                    <div className={`p-2 rounded ${theme.itemBgAlt}`}>
-                      <p className={`text-xs ${theme.muted} mb-1`}>Strength</p>
-                      <div className="flex items-center gap-2">
-                        <div className="flex-1 h-1.5 bg-gray-200 dark:bg-gray-700 rounded-full overflow-hidden">
-                          <div 
-                            className={`h-full transition-all ${patternGroup.analyses[0].strengthScore >= 80 ? 'bg-green-500' : patternGroup.analyses[0].strengthScore >= 60 ? 'bg-yellow-500' : 'bg-orange-500'}`}
-                            style={{ width: `${patternGroup.analyses[0].strengthScore}%` }}
-                          />
-                        </div>
-                        <span className={`text-xs font-semibold ${getScoreColor(patternGroup.analyses[0].strengthScore)}`}>
-                          {patternGroup.analyses[0].strengthScore}
-                        </span>
-                      </div>
-                    </div>
-                  )}
-                  {patternGroup.analyses[0].universalityScore !== undefined && (
-                    <div className={`p-2 rounded ${theme.itemBgAlt}`}>
-                      <p className={`text-xs ${theme.muted} mb-1`}>Universality</p>
-                      <div className="flex items-center gap-2">
-                        <div className="flex-1 h-1.5 bg-gray-200 dark:bg-gray-700 rounded-full overflow-hidden">
-                          <div 
-                            className={`h-full transition-all ${patternGroup.analyses[0].universalityScore >= 80 ? 'bg-green-500' : patternGroup.analyses[0].universalityScore >= 60 ? 'bg-yellow-500' : 'bg-orange-500'}`}
-                            style={{ width: `${patternGroup.analyses[0].universalityScore}%` }}
-                          />
-                        </div>
-                        <span className={`text-xs font-semibold ${getScoreColor(patternGroup.analyses[0].universalityScore)}`}>
-                          {patternGroup.analyses[0].universalityScore}
-                        </span>
-                      </div>
-                    </div>
-                  )}
-                  {patternGroup.analyses[0].maturityLevel !== undefined && (
-                    <div className={`p-2 rounded ${theme.itemBgAlt}`}>
-                      <p className={`text-xs ${theme.muted} mb-1`}>Maturity</p>
-                      <div className="flex items-center gap-2">
-                        <div className="flex-1 h-1.5 bg-gray-200 dark:bg-gray-700 rounded-full overflow-hidden">
-                          <div 
-                            className={`h-full transition-all ${patternGroup.analyses[0].maturityLevel >= 80 ? 'bg-green-500' : patternGroup.analyses[0].maturityLevel >= 60 ? 'bg-yellow-500' : 'bg-orange-500'}`}
-                            style={{ width: `${patternGroup.analyses[0].maturityLevel}%` }}
-                          />
-                        </div>
-                        <span className={`text-xs font-semibold ${getScoreColor(patternGroup.analyses[0].maturityLevel)}`}>
-                          {patternGroup.analyses[0].maturityLevel}
-                        </span>
-                      </div>
-                    </div>
-                  )}
-                  {patternGroup.analyses[0].adoptionRate !== undefined && (
-                    <div className={`p-2 rounded ${theme.itemBgAlt}`}>
-                      <p className={`text-xs ${theme.muted} mb-1`}>Adoption Rate</p>
-                      <div className="flex items-center gap-2">
-                        <div className="flex-1 h-1.5 bg-gray-200 dark:bg-gray-700 rounded-full overflow-hidden">
-                          <div 
-                            className={`h-full transition-all ${patternGroup.analyses[0].adoptionRate >= 80 ? 'bg-green-500' : patternGroup.analyses[0].adoptionRate >= 60 ? 'bg-yellow-500' : 'bg-orange-500'}`}
-                            style={{ width: `${patternGroup.analyses[0].adoptionRate}%` }}
-                          />
-                        </div>
-                        <span className={`text-xs font-semibold ${getScoreColor(patternGroup.analyses[0].adoptionRate)}`}>
-                          {patternGroup.analyses[0].adoptionRate}
-                        </span>
-                      </div>
-                    </div>
-                  )}
+              {patternGroup.loading ? (
+                <div className="p-6 flex items-center gap-2 text-sm text-ink-2" aria-live="polite">
+                  <Loader2 className="w-4 h-4 text-accent animate-spin" /> Analysing this pattern with AI…
                 </div>
-              )}
+              ) : patternGroup.analyses && patternGroup.analyses.length > 0 ? (
+                <div className="p-4 space-y-3">
+                  {patternGroup.analyses.map((analysis, idx) => (
+                    <details key={idx} className="group rounded-control border border-line bg-well" open={idx === 0}>
+                      <summary className="flex items-center gap-2 px-3 min-h-[44px] md:min-h-[38px] cursor-pointer list-none text-sm font-semibold">
+                        <span className="text-accent">{FRAMEWORK_ICONS[analysis.analysisType] ?? <Layers className="w-4 h-4" />}</span>
+                        <span className="flex-1">{getFrameworkLabel(analysis.analysisType)}</span>
+                        <ChevronRight className="w-4 h-4 text-ink-2 transition-transform group-open:rotate-90" aria-hidden />
+                      </summary>
+                      <div className="px-3 pb-3 space-y-3 text-sm">
+                        {analysis.keyInsight && <p className="border-l-2 border-accent pl-3">{analysis.keyInsight}</p>}
 
-              {/* Categorical Ratings */}
-              {Array.isArray(patternGroup.analyses) && patternGroup.analyses.length > 0 && (
-                <div className="mt-3 flex flex-wrap gap-2">
-                  {patternGroup.analyses[0].needCoverage && (
-                    <div className="flex items-center gap-1.5">
-                      <span className={`text-xs ${theme.muted}`}>Coverage:</span>
-                      <span className={getRatingBadge(patternGroup.analyses[0].needCoverage)}>{patternGroup.analyses[0].needCoverage}</span>
-                    </div>
-                  )}
-                  {patternGroup.analyses[0].stabilityRating && (
-                    <div className="flex items-center gap-1.5">
-                      <span className={`text-xs ${theme.muted}`}>Stability:</span>
-                      <span className={getRatingBadge(patternGroup.analyses[0].stabilityRating)}>{patternGroup.analyses[0].stabilityRating}</span>
-                    </div>
-                  )}
-                  {patternGroup.analyses[0].combinationAffinity && (
-                    <div className="flex items-center gap-1.5">
-                      <span className={`text-xs ${theme.muted}`}>Combination:</span>
-                      <span className={getRatingBadge(patternGroup.analyses[0].combinationAffinity)}>{patternGroup.analyses[0].combinationAffinity}</span>
-                    </div>
-                  )}
-                  {patternGroup.analyses[0].transferReadiness && (
-                    <div className="flex items-center gap-1.5">
-                      <span className={`text-xs ${theme.muted}`}>Transfer:</span>
-                      <span className={getRatingBadge(patternGroup.analyses[0].transferReadiness)}>{patternGroup.analyses[0].transferReadiness}</span>
-                    </div>
-                  )}
-                </div>
-              )}
-            </div>
+                        {analysis.distributionMap && (
+                          <>
+                            {Array.isArray(analysis.distributionMap.hotZones) && analysis.distributionMap.hotZones.length > 0 && (
+                              <div>
+                                <SubHeading>Where it is concentrated</SubHeading>
+                                <div className="flex flex-wrap gap-1.5">
+                                  {analysis.distributionMap.hotZones.map((zone: string, i: number) => <Badge key={i} tone="ok">{zone}</Badge>)}
+                                </div>
+                              </div>
+                            )}
+                            {Array.isArray(analysis.distributionMap.coldZones) && analysis.distributionMap.coldZones.length > 0 && (
+                              <div>
+                                <SubHeading>Where it is missing (room to expand)</SubHeading>
+                                <div className="flex flex-wrap gap-1.5">
+                                  {analysis.distributionMap.coldZones.map((zone: string, i: number) => <Badge key={i}>{zone}</Badge>)}
+                                </div>
+                              </div>
+                            )}
+                          </>
+                        )}
 
-            {/* Framework Analyses */}
-            {patternGroup.loading ? (
-              <div className="p-8 flex items-center justify-center">
-                <Loader2 className={`w-6 h-6 ${theme.accent} animate-spin mr-2`} />
-                <span className={theme.muted}>Analyzing pattern...</span>
-              </div>
-            ) : patternGroup.analyses && patternGroup.analyses.length > 0 ? (
-              <div className="p-4 space-y-4">
-                {patternGroup.analyses.map((analysis, idx) => (
-                  <div key={idx} className={`p-3 rounded-lg border ${dark ? 'bg-gray-800/30 border-gray-700' : 'bg-gray-50 border-gray-200'}`}>
-                    {/* Framework Header */}
-                    <div className="flex items-center gap-2 mb-3">
-                      <div className={theme.accent}>
-                        {getFrameworkIcon(analysis.analysisType)}
-                      </div>
-                      <h4 className="font-semibold text-sm">{getFrameworkLabel(analysis.analysisType)}</h4>
-                    </div>
-
-                    {/* Key Insight */}
-                    {analysis.keyInsight && (
-                      <div className={`mb-3 p-2 rounded ${theme.itemBgAlt}`}>
-                        <p className="text-xs">{analysis.keyInsight}</p>
-                      </div>
-                    )}
-
-                    {/* Framework-Specific Content */}
-                    {analysis.distributionMap && (
-                      <div className="space-y-2">
-                        {Array.isArray(analysis.distributionMap.hotZones) && analysis.distributionMap.hotZones.length > 0 && (
-                          <div>
-                            <p className={`text-xs font-medium ${theme.muted} mb-1`}>Hot Zones (High Concentration):</p>
-                            <div className="flex flex-wrap gap-1">
-                              {analysis.distributionMap.hotZones.map((zone: string, i: number) => (
-                                <span key={i} className={`px-2 py-0.5 rounded text-xs ${getRatingBadge('high')}`}>{zone}</span>
-                              ))}
-                            </div>
+                        {Array.isArray(analysis.needAdaptations) && analysis.needAdaptations.length > 0 && (
+                          <div className="space-y-1.5">
+                            <SubHeading>How it adapts to other needs</SubHeading>
+                            {analysis.needAdaptations.slice(0, 3).map((adapt: any, i: number) => (
+                              <div key={i} className="p-2.5 rounded-control bg-sheet border border-line">
+                                <div className="flex items-center justify-between gap-2 mb-1">
+                                  <span className="font-medium">{adapt.needName}</span>
+                                  {adapt.effectiveness && <Badge tone={ratingTone(adapt.effectiveness)}>{adapt.effectiveness}</Badge>}
+                                </div>
+                                <p className="text-ink-2">{adapt.adaptation}</p>
+                              </div>
+                            ))}
                           </div>
                         )}
-                        {Array.isArray(analysis.distributionMap.coldZones) && analysis.distributionMap.coldZones.length > 0 && (
+
+                        {analysis.evolutionStages && (
                           <div>
-                            <p className={`text-xs font-medium ${theme.muted} mb-1`}>Cold Zones (Expansion Opportunities):</p>
-                            <div className="flex flex-wrap gap-1">
-                              {analysis.distributionMap.coldZones.map((zone: string, i: number) => (
-                                <span key={i} className={`px-2 py-0.5 rounded text-xs ${theme.itemBgAlt}`}>{zone}</span>
-                              ))}
-                            </div>
+                            <SubHeading>Evolution</SubHeading>
+                            {analysis.evolutionStages.nextEvolution && <p>Next: {analysis.evolutionStages.nextEvolution}</p>}
+                            {analysis.evolutionStages.evolutionSpeed && (
+                              <p className="mt-1 flex items-center gap-2 text-ink-2">
+                                Speed <Badge tone={ratingTone(analysis.evolutionStages.evolutionSpeed)}>{analysis.evolutionStages.evolutionSpeed}</Badge>
+                              </p>
+                            )}
+                          </div>
+                        )}
+
+                        {analysis.synergyPatterns?.strongPairings?.length > 0 && (
+                          <div className="space-y-1.5">
+                            <SubHeading>Pairs well with</SubHeading>
+                            {analysis.synergyPatterns.strongPairings.slice(0, 2).map((pair: any, i: number) => (
+                              <div key={i} className="p-2.5 rounded-control border border-ok/35 bg-ok/10">
+                                <p className="font-medium">{pair.pattern}{pair.synergyType && <span className="font-normal text-ink-2">: {pair.synergyType}</span>}</p>
+                                <p className="text-ink-2 mt-0.5">{pair.benefit}</p>
+                              </div>
+                            ))}
+                          </div>
+                        )}
+
+                        {Array.isArray(analysis.transferTargets) && analysis.transferTargets.length > 0 && (
+                          <div className="space-y-1.5">
+                            <SubHeading>Where to transfer it</SubHeading>
+                            {analysis.transferTargets.slice(0, 2).map((target: any, i: number) => (
+                              <div key={i} className="p-2.5 rounded-control bg-sheet border border-line">
+                                <div className="flex items-start justify-between gap-2 mb-1">
+                                  <span className="font-medium">{target.targetNeed} › {target.targetIndustry}</span>
+                                  {target.expectedImpact && <Badge tone={ratingTone(target.expectedImpact)}>{target.expectedImpact} impact</Badge>}
+                                </div>
+                                <p className="text-ink-2">{target.marketGap}</p>
+                              </div>
+                            ))}
+                          </div>
+                        )}
+
+                        {Array.isArray(analysis.strategicImplications) && analysis.strategicImplications.length > 0 && (
+                          <div>
+                            <SubHeading>What it means for you</SubHeading>
+                            <ul className="list-disc pl-5 space-y-0.5">
+                              {analysis.strategicImplications.map((impl: string, i: number) => <li key={i}>{impl}</li>)}
+                            </ul>
                           </div>
                         )}
                       </div>
-                    )}
+                    </details>
+                  ))}
+                </div>
+              ) : patternGroup.failed ? (
+                <p className="p-4 text-sm flex items-center gap-2 text-ink-2" role="alert">
+                  <AlertCircle className="w-4 h-4 text-bad shrink-0" />
+                  The AI analysis failed for this pattern. Refresh to retry.
+                </p>
+              ) : null}
 
-                    {Array.isArray(analysis.needAdaptations) && analysis.needAdaptations.length > 0 && (
-                      <div className="space-y-2">
-                        <p className={`text-xs font-medium ${theme.muted}`}>Need-Specific Adaptations:</p>
-                        {analysis.needAdaptations.slice(0, 3).map((adapt: any, i: number) => (
-                          <div key={i} className={`p-2 rounded ${theme.itemBgAlt}`}>
-                            <div className="flex items-center justify-between mb-1">
-                              <span className="font-medium text-xs">{adapt.needName}</span>
-                              <span className={getRatingBadge(adapt.effectiveness)}>{adapt.effectiveness}</span>
-                            </div>
-                            <p className="text-xs">{adapt.adaptation}</p>
-                          </div>
-                        ))}
-                      </div>
-                    )}
-
-                    {analysis.evolutionStages && (
-                      <div className="space-y-2">
-                        <p className={`text-xs font-medium ${theme.muted}`}>Evolution:</p>
-                        <div className={`p-2 rounded ${theme.itemBgAlt} space-y-1`}>
-                          {analysis.evolutionStages.nextEvolution && (
-                            <p className="text-xs"><span className="font-medium">Next Stage:</span> {analysis.evolutionStages.nextEvolution}</p>
-                          )}
-                          {analysis.evolutionStages.evolutionSpeed && (
-                            <div className="flex items-center gap-2">
-                              <span className="text-xs font-medium">Speed:</span>
-                              <span className={getRatingBadge(analysis.evolutionStages.evolutionSpeed)}>{analysis.evolutionStages.evolutionSpeed}</span>
-                            </div>
-                          )}
-                        </div>
-                      </div>
-                    )}
-
-                    {analysis.synergyPatterns && analysis.synergyPatterns.strongPairings && analysis.synergyPatterns.strongPairings.length > 0 && (
-                      <div className="space-y-2">
-                        <p className={`text-xs font-medium ${theme.muted}`}>Strong Pairings:</p>
-                        {analysis.synergyPatterns.strongPairings.slice(0, 2).map((pair: any, i: number) => (
-                          <div key={i} className={`p-2 rounded ${dark ? 'bg-green-500/10 border-green-500/30' : 'bg-green-50 border-green-200'} border`}>
-                            <p className="text-xs"><span className="font-medium">{pair.pattern}</span> - {pair.synergyType}</p>
-                            <p className="text-xs mt-1">{pair.benefit}</p>
-                          </div>
-                        ))}
-                      </div>
-                    )}
-
-                    {Array.isArray(analysis.transferTargets) && analysis.transferTargets.length > 0 && (
-                      <div className="space-y-2">
-                        <p className={`text-xs font-medium ${theme.muted}`}>Transfer Opportunities:</p>
-                        {analysis.transferTargets.slice(0, 2).map((target: any, i: number) => (
-                          <div key={i} className={`p-2 rounded ${dark ? 'bg-gray-600/10 border-gray-600/30' : 'bg-gray-100 border-gray-300'} border`}>
-                            <div className="flex items-center justify-between mb-1">
-                              <span className="font-medium text-xs">{target.targetNeed} → {target.targetIndustry}</span>
-                              <span className={getRatingBadge(target.expectedImpact)}>{target.expectedImpact} impact</span>
-                            </div>
-                            <p className="text-xs">{target.marketGap}</p>
-                          </div>
-                        ))}
-                      </div>
-                    )}
-
-                    {/* Strategic Implications */}
-                    {Array.isArray(analysis.strategicImplications) && analysis.strategicImplications.length > 0 && (
-                      <div className="mt-2">
-                        <p className={`text-xs font-medium ${theme.muted} mb-1`}>Strategic Implications:</p>
-                        <ul className="list-disc list-inside space-y-0.5">
-                          {analysis.strategicImplications.map((impl: string, i: number) => (
-                            <li key={i} className="text-xs">{impl}</li>
-                          ))}
-                        </ul>
-                      </div>
-                    )}
-                  </div>
-                ))}
-              </div>
-            ) : patternGroup.failed ? (
-              <div className={`p-4 text-xs flex items-center gap-2 ${theme.muted}`}>
-                <AlertCircle className="w-4 h-4 text-red-400" />
-                AI analysis failed for this pattern. Use Refresh to retry.
-              </div>
-            ) : null}
-
-            {/* Pattern Instances */}
-            <div className={`p-4 border-t ${theme.border}`}>
-              <p className={`text-xs font-medium ${theme.muted} mb-3`}>Found in {patternGroup.mechanisms.length} industries:</p>
-              <div className="grid grid-cols-1 md:grid-cols-2 gap-2">
-                {patternGroup.mechanisms.map((mech) => (
-                  <button
-                    key={mech.id}
-                    className={`p-2 rounded ${theme.itemBgAlt} ${theme.hover} cursor-pointer transition-all text-xs text-left`}
-                    onClick={() => onOpenNeed(mech.needId)}
-                    title={mech.needName ? `Open ${mech.needName}` : "Open need"}
-                  >
-                    <div className="flex items-center gap-2">
+              <div className="p-4 border-t border-line">
+                <p className="text-xs font-semibold text-ink-2 mb-2">Found in these industries. Tap one to open its need.</p>
+                <div className="grid grid-cols-1 md:grid-cols-2 gap-2">
+                  {patternGroup.mechanisms.map((mech) => (
+                    <button
+                      key={mech.id}
+                      type="button"
+                      className="px-3 py-2 min-h-[44px] md:min-h-[38px] rounded-control border border-line bg-well hover:border-accent/60 transition-colors text-sm text-left touch-manipulation"
+                      onClick={() => onOpenNeed(mech.needId)}
+                      title={mech.needName ? `Open ${mech.needName}` : "Open need"}
+                    >
                       <span className="font-medium">{mech.expressionName}</span>
-                      {mech.needName && (
-                        <>
-                          <ArrowRight className={`w-3 h-3 ${theme.muted}`} />
-                          <span className={theme.accent}>{mech.needName}</span>
-                        </>
-                      )}
-                    </div>
-                  </button>
-                ))}
+                      {mech.needName && <span className="block text-xs text-accent">{mech.needName}</span>}
+                    </button>
+                  ))}
+                </div>
               </div>
-            </div>
-          </motion.div>
-        ))}
+            </article>
+          );
+        })}
       </div>
     </div>
   );

@@ -1,78 +1,49 @@
 /**
- * Center panel component for the HomePage.
- * Contains the main canvas with NeedView and toolbar.
+ * The workspace canvas: open-need strip (mobile), toolbar, the need view, and the
+ * cross-pollination bar that tells the user what their selection will do.
  */
-
-import { useState, useEffect, useCallback } from "react";
-import { Lightbulb, Loader2, Maximize2, Minimize2, PanelRight, Target } from "lucide-react";
+import { Loader2, PanelRight, Shuffle, SlidersHorizontal, X } from "lucide-react";
 import { NeedView } from "../NeedView";
 import { IndustryBranch } from "../IndustryBranch";
 import { ErrorBoundary } from "../ErrorBoundary";
-import type { IndustryExpression, ConstraintsProfile, DeepDiveDetails } from "../../types";
+import type { IndustryExpression } from "../../types";
 import type { NeedManager } from "../../hooks/useNeedManager";
-import type { Theme } from "../../config/theme";
-import { calculateMatchScore, MatchScoreResult } from "../../utils/match-score";
-import { DBService } from "../../services/db.service";
+import { FIT_FILTER_THRESHOLD } from "../../hooks/useMatchScores";
+import type { MatchScoreResult } from "../../utils/match-score";
+import { Button, IconButton } from "../ui";
+import { OpenNeeds } from "./OpenNeeds";
+import { ResearchForm } from "./ResearchForm";
+import type { ViewDensity } from "./NeedTools";
 
 export interface CenterPanelProps {
-  theme: Theme;
-  dark: boolean;
   manager: NeedManager;
   scrollContainerRef: React.RefObject<HTMLDivElement>;
-  viewDensity: "compact" | "comfortable";
-  setViewDensity: (density: "compact" | "comfortable") => void;
-  rightSidebarOpen: boolean;
-  setRightSidebarOpen: (open: boolean) => void;
-  constraintsProfile: ConstraintsProfile;
+  /** Three-column layout: research form and tools live in the side columns. */
+  wide: boolean;
+  viewDensity: ViewDensity;
   filterEnabled: boolean;
-  setFilterEnabled: (enabled: boolean) => void;
+  getMatchScore: (expr: IndustryExpression) => MatchScoreResult | null;
+  onNewResearch: () => void;
+  onOpenTools: () => void;
+  onOpenAssistant: () => void;
 }
 
-const FILTER_THRESHOLD = 40;
-
 export const CenterPanel = ({
-  theme,
-  dark,
   manager,
   scrollContainerRef,
+  wide,
   viewDensity,
-  setViewDensity,
-  rightSidebarOpen,
-  setRightSidebarOpen,
-  constraintsProfile,
   filterEnabled,
-  setFilterEnabled,
+  getMatchScore,
+  onNewResearch,
+  onOpenTools,
+  onOpenAssistant,
 }: CenterPanelProps) => {
-  const [deepDiveCache, setDeepDiveCache] = useState<Map<string, DeepDiveDetails>>(new Map());
-  const activeNeedId = manager.activeNeed?.id;
-  const { deepDives: analyzedDeepDives } = manager.analyzed;
-
-  // Deep dive details feed the match score; reload when the need or its analyses change.
-  useEffect(() => {
-    let alive = true;
-    setDeepDiveCache(new Map());
-    if (!activeNeedId) return;
-    DBService.getDeepDivesByNeed(activeNeedId)
-      .then((dives) => {
-        if (!alive) return;
-        setDeepDiveCache(new Map(dives.filter((d) => d.details?.marketOpportunity).map((d) => [d.id, d.details])));
-      })
-      .catch((e) => console.error('Failed to load deep dives for scoring:', e));
-    return () => { alive = false; };
-  }, [activeNeedId, analyzedDeepDives]);
-
-  const getMatchScore = useCallback((expr: IndustryExpression): MatchScoreResult | null => {
-    const deepDive = deepDiveCache.get(expr.id);
-    return deepDive ? calculateMatchScore(expr, deepDive, constraintsProfile) : null;
-  }, [deepDiveCache, constraintsProfile]);
-
-  const scoredCount = deepDiveCache.size;
-
   const renderBranch = (expr: IndustryExpression, depth: number, needId: string): JSX.Element | null => {
     const matchScore = getMatchScore(expr);
+    const low = !!(filterEnabled && matchScore && matchScore.score < FIT_FILTER_THRESHOLD);
     // A low-scoring parent stays visible (dimmed) when any descendant could still match.
-    const hidden = filterEnabled && matchScore && matchScore.score < FILTER_THRESHOLD && !(expr.children?.length);
-    if (hidden) return null;
+    if (low && !expr.children?.length) return null;
 
     return (
       <IndustryBranch
@@ -83,8 +54,7 @@ export const CenterPanel = ({
         isExpanded={!!manager.expandedBranches[expr.id]}
         isBranching={manager.isBranching(expr.id)}
         isCrossSelected={manager.crossPollinate.items.some((i) => i.id === expr.id)}
-        dimmed={!!(filterEnabled && matchScore && matchScore.score < FILTER_THRESHOLD)}
-        theme={theme}
+        dimmed={low}
         mechanismLoading={manager.isPending("mechanism", expr.id)}
         deepDiveLoading={manager.isPending("deepDive", expr.id)}
         appConceptsLoading={manager.isPending("appConcepts", expr.id)}
@@ -107,30 +77,30 @@ export const CenterPanel = ({
     );
   };
 
+  // Empty workspace: the research form is the page (on desktop it also sits in the left column).
   if (!manager.needs.length) {
     return (
       <div className="flex-1 overflow-y-auto">
-        <div className="flex items-center justify-center h-full p-8">
-          <div className="text-center max-w-md" aria-live="polite">
-            {manager.loading ? (
-              <>
-                <Loader2 className={`w-12 h-12 ${theme.accent} mx-auto mb-4 animate-spin`} />
-                <h2 className="text-lg font-semibold mb-1">Building your research tree</h2>
-                <p className={`text-sm ${theme.muted}`}>{manager.loadingStage || "Working..."}</p>
-              </>
-            ) : (
-              <>
-                <Lightbulb className={`w-16 h-16 ${theme.muted} mx-auto mb-4 opacity-50`} />
-                <h2 className="text-xl font-semibold mb-2">Innovation = Prior Art + New Context</h2>
-                <p className={`text-sm ${theme.muted} mb-6`}>
-                  Research the "best known art" for any human need, then generate future industries as recombinations of existing solutions.
-                </p>
-                <p className={`text-xs ${theme.muted}`}>
-                  Search for a need or choose a suggestion from the sidebar to get started.
-                </p>
-              </>
-            )}
+        <div className="max-w-lg mx-auto px-4 py-8 md:py-16 space-y-8" aria-live="polite">
+          <div className="space-y-3">
+            <h2 className="text-2xl font-extrabold tracking-tight">Map where a need came from, and where it could go.</h2>
+            <p className="text-ink-2">
+              Pick a human need. ITROPA finds how people have met it so far, then predicts future industries by recombining that prior art in new contexts.
+            </p>
           </div>
+          {manager.loading ? (
+            <div className="flex items-center gap-3 p-4 rounded-card border border-line bg-sheet">
+              <Loader2 className="w-5 h-5 animate-spin text-accent shrink-0" aria-hidden />
+              <div>
+                <p className="font-medium">Building your research tree</p>
+                <p className="text-sm text-ink-2">{manager.loadingStage || "Working…"}</p>
+              </div>
+            </div>
+          ) : wide ? (
+            <p className="text-sm text-ink-2">Start in the research panel on the left.</p>
+          ) : (
+            <ResearchForm manager={manager} />
+          )}
         </div>
       </div>
     );
@@ -138,79 +108,62 @@ export const CenterPanel = ({
 
   if (!manager.activeNeed) return <div className="flex-1" />;
 
+  const cross = manager.crossPollinate.items;
+
   return (
     <div className="flex-1 overflow-hidden flex flex-col min-w-0">
-      {/* Toolbar */}
-      <div className="flex items-center justify-between gap-2 px-6 py-3 border-b border-gray-700 flex-shrink-0">
-        <div className={`text-xs ${theme.muted} truncate`} aria-live="polite">
-          {manager.loading && manager.loadingStage ? (
-            <span className="flex items-center gap-1.5"><Loader2 className="w-3 h-3 animate-spin" />{manager.loadingStage}</span>
-          ) : null}
-        </div>
-        <div className="flex items-center gap-2">
-          <button
-            onClick={() => setFilterEnabled(!filterEnabled)}
-            disabled={scoredCount === 0 && !filterEnabled}
-            aria-pressed={filterEnabled}
-            className={`px-2 py-1 text-xs flex items-center gap-1.5 rounded-lg border transition-colors disabled:opacity-40 ${
-              filterEnabled
-                ? "bg-emerald-500/20 text-emerald-300 border-emerald-500/50"
-                : `${theme.border} ${theme.hover}`
-            }`}
-            title={
-              scoredCount === 0
-                ? "Run a deep dive on a prediction to score it against your builder profile"
-                : filterEnabled ? `Hiding scored industries below ${FILTER_THRESHOLD}%` : "Hide industries that don't match your profile"
-            }
-          >
-            <Target className="w-3.5 h-3.5" />
-            {filterEnabled ? "Filtered" : "Filter"}
-          </button>
+      {!wide && (
+        <OpenNeeds
+          manager={manager}
+          variant="strip"
+          onNew={onNewResearch}
+          trailing={<>
+            <IconButton label="Tools: view, export, tree map" onClick={onOpenTools}><SlidersHorizontal className="w-5 h-5" /></IconButton>
+            <IconButton label="Assistant and history" onClick={onOpenAssistant}><PanelRight className="w-5 h-5" /></IconButton>
+          </>}
+        />
+      )}
 
-          <div className={`flex items-center rounded-lg border ${theme.border} overflow-hidden`} role="group" aria-label="View density">
-            <button
-              onClick={() => setViewDensity("comfortable")}
-              aria-pressed={viewDensity === "comfortable"}
-              className={`px-2 py-1 text-xs flex items-center gap-1.5 transition-colors ${viewDensity === "comfortable" ? "bg-gray-500/20 text-gray-300" : theme.hover}`}
-              title="Comfortable view"
-              aria-label="Comfortable view"
-            >
-              <Maximize2 className="w-3.5 h-3.5" />
-            </button>
-            <button
-              onClick={() => setViewDensity("compact")}
-              aria-pressed={viewDensity === "compact"}
-              className={`px-2 py-1 text-xs flex items-center gap-1.5 transition-colors ${viewDensity === "compact" ? "bg-gray-500/20 text-gray-300" : theme.hover}`}
-              title="Compact view"
-              aria-label="Compact view"
-            >
-              <Minimize2 className="w-3.5 h-3.5" />
-            </button>
+      <div aria-live="polite" className="text-sm text-ink-2">
+        {manager.loading && manager.loadingStage ? (
+          <p className="flex items-center gap-1.5 px-4 md:px-6 py-2 border-b border-line"><Loader2 className="w-4 h-4 animate-spin shrink-0" aria-hidden />{manager.loadingStage}</p>
+        ) : filterEnabled ? (
+          <p className="px-4 md:px-6 py-2 border-b border-line">Fit filter on: hiding industries scoring under {FIT_FILTER_THRESHOLD}% for your profile.</p>
+        ) : null}
+      </div>
+
+      <div ref={scrollContainerRef} className="flex-1 overflow-y-auto px-4 md:px-6 pt-5 pb-28 md:pb-10">
+        <div className="max-w-3xl">
+          <ErrorBoundary label={`“${manager.activeNeed.name}”`} resetKey={manager.activeNeed.id}>
+            <NeedView
+              need={manager.activeNeed}
+              renderBranch={renderBranch}
+              onAddPrediction={() => manager.openAddModal(manager.activeNeed!.id, null)}
+              onFetchNeed={manager.fetchNeed}
+            />
+          </ErrorBoundary>
+        </div>
+      </div>
+
+      {cross.length > 0 && !manager.crossPollinate.open && (
+        <div className="absolute inset-x-3 bottom-[76px] md:bottom-4 md:left-auto md:right-6 md:w-[26rem] z-20 rounded-card border border-pollen/50 bg-sheet shadow-pop p-3" role="status">
+          <div className="flex items-start gap-3">
+            <Shuffle className="w-5 h-5 text-pollen shrink-0 mt-0.5" aria-hidden />
+            <div className="flex-1 min-w-0">
+              <p className="text-sm font-medium truncate">
+                {cross.length === 1 ? cross[0].name : `${cross[0].name} + ${cross[1].name}`}
+              </p>
+              <p className="text-sm text-ink-2">
+                {cross.length === 1 ? "Pick one more industry to combine with it." : "Ready: generate hybrid industries from these two."}
+              </p>
+            </div>
+            <IconButton label="Clear selection" onClick={manager.resetCrossPollinate} className="-mr-1 -mt-1"><X className="w-4 h-4" /></IconButton>
           </div>
-
-          <button
-            onClick={() => setRightSidebarOpen(!rightSidebarOpen)}
-            className={`md:hidden px-3 py-1.5 rounded flex items-center gap-2 ${theme.btn} transition-colors text-xs`}
-            aria-expanded={rightSidebarOpen}
-          >
-            <PanelRight className="w-3.5 h-3.5" />
-            {rightSidebarOpen ? 'Hide' : 'Show'} Assistant
-          </button>
+          {cross.length === 2 && (
+            <Button variant="pollen" block size="sm" className="mt-2" onClick={manager.openCrossPollinate}>Combine these two</Button>
+          )}
         </div>
-      </div>
-
-      <div ref={scrollContainerRef} className="flex-1 overflow-y-auto p-4 md:p-6">
-        <ErrorBoundary label={`"${manager.activeNeed.name}"`} resetKey={manager.activeNeed.id}>
-          <NeedView
-            need={manager.activeNeed}
-            theme={theme}
-            dark={dark}
-            renderBranch={renderBranch}
-            onAddPrediction={() => manager.openAddModal(manager.activeNeed!.id, null)}
-            onFetchNeed={manager.fetchNeed}
-          />
-        </ErrorBoundary>
-      </div>
+      )}
     </div>
   );
 };

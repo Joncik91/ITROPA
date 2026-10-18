@@ -1,307 +1,199 @@
 /**
- * Modal content for displaying deep dive business analysis.
- * Shows market opportunity, key enablers, challenges, timeline, risks,
- * and enhanced opportunity scoring for solo developers.
+ * Deep dive: market, timing, competition and a solo-builder assessment for one industry.
  */
 
+import { Rocket, Search, SkipForward, HelpCircle, AlertTriangle } from "lucide-react";
 import type { AIActionSuggestion } from "../../types";
-import type { Theme } from "../../config/theme";
 import { AIAssistant, AIAssistButton } from "../AIAssistant";
+import { Badge, cx, type Tone } from "../ui";
+import { Block, Item, Meter, asArray } from "./parts";
 
 export interface DeepDiveModalContentProps {
   deepDive: any;
-  theme: Theme;
   aiSuggestions?: { suggestions: AIActionSuggestion[]; reasoning: string } | null;
   onAIAssist?: () => void;
   aiLoading?: boolean;
   onExecuteAction?: (suggestion: AIActionSuggestion) => Promise<boolean>;
 }
 
-/** Score bar component for opportunity scores */
-const ScoreBar = ({ label, score, theme }: { label: string; score: number; theme: Theme }) => {
-  const getScoreColor = (s: number) => {
-    if (s >= 70) return 'bg-green-500';
-    if (s >= 40) return 'bg-yellow-500';
-    return 'bg-red-500';
-  };
-
-  return (
-    <div className="flex items-center gap-2 mb-2">
-      <span className={`text-xs ${theme.muted} w-32 truncate`}>{label}</span>
-      <div className={`flex-1 h-2 rounded-full ${theme.itemBgAlt}`}>
-        <div
-          className={`h-2 rounded-full ${getScoreColor(score)} transition-all`}
-          style={{ width: `${score}%` }}
-        />
-      </div>
-      <span className="text-xs font-medium w-8 text-right">{score}</span>
-    </div>
-  );
+const VERDICTS: Record<string, { label: string; tone: string; icon: typeof Rocket; meaning: string }> = {
+  build: { label: "Build it", tone: "border-ok/50 bg-ok/10 text-ok", icon: Rocket, meaning: "Worth starting on as a solo builder." },
+  explore: { label: "Explore further", tone: "border-warn/50 bg-warn/10 text-warn", icon: Search, meaning: "Promising, but validate before you build." },
+  skip: { label: "Skip", tone: "border-bad/50 bg-bad/10 text-bad", icon: SkipForward, meaning: "Poor fit for a solo builder right now." },
 };
 
-/** Build recommendation banner */
-const BuildRecommendationBanner = ({ recommendation, theme }: { recommendation: any; theme: Theme }) => {
-  const getVerdictStyle = (verdict: string) => {
-    switch (verdict) {
-      case 'build': return 'bg-green-500/20 border-green-500 text-green-400';
-      case 'explore': return 'bg-yellow-500/20 border-yellow-500 text-yellow-400';
-      case 'skip': return 'bg-red-500/20 border-red-500 text-red-400';
-      default: return `${theme.itemBg} border-gray-500`;
-    }
-  };
-
-  const getVerdictIcon = (verdict: string) => {
-    switch (verdict) {
-      case 'build': return '🚀';
-      case 'explore': return '🔍';
-      case 'skip': return '⏭️';
-      default: return '❓';
-    }
-  };
-
-  return (
-    <div className={`p-4 rounded-lg border ${getVerdictStyle(recommendation.verdict)}`}>
-      <div className="flex items-center gap-2 mb-2">
-        <span className="text-xl">{getVerdictIcon(recommendation.verdict)}</span>
-        <span className="font-bold text-lg uppercase">{recommendation.verdict}</span>
-        <span className={`text-xs ${theme.muted} ml-auto`}>
-          {recommendation.confidence}% confidence
-        </span>
-      </div>
-      <p className="text-sm mb-2">{recommendation.reasoning}</p>
-      <div className={`text-xs ${theme.muted} flex items-center gap-1`}>
-        <span>→</span>
-        <span className="font-medium">Next step:</span>
-        <span>{recommendation.nextStep}</span>
-      </div>
-    </div>
-  );
+const levelTone = (v?: string): Tone => {
+  switch (v?.toLowerCase()) {
+    case "easy":
+    case "high":
+      return "ok";
+    case "medium":
+      return "warn";
+    case "hard":
+    case "low":
+      return "bad";
+    default:
+      return "neutral";
+  }
 };
 
-/** Difficulty badge */
-const DifficultyBadge = ({ difficulty, theme }: { difficulty: string; theme: Theme }) => {
-  const getColor = (d: string) => {
-    switch (d) {
-      case 'easy': return 'bg-green-500/20 text-green-400';
-      case 'medium': return 'bg-yellow-500/20 text-yellow-400';
-      case 'hard': return 'bg-red-500/20 text-red-400';
-      default: return theme.itemBgAlt;
-    }
-  };
-  return (
-    <span className={`text-xs px-2 py-0.5 rounded ${getColor(difficulty)}`}>
-      {difficulty}
-    </span>
-  );
-};
+const SCORES: Array<[key: string, label: string, hint: string]> = [
+  ["marketTiming", "Market timing", "Is now the right moment? High means demand is arriving."],
+  ["technicalFit", "Technical fit", "How buildable it is with today's tools."],
+  ["effortEstimate", "Ease", "High means less effort to reach a first version."],
+  ["monetizationClarity", "Monetization", "How obvious it is who pays, and for what."],
+  ["competitionDensity", "Open market", "High means few competitors (blue ocean); low means crowded."],
+];
 
-/** Feasibility badge */
-const FeasibilityBadge = ({ feasibility }: { feasibility: string }) => {
-  const getStyle = (f: string) => {
-    switch (f) {
-      case 'high': return 'bg-green-500/20 text-green-400 border-green-500';
-      case 'medium': return 'bg-yellow-500/20 text-yellow-400 border-yellow-500';
-      case 'low': return 'bg-red-500/20 text-red-400 border-red-500';
-      default: return 'bg-gray-500/20 text-gray-400 border-gray-500';
-    }
-  };
-  return (
-    <span className={`text-xs px-2 py-1 rounded border ${getStyle(feasibility)}`}>
-      {feasibility} feasibility
-    </span>
-  );
-};
+const TextBlock = ({ title, text }: { title: string; text?: string }) =>
+  text ? (
+    <Block title={title}>
+      <p className="text-sm">{text}</p>
+    </Block>
+  ) : null;
 
-export const DeepDiveModalContent = ({
-  deepDive,
-  theme,
-  aiSuggestions,
-  onAIAssist,
-  aiLoading,
-  onExecuteAction
-}: DeepDiveModalContentProps) => {
-  // Handle both formats:
-  // 1. deepDive is the data directly (from API or cache)
-  // 2. deepDive.details contains the data (legacy format)
+export const DeepDiveModalContent = ({ deepDive, aiSuggestions, onAIAssist, aiLoading, onExecuteAction }: DeepDiveModalContentProps) => {
+  // Accept the details directly, or the legacy { details } shape.
   const data = deepDive?.details || deepDive || {};
+  const rec = data.buildRecommendation;
+  const verdict = rec ? VERDICTS[rec.verdict] : undefined;
+  const VerdictIcon = verdict?.icon ?? HelpCircle;
+  const score = data.opportunityScore;
+  const solo = data.soloDevAssessment;
 
   return (
-  <div className="space-y-4 text-sm">
-    {/* AI Assistant */}
-    {onAIAssist && (
-      <div className="mb-4">
-        <AIAssistButton onClick={onAIAssist} loading={!!aiLoading} theme={theme} />
-      </div>
-    )}
-    {aiSuggestions && onExecuteAction && (
-      <div className="mb-4">
-        <AIAssistant
-          suggestions={aiSuggestions.suggestions}
-          reasoning={aiSuggestions.reasoning}
-          theme={theme}
-          onExecuteAction={onExecuteAction}
-        />
-      </div>
-    )}
+    <div className="space-y-6">
+      {onAIAssist && <AIAssistButton onClick={onAIAssist} loading={!!aiLoading} />}
+      {aiSuggestions && onExecuteAction && (
+        <AIAssistant suggestions={aiSuggestions.suggestions} reasoning={aiSuggestions.reasoning} onExecuteAction={onExecuteAction} />
+      )}
 
-    {/* Build Recommendation Banner - Show first if available */}
-    {data.buildRecommendation && (
-      <BuildRecommendationBanner
-        recommendation={data.buildRecommendation}
-        theme={theme}
-      />
-    )}
+      {rec && (
+        <div className={cx("p-4 rounded-card border", verdict?.tone ?? "border-line bg-well")}>
+          <div className="flex items-center gap-2">
+            <VerdictIcon className="w-5 h-5 shrink-0" aria-hidden />
+            <p className="text-lg font-semibold">{verdict?.label ?? rec.verdict}</p>
+            {rec.confidence !== undefined && <span className="ml-auto text-sm">{rec.confidence}% confident</span>}
+          </div>
+          {verdict && <p className="text-sm mt-0.5">{verdict.meaning}</p>}
+          {rec.reasoning && <p className="text-sm text-ink mt-3">{rec.reasoning}</p>}
+          {rec.nextStep && (
+            <p className="text-sm text-ink mt-2">
+              <span className="font-medium">Next step: </span>
+              {rec.nextStep}
+            </p>
+          )}
+        </div>
+      )}
 
-    {/* Opportunity Scores */}
-    {data.opportunityScore && (
-      <div className={`p-3 rounded-lg ${theme.itemBg}`}>
-        <p className={`text-xs font-medium ${theme.muted} mb-3`}>Opportunity Scorecard</p>
-        <ScoreBar label="Market Timing" score={data.opportunityScore.marketTiming} theme={theme} />
-        <ScoreBar label="Technical Fit" score={data.opportunityScore.technicalFit} theme={theme} />
-        <ScoreBar label="Effort (ease)" score={data.opportunityScore.effortEstimate} theme={theme} />
-        <ScoreBar label="Monetization" score={data.opportunityScore.monetizationClarity} theme={theme} />
-        <ScoreBar label="Blue Ocean" score={data.opportunityScore.competitionDensity} theme={theme} />
-        <div className="border-t border-gray-600 mt-3 pt-3">
-          <div className="flex items-center justify-between">
-            <span className="font-medium">Overall Score</span>
-            <span className={`text-lg font-bold ${
-              data.opportunityScore.overallScore >= 70 ? 'text-green-400' :
-              data.opportunityScore.overallScore >= 40 ? 'text-yellow-400' : 'text-red-400'
-            }`}>
-              {data.opportunityScore.overallScore}/100
+      {score && (
+        <Block title="Opportunity scorecard">
+          <div className="flex items-baseline justify-between p-3 rounded-control border border-line">
+            <span className="font-medium">Overall</span>
+            <span className={cx("text-xl font-extrabold", score.overallScore >= 70 ? "text-ok" : score.overallScore >= 40 ? "text-warn" : "text-bad")}>
+              {score.overallScore}
+              <span className="text-sm font-normal text-ink-2"> / 100</span>
             </span>
           </div>
-        </div>
-      </div>
-    )}
+          <div className="grid gap-2 sm:grid-cols-2">
+            {SCORES.filter(([k]) => score[k] !== undefined).map(([k, label, hint]) => (
+              <Meter key={k} label={label} value={score[k]} hint={hint} good={70} fair={40} />
+            ))}
+          </div>
+          <p className="text-xs text-ink-2">Time to first version, stack and competition from this deep dive feed this industry's fit score against your builder profile.</p>
+        </Block>
+      )}
 
-    {/* Solo Dev Assessment */}
-    {data.soloDevAssessment && (
-      <div className={`p-3 rounded-lg ${theme.itemBg}`}>
-        <div className="flex items-center justify-between mb-3">
-          <p className={`text-xs font-medium ${theme.muted}`}>Solo Dev Assessment</p>
-          <FeasibilityBadge feasibility={data.soloDevAssessment.feasibility} />
-        </div>
-        <div className="grid grid-cols-2 gap-3 text-xs">
-          <div>
-            <span className={theme.muted}>Time to MVP:</span>
-            <p className="font-medium">{data.soloDevAssessment.timeToMVP}</p>
-          </div>
-          <div>
-            <span className={theme.muted}>Tech Stack:</span>
-            <div className="flex flex-wrap gap-1 mt-1">
-              {data.soloDevAssessment.techStack?.map((tech: string, i: number) => (
-                <span key={i} className={`px-1.5 py-0.5 rounded ${theme.itemBgAlt}`}>{tech}</span>
-              ))}
-            </div>
-          </div>
-        </div>
-        <div className="mt-3 space-y-2 text-xs">
-          <div>
-            <span className={`${theme.muted}`}>Biggest Challenge:</span>
-            <p>{data.soloDevAssessment.biggestChallenge}</p>
-          </div>
-          <div>
-            <span className={`${theme.muted}`}>Your Unfair Advantage:</span>
-            <p className="text-green-400">{data.soloDevAssessment.unfairAdvantage}</p>
-          </div>
-        </div>
-      </div>
-    )}
-
-    {/* Monetization Models */}
-    {Array.isArray(data.monetizationModels) && data.monetizationModels.length > 0 && (
-      <div>
-        <p className={`text-xs font-medium ${theme.muted} mb-2`}>Monetization Models</p>
-        <div className="space-y-2">
-          {data.monetizationModels.map((model: any, i: number) => (
-            <div key={i} className={`p-3 rounded-lg ${theme.itemBgAlt}`}>
-              <div className="flex items-center justify-between mb-1">
-                <span className="font-medium text-xs">{model.model}</span>
-                <DifficultyBadge difficulty={model.difficulty} theme={theme} />
+      {solo && (
+        <Block title="As a solo builder">
+          <Item className="space-y-3">
+            {solo.feasibility && (
+              <div className="flex items-center gap-2">
+                <span className="text-ink-2">Feasibility</span>
+                <Badge tone={levelTone(solo.feasibility)}>{solo.feasibility}</Badge>
               </div>
-              <p className={`text-xs ${theme.muted} mb-1`}>{model.description}</p>
-              <p className="text-xs text-green-400 font-medium">{model.revenueRange}</p>
-            </div>
+            )}
+            {solo.timeToMVP && (
+              <p><span className="text-ink-2">Time to first version: </span><span className="font-medium">{solo.timeToMVP}</span></p>
+            )}
+            {asArray<string>(solo.techStack).length > 0 && (
+              <div className="flex flex-wrap items-center gap-1.5">
+                <span className="text-ink-2 mr-1">Stack</span>
+                {asArray<string>(solo.techStack).map((t, i) => <Badge key={i}>{t}</Badge>)}
+              </div>
+            )}
+            {solo.biggestChallenge && (
+              <p><span className="text-ink-2">Biggest challenge: </span>{solo.biggestChallenge}</p>
+            )}
+            {solo.unfairAdvantage && (
+              <p><span className="text-ink-2">Your edge: </span><span className="text-ok">{solo.unfairAdvantage}</span></p>
+            )}
+          </Item>
+        </Block>
+      )}
+
+      {asArray<any>(data.monetizationModels).length > 0 && (
+        <Block title="Ways to make money">
+          {asArray<any>(data.monetizationModels).map((m, i) => (
+            <Item key={i}>
+              <div className="flex items-start justify-between gap-2">
+                <p className="font-medium">{m.model}</p>
+                {m.difficulty && <Badge tone={levelTone(m.difficulty)}>{m.difficulty}</Badge>}
+              </div>
+              {m.description && <p className="text-ink-2">{m.description}</p>}
+              {m.revenueRange && <p className="font-medium text-ok">{m.revenueRange}</p>}
+            </Item>
           ))}
-        </div>
-      </div>
-    )}
+        </Block>
+      )}
 
-    {/* Original Deep Dive Content */}
-    <div className={`p-3 rounded-lg ${theme.itemBg}`}>
-      <p className={`text-xs ${theme.muted} mb-1`}>Market Opportunity</p>
-      <p>{data.marketOpportunity || 'No market opportunity data available.'}</p>
-    </div>
+      <Block title="Market opportunity">
+        <p className="text-sm">{data.marketOpportunity || "No market opportunity was returned for this industry."}</p>
+      </Block>
 
-    {Array.isArray(data.keyEnablers) && data.keyEnablers.length > 0 && (
-      <div>
-        <p className={`text-xs font-medium ${theme.muted} mb-2`}>Key Enablers</p>
-        {data.keyEnablers.map((e: string, i: number) => (
-          <div key={i} className={`mb-1 p-2 rounded ${theme.itemBgAlt} text-xs`}>{e}</div>
-        ))}
-      </div>
-    )}
+      {asArray<string>(data.keyEnablers).length > 0 && (
+        <Block title="What makes it possible">
+          <ul className="list-disc pl-5 space-y-1 text-sm">
+            {asArray<string>(data.keyEnablers).map((e, i) => <li key={i}>{e}</li>)}
+          </ul>
+        </Block>
+      )}
 
-    {Array.isArray(data.challenges) && data.challenges.length > 0 && (
-      <div>
-        <p className={`text-xs font-medium ${theme.muted} mb-2`}>Challenges & Solutions</p>
-        {data.challenges.map((c: any, i: number) => (
-          <div key={i} className={`mb-2 p-2 rounded ${theme.itemBgAlt}`}>
-            <p className="font-medium text-xs">{c.challenge}</p>
-            <p className={`text-xs ${theme.muted} mt-1`}>→ {c.potentialSolution}</p>
+      {asArray<any>(data.challenges).length > 0 && (
+        <Block title="Challenges and how to solve them">
+          {asArray<any>(data.challenges).map((c, i) => (
+            <Item key={i}>
+              <p className="font-medium">{c.challenge}</p>
+              {c.potentialSolution && <p className="text-ink-2">{c.potentialSolution}</p>}
+            </Item>
+          ))}
+        </Block>
+      )}
+
+      <TextBlock title="Timeline to market" text={data.timeline} />
+      <TextBlock title="How to move first" text={data.firstMoverAdvantage} />
+      <TextBlock title="What prior art gives you" text={data.priorArtLeverage} />
+
+      {asArray<string>(data.keyPlayers).length > 0 && (
+        <Block title="Likely key players">
+          <div className="flex flex-wrap gap-1.5">
+            {asArray<string>(data.keyPlayers).map((p, i) => <Badge key={i}>{p}</Badge>)}
           </div>
-        ))}
-      </div>
-    )}
+        </Block>
+      )}
 
-    {data.timeline && (
-      <div className={`p-3 rounded-lg ${theme.itemBg}`}>
-        <p className={`text-xs font-medium ${theme.muted} mb-1`}>Timeline to Market</p>
-        <p className="text-xs">{data.timeline}</p>
-      </div>
-    )}
-
-    {data.firstMoverAdvantage && (
-      <div className={`p-3 rounded-lg ${theme.itemBg}`}>
-        <p className={`text-xs font-medium ${theme.muted} mb-1`}>First Mover Strategy</p>
-        <p className="text-xs">{data.firstMoverAdvantage}</p>
-      </div>
-    )}
-
-    {data.priorArtLeverage && (
-      <div className={`p-3 rounded-lg ${theme.itemBg}`}>
-        <p className={`text-xs font-medium ${theme.muted} mb-1`}>Prior Art Advantage</p>
-        <p className="text-xs">{data.priorArtLeverage}</p>
-      </div>
-    )}
-
-    {Array.isArray(data.keyPlayers) && data.keyPlayers.length > 0 && (
-      <div>
-        <p className={`text-xs font-medium ${theme.muted} mb-2`}>Potential Key Players</p>
-        <div className="flex flex-wrap gap-2">
-          {data.keyPlayers.map((player: string, i: number) => (
-            <span key={i} className={`text-xs px-2 py-1 rounded-lg ${theme.itemBgAlt}`}>
-              {player}
-            </span>
-          ))}
-        </div>
-      </div>
-    )}
-
-    {Array.isArray(data.risks) && data.risks.length > 0 && (
-      <div>
-        <p className={`text-xs font-medium ${theme.muted} mb-2`}>Risk Factors</p>
-        <div className="space-y-1">
-          {data.risks.map((risk: string, i: number) => (
-            <div key={i} className={`text-xs p-2 rounded ${theme.itemBgAlt} flex items-start gap-2`}>
-              <span className="text-red-400">⚠</span>
-              <span className="flex-1">{risk}</span>
-            </div>
-          ))}
-        </div>
-      </div>
-    )}
-  </div>
+      {asArray<string>(data.risks).length > 0 && (
+        <Block title="Risks">
+          <ul className="space-y-1.5">
+            {asArray<string>(data.risks).map((r, i) => (
+              <li key={i} className="flex gap-2 text-sm">
+                <AlertTriangle className="w-4 h-4 text-warn shrink-0 mt-0.5" aria-hidden />
+                <span>{r}</span>
+              </li>
+            ))}
+          </ul>
+        </Block>
+      )}
+    </div>
   );
 };

@@ -1,135 +1,111 @@
 import { useState } from "react";
-import { Plus, Clock, List, BookOpen, GitBranch } from "lucide-react";
+import { Plus, Clock, List, BookOpen, GitBranch, ArrowUpRight } from "lucide-react";
 import type { Need, IndustryExpression } from "../types";
-import type { Theme } from "../config/theme";
 import { getIcon } from "../config/constants";
 import { TimelineView } from "./TimelineView";
 import { PriorArtDisplay } from "./PriorArtDisplay";
 import { ChainAnalyticsView } from "./ChainAnalyticsView";
 import { ErrorBoundary } from "./ErrorBoundary";
 import { isFutureEra } from "../utils/need-model";
+import { Button, Chip, Hint, Segmented, cx } from "./ui";
 
 type ViewMode = "tree" | "timeline" | "prior-art" | "chains";
 
-const VIEW_MODES: Array<{ id: ViewMode; label: string; icon: typeof List }> = [
-  { id: "tree", label: "Tree", icon: List },
-  { id: "timeline", label: "Timeline", icon: Clock },
-  { id: "prior-art", label: "Prior Art", icon: BookOpen },
-  { id: "chains", label: "Chains", icon: GitBranch },
-];
+const VIEW_MODES = [
+  { value: "tree", label: "Tree", icon: <List className="w-4 h-4" aria-hidden />, description: "Predicted industries grouped by era. Act on each one to branch, analyze or combine it." },
+  { value: "timeline", label: "Timeline", icon: <Clock className="w-4 h-4" aria-hidden />, description: "How solutions to this need evolved, era by era, ending in the predictions." },
+  { value: "prior-art", label: "Prior art", icon: <BookOpen className="w-4 h-4" aria-hidden />, description: "The existing solutions the predictions recombine: today's leaders, history, adjacent fields and nature." },
+  { value: "chains", label: "Chains", icon: <GitBranch className="w-4 h-4" aria-hidden />, description: "Which prior art inspired which prediction, and the patterns that recur." },
+] as const satisfies ReadonlyArray<{ value: ViewMode; label: string; description: string; icon: JSX.Element }>;
 
 interface NeedViewProps {
   need: Need;
-  theme: Theme;
-  dark: boolean;
   renderBranch: (expr: IndustryExpression, depth: number, needId: string) => JSX.Element | null;
   onAddPrediction: () => void;
   onFetchNeed: (needName: string) => void;
 }
 
-export const NeedView = ({
-  need,
-  theme,
-  dark,
-  renderBranch,
-  onAddPrediction,
-  onFetchNeed,
-}: NeedViewProps) => {
+export const NeedView = ({ need, renderBranch, onAddPrediction, onFetchNeed }: NeedViewProps) => {
   const Icon = getIcon(need.icon);
   const [viewMode, setViewMode] = useState<ViewMode>("tree");
 
   return (
-    <div>
-      <div className="flex flex-col md:flex-row md:items-center gap-3 mb-4">
-        <div className="flex items-center gap-3 flex-1">
-          <div className={`p-2 rounded-lg ${dark ? "bg-gray-500/20" : "bg-gray-100"}`}>
-            <Icon className={`w-5 h-5 ${theme.accent}`} />
-          </div>
-          <div className="flex-1 min-w-0">
-            <h2 className="font-medium text-base md:text-lg truncate">{need.name}</h2>
-            <p className={`text-xs md:text-sm ${theme.muted}`}>{need.description}</p>
-          </div>
+    <div className="space-y-5">
+      <header className="flex items-start gap-3">
+        <span className="mt-1 w-10 h-10 rounded-card border border-line bg-sheet flex items-center justify-center shrink-0 text-accent">
+          <Icon className="w-5 h-5" aria-hidden />
+        </span>
+        <div className="min-w-0">
+          <h2 className="text-2xl font-extrabold tracking-tight break-words">{need.name}</h2>
+          {need.description && <p className="text-base text-ink-2 mt-1 max-w-[70ch]">{need.description}</p>}
         </div>
-        <div className="flex gap-2 w-full md:w-auto">
-          <div className={`flex items-center rounded-lg border ${theme.border} overflow-hidden flex-1 md:flex-initial`} role="tablist" aria-label="View">
-            {VIEW_MODES.map(({ id, label, icon: ModeIcon }) => (
-              <button
-                key={id}
-                role="tab"
-                aria-selected={viewMode === id}
-                onClick={() => setViewMode(id)}
-                className={`flex-1 md:flex-initial px-3 py-2 text-xs flex items-center justify-center gap-1.5 transition-colors touch-manipulation ${
-                  viewMode === id ? "bg-gray-500/20 text-gray-300" : theme.hover
-                }`}
-              >
-                <ModeIcon className="w-3.5 h-3.5" />
-                {label}
-              </button>
-            ))}
-          </div>
-        </div>
-      </div>
+      </header>
+
+      <Segmented label="View" asTabs value={viewMode} options={VIEW_MODES} onChange={setViewMode} />
 
       {viewMode === "timeline" ? (
-        <TimelineView need={need} theme={theme} dark={dark} />
+        <TimelineView need={need} />
       ) : viewMode === "prior-art" ? (
         <ErrorBoundary inline label="the prior art analysis" resetKey={need.id}>
-          <PriorArtDisplay key={need.id} needName={need.name} priorArt={need.priorArt ?? {}} theme={theme} />
+          <PriorArtDisplay key={need.id} needName={need.name} priorArt={need.priorArt ?? {}} />
         </ErrorBoundary>
       ) : viewMode === "chains" ? (
         <ErrorBoundary inline label="the inspiration chains" resetKey={need.id}>
-          <ChainAnalyticsView key={need.id} need={need} theme={theme} />
+          <ChainAnalyticsView key={need.id} need={need} />
         </ErrorBoundary>
       ) : (
-        <div className="space-y-4">
+        <ol className="relative">
           {need.eras.map((era, i) => {
             const isFuture = isFutureEra(era);
+            const last = i === need.eras.length - 1;
             return (
-              <div key={i} className={`pl-4 border-l-2 ${theme.border}`}>
-                <p className={`text-xs font-medium mb-2 ${isFuture ? theme.accent : theme.muted}`}>
-                  {era.name}
-                </p>
+              <li key={i} className="relative pl-7 pb-6 last:pb-0">
+                {/* Lineage stem: a node per era, joined by a line to the next one. */}
+                {!last && <span aria-hidden className="absolute left-[7px] top-4 bottom-0 w-0.5 bg-line" />}
+                <span
+                  aria-hidden
+                  className={cx(
+                    "absolute left-0 top-[5px] w-4 h-4 rounded-full border-2",
+                    isFuture ? "border-pollen bg-pollen/30" : "border-line bg-paper",
+                  )}
+                />
+                <h3 className={cx("text-sm font-semibold mb-2.5", isFuture ? "text-pollen" : "text-ink-2")}>{era.name}</h3>
                 {isFuture ? (
-                  <div className="space-y-2">
+                  <div className="space-y-2.5">
                     {(era.expressions as IndustryExpression[]).map(expr => renderBranch(expr, 0, need.id))}
-                    <button 
-                      onClick={onAddPrediction}
-                      className={`text-xs px-3 py-1.5 rounded-lg border border-dashed ${theme.borderDashed} flex items-center gap-1`}
-                    >
-                      <Plus className="w-3 h-3" />
-                      Add prediction
-                    </button>
+                    <div className="pt-1 space-y-1.5">
+                      <Button variant="ghost" size="sm" onClick={onAddPrediction} icon={<Plus className="w-4 h-4" aria-hidden />} className="border-dashed !border-line">
+                        Add your own prediction
+                      </Button>
+                      <Hint>Write an industry by hand. It joins this era and works with every action.</Hint>
+                    </div>
                   </div>
                 ) : (
-                  <div className="flex flex-wrap gap-1.5">
+                  <ul className="flex flex-wrap gap-1.5">
                     {(era.expressions as string[]).map((expr, j) => (
-                      <span key={j} className={`text-xs px-2 py-1 rounded-lg ${theme.itemBgAlt}`}>
-                        {expr}
-                      </span>
+                      <li key={j} className="text-sm px-2.5 py-1 rounded-full border border-line bg-ink/5 text-ink-2">{expr}</li>
                     ))}
-                  </div>
+                  </ul>
                 )}
-              </div>
+              </li>
             );
           })}
-        </div>
+        </ol>
       )}
 
       {!!need.relatedNeeds?.length && (
-        <div className="mt-4 pt-4 border-t border-gray-700">
-          <p className={`text-xs ${theme.muted} mb-2`}>Explore related:</p>
+        <section className="pt-4 border-t border-line space-y-2">
+          <h3 className="text-sm font-semibold">Related needs</h3>
           <div className="flex flex-wrap gap-2">
             {need.relatedNeeds.map((r: string) => (
-              <button
-                key={r}
-                onClick={() => onFetchNeed(r)}
-                className={`text-xs px-2 py-1 rounded ${theme.itemBgAlt} ${theme.hover} transition-colors cursor-pointer`}
-              >
+              <Chip key={r} onClick={() => onFetchNeed(r)}>
                 {r}
-              </button>
+                <ArrowUpRight className="w-3.5 h-3.5 text-ink-2" aria-hidden />
+              </Chip>
             ))}
           </div>
-        </div>
+          <Hint>Opens a new research tab for this need.</Hint>
+        </section>
       )}
     </div>
   );

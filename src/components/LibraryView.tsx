@@ -1,14 +1,10 @@
-import { useState, useEffect, useCallback, type KeyboardEvent } from "react";
-import { motion } from "framer-motion";
+import { useState, useEffect, useCallback, useId, type KeyboardEvent, type ReactNode } from "react";
 import toast from "react-hot-toast";
-import { Search, Database, Clock, Layers, TrendingUp, Shuffle, Sparkles, Calendar, X, Trash2 } from "lucide-react";
+import { Search, Database, Layers, TrendingUp, Shuffle, Sparkles, X, Trash2, Eraser } from "lucide-react";
 import { DBService } from "../services/db.service";
-import { ModalWrapper } from "./ModalWrapper";
-import type { Theme } from "../config/theme";
+import { Button, Hint, IconButton, Segmented, Sheet, TextInput, type Option } from "./ui";
 
 interface LibraryViewProps {
-  theme: Theme;
-  dark: boolean;
   /** Open a saved need in the workspace. */
   onOpenNeed: (needId: string) => void;
   /** Permanently delete a need (also closes its tab). */
@@ -27,6 +23,20 @@ type SearchResults = {
 
 const EMPTY_RESULTS: SearchResults = { needs: [], expressions: [], mechanisms: [], deepDives: [] };
 const SEARCH_DEBOUNCE_MS = 200;
+
+type ActivityFilter = "all" | "needs" | "mechanisms" | "deepDives" | "crossPollinates";
+
+const FILTERS: ReadonlyArray<Option<ActivityFilter>> = [
+  { value: "all", label: "All", description: "Everything you saved, newest first." },
+  { value: "needs", label: "Needs", description: "Researched needs. Open one to continue its tree." },
+  { value: "mechanisms", label: "Mechanisms", description: "How-it-works breakdowns. Opening one opens the need it belongs to." },
+  { value: "deepDives", label: "Deep dives", description: "Market analyses. Opening one opens the need it belongs to." },
+  { value: "crossPollinates", label: "Hybrids", description: "Cross-pollination results. Opening one opens the need of its first industry." },
+];
+
+/** Shared row styling for library entries. */
+const ROW = "p-3 rounded-card bg-sheet border border-line";
+const ROW_PRESSABLE = `${ROW} cursor-pointer hover:border-accent/60 transition-colors touch-manipulation`;
 
 /** Mechanism records hold one entry per framework (older ones a single object). */
 const coreMechanismOf = (details: unknown): string => {
@@ -49,9 +59,10 @@ const asButton = (action: () => void) => ({
   },
 });
 
-export const LibraryView = ({ theme, onOpenNeed, onDeleteNeed, onClearAll }: LibraryViewProps) => {
+export const LibraryView = ({ onOpenNeed, onDeleteNeed, onClearAll }: LibraryViewProps) => {
+  const searchId = useId();
   const [searchQuery, setSearchQuery] = useState("");
-  const [activeFilter, setActiveFilter] = useState<"all" | "needs" | "mechanisms" | "deepDives" | "crossPollinates">("all");
+  const [activeFilter, setActiveFilter] = useState<ActivityFilter>("all");
   const [recentActivity, setRecentActivity] = useState<any[]>([]);
   const [searchResults, setSearchResults] = useState<SearchResults>(EMPTY_RESULTS);
   const [stats, setStats] = useState<Stats>({ needs: 0, mechanisms: 0, deepDives: 0, crossPollinates: 0, appConcepts: 0, total: 0 });
@@ -114,7 +125,7 @@ export const LibraryView = ({ theme, onOpenNeed, onDeleteNeed, onClearAll }: Lib
         toast.success("All saved data deleted");
       } else {
         await onDeleteNeed(target.id);
-        toast.success(`Deleted: ${target.name}`);
+        toast.success(`Deleted "${target.name}" and its analyses`);
       }
       refresh();
     } catch (error) {
@@ -137,7 +148,7 @@ export const LibraryView = ({ theme, onOpenNeed, onDeleteNeed, onClearAll }: Lib
         toast.success(`Removed ${total} orphaned item${total === 1 ? "" : "s"} (${removed.mechanisms} mechanisms, ${removed.deepDives} deep dives, ${removed.crossPollinates} cross-pollinations, ${removed.other} other)`);
         refresh();
       } else {
-        toast.success("No orphaned data found.");
+        toast.success("Nothing to clean up: every analysis still belongs to a saved need.");
       }
     } catch (error) {
       console.error("Failed to cleanup orphaned data:", error);
@@ -153,7 +164,8 @@ export const LibraryView = ({ theme, onOpenNeed, onDeleteNeed, onClearAll }: Lib
     const diffHours = Math.floor(diffMs / 3600000);
     const diffDays = Math.floor(diffMs / 86400000);
 
-    if (diffMins < 60) return `${diffMins}m ago`;
+    if (diffMins < 1) return "Just now";
+    if (diffMins < 60) return `${diffMins} min ago`;
     if (diffHours < 24) return `${diffHours}h ago`;
     if (diffDays < 7) return `${diffDays}d ago`;
     return date.toLocaleDateString();
@@ -189,252 +201,176 @@ export const LibraryView = ({ theme, onOpenNeed, onDeleteNeed, onClearAll }: Lib
     }
   };
 
-  const filteredActivity = activeFilter === "all" 
-    ? recentActivity 
+  const filteredActivity = activeFilter === "all"
+    ? recentActivity
     : recentActivity.filter(a => a.type === activeFilter.slice(0, -1));
 
-  const hasSearchResults = searchQuery.trim() && (
-    searchResults.needs.length > 0 || 
-    searchResults.expressions.length > 0 || 
-    searchResults.mechanisms.length > 0 || 
+  const hasQuery = !!searchQuery.trim();
+  const hasSearchResults = hasQuery && (
+    searchResults.needs.length > 0 ||
+    searchResults.expressions.length > 0 ||
+    searchResults.mechanisms.length > 0 ||
     searchResults.deepDives.length > 0
   );
 
+  const STAT_TILES = [
+    { label: "Needs", value: stats.needs, icon: Database },
+    { label: "Mechanisms", value: stats.mechanisms, icon: Layers },
+    { label: "Deep dives", value: stats.deepDives, icon: TrendingUp },
+    { label: "Hybrids", value: stats.crossPollinates, icon: Shuffle },
+    { label: "Saved items", value: stats.total, icon: Sparkles },
+  ];
+
+  const deleteNeedButton = (id: string, name: string) => (
+    <IconButton
+      label={`Delete ${name} permanently`}
+      onClick={(e) => {
+        e.stopPropagation();
+        setConfirmDelete({ type: "need", id, name });
+      }}
+      className="text-bad hover:text-bad hover:bg-bad/10"
+    >
+      <Trash2 className="w-4 h-4" />
+    </IconButton>
+  );
+
+  const resultGroup = (title: string, count: number, children: ReactNode) => (
+    <section className="space-y-2">
+      <h3 className="text-sm font-semibold text-ink-2">{title} ({count})</h3>
+      <div className="space-y-2">{children}</div>
+    </section>
+  );
+
   return (
-    <div className="space-y-6">
-      {/* Header */}
-      <div className="flex items-center justify-between mb-4">
+    <div className="space-y-6 max-w-3xl mx-auto">
+      <header className="flex flex-col gap-3 md:flex-row md:items-start md:justify-between">
         <div>
-          <h2 className="text-2xl font-bold mb-2">Research Library</h2>
-          <p className={`text-sm ${theme.muted}`}>
-            Browse and search all your saved research, analyses, and predictions
-          </p>
+          <h2 className="text-2xl font-extrabold tracking-tight">Library</h2>
+          <p className="text-sm text-ink-2 mt-1">Everything you have researched, saved in this browser. Search it or reopen a need.</p>
         </div>
         {stats.total > 0 && (
           <div className="flex gap-2">
-            <button
-              onClick={handleCleanupOrphaned}
-              className={`px-3 py-1.5 rounded-lg border ${theme.border} ${theme.hover} text-sm flex items-center gap-2 transition-colors`}
-              title="Remove orphaned data from deleted needs"
-            >
-              <Sparkles className="w-4 h-4" />
-              Cleanup
-            </button>
-            <button
-              onClick={() => setConfirmDelete({ type: "all", id: "", name: "all saved data" })}
-              className={`px-3 py-1.5 rounded-lg border border-red-500/30 text-red-400 hover:bg-red-500/10 text-sm flex items-center gap-2 transition-colors`}
-            >
-              <Trash2 className="w-4 h-4" />
-              Clear All
-            </button>
+            <Button size="sm" icon={<Eraser className="w-4 h-4" />} onClick={handleCleanupOrphaned}
+              title="Delete analyses whose industry no longer exists in any saved need">
+              Clean up
+            </Button>
+            <Button size="sm" variant="danger" icon={<Trash2 className="w-4 h-4" />}
+              onClick={() => setConfirmDelete({ type: "all", id: "", name: "all saved data" })}>
+              Delete all
+            </Button>
           </div>
         )}
+      </header>
+
+      <dl className="grid grid-cols-3 md:grid-cols-5 gap-2">
+        {STAT_TILES.map(({ label, value, icon: Icon }) => (
+          <div key={label} className="p-3 rounded-card border border-line bg-sheet">
+            <dt className="text-xs text-ink-2 flex items-center gap-1.5"><Icon className="w-3.5 h-3.5 text-accent" aria-hidden />{label}</dt>
+            <dd className="text-xl font-extrabold mt-1">{value}</dd>
+          </div>
+        ))}
+      </dl>
+
+      <div className="space-y-1.5">
+        <label htmlFor={searchId} className="block text-sm font-medium">Search the library</label>
+        <div className="relative">
+          <Search className="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-ink-2 pointer-events-none" aria-hidden />
+          <TextInput
+            id={searchId}
+            aria-describedby={`${searchId}-hint`}
+            value={searchQuery}
+            onChange={(e) => setSearchQuery(e.target.value)}
+            placeholder="e.g. sleep, subscription, logistics"
+            className="pl-9 pr-11"
+            type="search"
+          />
+          {searchQuery && (
+            <IconButton label="Clear search" onClick={() => setSearchQuery("")} className="absolute right-0 top-1/2 -translate-y-1/2">
+              <X className="w-4 h-4" />
+            </IconButton>
+          )}
+        </div>
+        <Hint id={`${searchId}-hint`}>Matches names and text across needs, industries, mechanisms and deep dives. Results update as you type.</Hint>
       </div>
 
-      {/* Stats */}
-      <div className="grid grid-cols-2 md:grid-cols-5 gap-3">
-        <div className={`p-4 rounded-lg ${theme.card} border ${theme.border}`}>
-          <Database className={`w-5 h-5 ${theme.accent} mb-2`} />
-          <div className="text-2xl font-bold">{stats.needs}</div>
-          <div className={`text-xs ${theme.muted}`}>Needs</div>
-        </div>
-        <div className={`p-4 rounded-lg ${theme.card} border ${theme.border}`}>
-          <Layers className={`w-5 h-5 ${theme.accent} mb-2`} />
-          <div className="text-2xl font-bold">{stats.mechanisms}</div>
-          <div className={`text-xs ${theme.muted}`}>Mechanisms</div>
-        </div>
-        <div className={`p-4 rounded-lg ${theme.card} border ${theme.border}`}>
-          <TrendingUp className={`w-5 h-5 ${theme.accent} mb-2`} />
-          <div className="text-2xl font-bold">{stats.deepDives}</div>
-          <div className={`text-xs ${theme.muted}`}>Deep Dives</div>
-        </div>
-        <div className={`p-4 rounded-lg ${theme.card} border ${theme.border}`}>
-          <Shuffle className={`w-5 h-5 ${theme.accent} mb-2`} />
-          <div className="text-2xl font-bold">{stats.crossPollinates}</div>
-          <div className={`text-xs ${theme.muted}`}>Cross-Pollinates</div>
-        </div>
-        <div className={`p-4 rounded-lg ${theme.card} border ${theme.border}`}>
-          <Sparkles className={`w-5 h-5 ${theme.accent} mb-2`} />
-          <div className="text-2xl font-bold">{stats.total}</div>
-          <div className={`text-xs ${theme.muted}`}>Total Items</div>
-        </div>
-      </div>
-
-      {/* Search */}
-      <div className="relative">
-        <Search className={`absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 ${theme.muted}`} />
-        <input
-          value={searchQuery}
-          onChange={(e) => setSearchQuery(e.target.value)}
-          placeholder="Search needs, expressions, mechanisms, analyses..."
-          className={`w-full pl-10 pr-10 py-3 rounded-xl ${theme.inputBg} border focus:outline-none focus:border-gray-500 text-sm transition-colors`}
-        />
-        {searchQuery && (
-          <button
-            onClick={() => setSearchQuery("")}
-            className={`absolute right-3 top-1/2 -translate-y-1/2 ${theme.muted} hover:text-white`}
-          >
-            <X className="w-4 h-4" />
-          </button>
-        )}
-      </div>
-
-      {/* Search Results */}
-      {hasSearchResults && (
-        <motion.div initial={{ opacity: 0, y: -10 }} animate={{ opacity: 1, y: 0 }} className="space-y-4">
-          {searchResults.needs.length > 0 && (
-            <div>
-              <h3 className={`text-sm font-medium ${theme.muted} mb-2`}>Needs ({searchResults.needs.length})</h3>
-              <div className="space-y-2">
-                {searchResults.needs.map((need) => (
-                  <motion.div
-                    key={need.id}
-                    initial={{ opacity: 0 }}
-                    animate={{ opacity: 1 }}
-                    className={`p-3 rounded-lg ${theme.card} border ${theme.border} flex items-start justify-between group`}
-                  >
-                    <div 
-                      className="flex-1 cursor-pointer"
-                      {...asButton(() => onOpenNeed(need.id))}
-                    >
-                      <div className="font-medium">{need.name}</div>
-                      <div className={`text-xs ${theme.muted} mt-1`}>{need.description}</div>
-                    </div>
-                    <div className="flex items-center gap-2">
-                      <div className={`text-xs ${theme.muted}`}>{formatDate(need.updatedAt)}</div>
-                      <button
-                        onClick={(e) => {
-                          e.stopPropagation();
-                          setConfirmDelete({ type: 'need', id: need.id, name: need.name });
-                        }}
-                        className={`opacity-60 md:opacity-0 group-hover:opacity-100 focus:opacity-100 p-1 rounded hover:bg-red-500/20 text-red-400 transition-opacity`}
-                        aria-label={`Delete ${need.name}`}
-                        title="Delete permanently"
-                      >
-                        <Trash2 className="w-4 h-4" />
-                      </button>
-                    </div>
-                  </motion.div>
-                ))}
-              </div>
-            </div>
-          )}
-
-          {searchResults.expressions.length > 0 && (
-            <div>
-              <h3 className={`text-sm font-medium ${theme.muted} mb-2`}>Expressions ({searchResults.expressions.length})</h3>
-              <div className="space-y-2">
-                {searchResults.expressions.map((result) => (
-                  <motion.div
-                    key={`${result.need.id}:${result.expression.id}`}
-                    initial={{ opacity: 0 }}
-                    animate={{ opacity: 1 }}
-                    className={`p-3 rounded-lg ${theme.card} border ${theme.border} ${theme.hover} cursor-pointer`}
-                    {...asButton(() => onOpenNeed(result.need.id))}
-                  >
-                    <div className="font-medium flex items-center gap-2">
-                      <Sparkles className={`w-3 h-3 ${theme.accent}`} />
-                      {result.expression.name}
-                    </div>
-                    <div className={`text-xs ${theme.muted} mt-1`}>{result.expression.mutation}</div>
-                    <div className={`text-xs ${theme.muted} mt-2`}>
-                      in <span className={theme.accent}>{result.need.name}</span> → {result.path.join(" → ")}
-                    </div>
-                  </motion.div>
-                ))}
-              </div>
-            </div>
-          )}
-
-          {searchResults.mechanisms.length > 0 && (
-            <div>
-              <h3 className={`text-sm font-medium ${theme.muted} mb-2`}>Mechanisms ({searchResults.mechanisms.length})</h3>
-              <div className="space-y-2">
-                {searchResults.mechanisms.map((mech) => (
-                  <motion.div
-                    key={mech.id}
-                    initial={{ opacity: 0 }}
-                    animate={{ opacity: 1 }}
-                    className={`p-3 rounded-lg ${theme.card} border ${theme.border} ${theme.hover} cursor-pointer`}
-                    {...asButton(() => void openNeedOfExpression(mech.id))}
-                  >
-                    <div className="font-medium flex items-center gap-2">
-                      <Layers className={`w-3 h-3 ${theme.accent}`} />
-                      {mech.expressionName}
-                    </div>
-                    <div className={`text-xs ${theme.muted} mt-1`}>{coreMechanismOf(mech.details)}</div>
-                  </motion.div>
-                ))}
-              </div>
-            </div>
-          )}
-
-          {searchResults.deepDives.length > 0 && (
-            <div>
-              <h3 className={`text-sm font-medium ${theme.muted} mb-2`}>Deep Dives ({searchResults.deepDives.length})</h3>
-              <div className="space-y-2">
-                {searchResults.deepDives.map((dive) => (
-                  <motion.div
-                    key={dive.id}
-                    initial={{ opacity: 0 }}
-                    animate={{ opacity: 1 }}
-                    className={`p-3 rounded-lg ${theme.card} border ${theme.border} ${theme.hover} cursor-pointer`}
-                    {...asButton(() => void openNeedOfExpression(dive.id))}
-                  >
-                    <div className="font-medium flex items-center gap-2">
-                      <TrendingUp className={`w-3 h-3 ${theme.accent}`} />
-                      {dive.expressionName}
-                    </div>
-                    <div className={`text-xs ${theme.muted} mt-1`}>{dive.details?.marketOpportunity}</div>
-                  </motion.div>
-                ))}
-              </div>
-            </div>
-          )}
-        </motion.div>
+      {hasQuery && !hasSearchResults && (
+        <p className="text-sm text-ink-2">No matches for "{searchQuery.trim()}". Try a shorter word, or research it as a new need from Explore.</p>
       )}
 
-      {/* Recent Activity */}
-      {!hasSearchResults && (
-        <>
-          <div className="flex items-center gap-2 border-b border-gray-700 pb-3">
-            <Clock className={`w-4 h-4 ${theme.muted}`} />
-            <h3 className="font-medium">Recent Activity</h3>
-            <div className="flex-1" />
-            <div className="flex gap-1">
-              {["all", "needs", "mechanisms", "deepDives", "crossPollinates"].map((filter) => (
-                <button
-                  key={filter}
-                  onClick={() => setActiveFilter(filter as any)}
-                  className={`text-xs px-2 py-1 rounded ${
-                    activeFilter === filter ? "bg-gray-500/20 text-gray-300" : theme.muted
-                  }`}
-                >
-                  {filter === "all" ? "All" : filter.charAt(0).toUpperCase() + filter.slice(1)}
-                </button>
-              ))}
-            </div>
-          </div>
+      {hasSearchResults && (
+        <div className="space-y-5">
+          {searchResults.needs.length > 0 && resultGroup("Needs", searchResults.needs.length,
+            searchResults.needs.map((need) => (
+              <div key={need.id} className={`${ROW} flex items-start gap-2`}>
+                <div className="flex-1 min-w-0 cursor-pointer" {...asButton(() => onOpenNeed(need.id))}>
+                  <div className="font-medium">{need.name}</div>
+                  <div className="text-sm text-ink-2 mt-0.5 line-clamp-2">{need.description}</div>
+                  <div className="text-xs text-ink-2 mt-1">Updated {formatDate(need.updatedAt)}</div>
+                </div>
+                {deleteNeedButton(need.id, need.name)}
+              </div>
+            )))}
+
+          {searchResults.expressions.length > 0 && resultGroup("Industries", searchResults.expressions.length,
+            searchResults.expressions.map((result) => (
+              <div key={`${result.need.id}:${result.expression.id}`} className={ROW_PRESSABLE} {...asButton(() => onOpenNeed(result.need.id))}>
+                <div className="font-medium flex items-center gap-2">
+                  <Sparkles className="w-3.5 h-3.5 text-accent shrink-0" aria-hidden />
+                  {result.expression.name}
+                </div>
+                <div className="text-sm text-ink-2 mt-0.5">{result.expression.mutation}</div>
+                <div className="text-xs text-ink-2 mt-1.5">
+                  In <span className="text-accent">{result.need.name}</span>{result.path.length > 0 && <>: {result.path.join(" › ")}</>}
+                </div>
+              </div>
+            )))}
+
+          {searchResults.mechanisms.length > 0 && resultGroup("Mechanisms", searchResults.mechanisms.length,
+            searchResults.mechanisms.map((mech) => (
+              <div key={mech.id} className={ROW_PRESSABLE} {...asButton(() => void openNeedOfExpression(mech.id))}>
+                <div className="font-medium flex items-center gap-2">
+                  <Layers className="w-3.5 h-3.5 text-accent shrink-0" aria-hidden />
+                  {mech.expressionName}
+                </div>
+                <div className="text-sm text-ink-2 mt-0.5 line-clamp-2">{coreMechanismOf(mech.details)}</div>
+              </div>
+            )))}
+
+          {searchResults.deepDives.length > 0 && resultGroup("Deep dives", searchResults.deepDives.length,
+            searchResults.deepDives.map((dive) => (
+              <div key={dive.id} className={ROW_PRESSABLE} {...asButton(() => void openNeedOfExpression(dive.id))}>
+                <div className="font-medium flex items-center gap-2">
+                  <TrendingUp className="w-3.5 h-3.5 text-accent shrink-0" aria-hidden />
+                  {dive.expressionName}
+                </div>
+                <div className="text-sm text-ink-2 mt-0.5 line-clamp-2">{dive.details?.marketOpportunity}</div>
+              </div>
+            )))}
+        </div>
+      )}
+
+      {!hasQuery && (
+        <section className="space-y-3">
+          <h3 className="text-lg font-semibold">Recent activity</h3>
+          <Segmented label="Show" value={activeFilter} options={FILTERS} onChange={setActiveFilter} />
 
           <div className="space-y-2">
             {loading ? (
-              <div className={`text-center py-8 ${theme.muted}`}>Loading...</div>
+              <p className="text-sm text-ink-2 py-6">Loading your library…</p>
             ) : filteredActivity.length === 0 ? (
-              <div className={`text-center py-8 ${theme.muted}`}>No activity yet. Start exploring!</div>
+              <p className="text-sm text-ink-2 py-6">
+                {activeFilter === "all"
+                  ? "Nothing saved yet. Research a need from Explore and it will appear here."
+                  : "Nothing of this kind yet. Run it on an industry from its card in Explore."}
+              </p>
             ) : (
-              filteredActivity.map((activity, i) => (
-                <motion.div
-                  key={`${activity.type}:${activity.data.id ?? activity.data.key}`}
-                  initial={{ opacity: 0, x: -10 }}
-                  animate={{ opacity: 1, x: 0 }}
-                  transition={{ delay: i * 0.05 }}
-                  className={`p-3 rounded-lg ${theme.card} border ${theme.border} flex items-start gap-3 group`}
-                >
-                  <div className={`p-2 rounded-lg ${theme.itemBg} ${theme.accent}`}>
+              filteredActivity.map((activity) => (
+                <div key={`${activity.type}:${activity.data.id ?? activity.data.key}`} className={`${ROW} flex items-start gap-3`}>
+                  <span className="w-9 h-9 rounded-control border border-line text-accent flex items-center justify-center shrink-0" aria-hidden>
                     {getActivityIcon(activity.type)}
-                  </div>
+                  </span>
                   <div
-                    className="flex-1 min-w-0 cursor-pointer hover:opacity-80 transition-opacity"
+                    className="flex-1 min-w-0 cursor-pointer"
                     {...asButton(() => {
                       if (activity.type === "need") onOpenNeed(activity.data.id);
                       else if (activity.type === "mechanism" || activity.type === "deepDive") void openNeedOfExpression(activity.data.id);
@@ -442,70 +378,43 @@ export const LibraryView = ({ theme, onOpenNeed, onDeleteNeed, onClearAll }: Lib
                     })}
                   >
                     <div className="font-medium truncate">{getActivityTitle(activity)}</div>
-                    <div className={`text-xs ${theme.muted} mt-1 line-clamp-2`}>
-                      {getActivityDescription(activity)}
-                    </div>
+                    <div className="text-sm text-ink-2 mt-0.5 line-clamp-2">{getActivityDescription(activity)}</div>
+                    <div className="text-xs text-ink-2 mt-1">{formatDate(activity.timestamp)}</div>
                   </div>
-                  <div className="flex items-center gap-2">
-                    <span className={`text-xs ${theme.muted} flex items-center gap-1`}>
-                      <Calendar className="w-3 h-3" />
-                      {formatDate(activity.timestamp)}
-                    </span>
-                    {activity.type === "need" && (
-                      <button
-                        onClick={(e) => {
-                          e.stopPropagation();
-                          setConfirmDelete({ type: 'need', id: activity.data.id, name: activity.data.name });
-                        }}
-                        className={`opacity-60 md:opacity-0 group-hover:opacity-100 focus:opacity-100 p-1 rounded hover:bg-red-500/20 text-red-400 transition-opacity`}
-                        aria-label={`Delete ${activity.data.name}`}
-                        title="Delete permanently"
-                      >
-                        <Trash2 className="w-4 h-4" />
-                      </button>
-                    )}
-                  </div>
-                </motion.div>
+                  {activity.type === "need" && deleteNeedButton(activity.data.id, activity.data.name)}
+                </div>
               ))
             )}
           </div>
-        </>
+        </section>
       )}
 
-      <ModalWrapper
+      <Sheet
         isOpen={!!confirmDelete}
         onClose={() => setConfirmDelete(null)}
-        title={confirmDelete?.type === "all" ? "Delete all saved data?" : "Delete need?"}
-        theme={theme}
-        maxWidth="max-w-md"
+        title={confirmDelete?.type === "all" ? "Delete all saved data?" : `Delete "${confirmDelete?.name ?? ""}"?`}
+        size="sm"
+        label="the delete confirmation"
+        footer={
+          <div className="flex gap-2">
+            <Button block onClick={() => setConfirmDelete(null)} data-autofocus>Keep it</Button>
+            <Button block variant="danger" icon={<Trash2 className="w-4 h-4" />} onClick={handleConfirmedDelete}>
+              {confirmDelete?.type === "all" ? "Delete everything" : "Delete need"}
+            </Button>
+          </div>
+        }
       >
         {confirmDelete && (
-          <>
-            <p className={`text-sm ${theme.muted} mb-4`}>
+          <div className="space-y-3 text-sm">
+            <p>
               {confirmDelete.type === "all"
-                ? "Every need, analysis and cache stored in this browser will be removed."
-                : <>"<span className={theme.text}>{confirmDelete.name}</span>" and all of its mechanisms, deep dives and analyses will be removed.</>}
-              <br /><br />
-              <span className="text-red-400">This cannot be undone.</span>
+                ? "Every need, industry, analysis and cached result stored in this browser will be removed, and open needs will close."
+                : "The need, its whole industry tree, and all its mechanisms, deep dives, app ideas and hybrids will be removed. Its tab closes if open."}
             </p>
-            <div className="flex gap-3">
-              <button
-                onClick={() => setConfirmDelete(null)}
-                className={`flex-1 px-4 py-2 rounded-lg border ${theme.border} ${theme.muted} hover:bg-gray-700/50`}
-                data-autofocus
-              >
-                Cancel
-              </button>
-              <button
-                onClick={handleConfirmedDelete}
-                className="flex-1 px-4 py-2 rounded-lg bg-red-500 text-white hover:bg-red-600"
-              >
-                Delete
-              </button>
-            </div>
-          </>
+            <p className="text-bad font-medium">This cannot be undone. Export first from Explore if you want a copy.</p>
+          </div>
         )}
-      </ModalWrapper>
+      </Sheet>
     </div>
   );
 };

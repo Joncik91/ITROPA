@@ -43,10 +43,10 @@ export class ErrorBoundary extends Component<ErrorBoundaryProps, ErrorBoundarySt
     const what = this.props.label ?? "this view";
     if (this.props.inline) {
       return (
-        <div role="alert" className="p-3 rounded-lg border border-red-500/30 bg-red-500/10 text-xs flex items-center gap-2">
-          <AlertTriangle className="w-4 h-4 text-red-400 flex-shrink-0" />
-          <span className="flex-1">Couldn't display {what}. The data may be malformed.</span>
-          <button onClick={this.reset} className="px-2 py-1 rounded border border-red-500/40 hover:bg-red-500/20">
+        <div role="alert" className="p-3 rounded-card border border-bad/35 bg-bad/10 text-sm flex items-center gap-2">
+          <AlertTriangle className="w-4 h-4 text-bad shrink-0" />
+          <span className="flex-1">Couldn't show {what}. The saved data may be malformed; retry, or run the analysis again.</span>
+          <button onClick={this.reset} className="px-3 min-h-[40px] md:min-h-[32px] rounded-control border border-bad/40 hover:bg-bad/10">
             Retry
           </button>
         </div>
@@ -56,14 +56,14 @@ export class ErrorBoundary extends Component<ErrorBoundaryProps, ErrorBoundarySt
     return (
       <div role="alert" className="min-h-[50vh] flex items-center justify-center p-8">
         <div className="max-w-md text-center space-y-3">
-          <AlertTriangle className="w-10 h-10 text-red-400 mx-auto" />
+          <AlertTriangle className="w-10 h-10 text-bad mx-auto" />
           <h2 className="text-lg font-semibold">Something went wrong in {what}</h2>
-          <p className="text-sm opacity-70 break-words">{error.message}</p>
+          <p className="text-sm text-ink-2 break-words">{error.message}</p>
           <div className="flex gap-2 justify-center">
-            <button onClick={this.reset} className="px-3 py-1.5 rounded-lg border border-gray-500/50 text-sm flex items-center gap-1.5 hover:bg-gray-500/20">
+            <button onClick={this.reset} className="px-4 min-h-[44px] md:min-h-[38px] rounded-control border border-line text-sm flex items-center gap-1.5 hover:bg-ink/5">
               <RotateCcw className="w-4 h-4" /> Try again
             </button>
-            <button onClick={() => window.location.reload()} className="px-3 py-1.5 rounded-lg border border-gray-500/50 text-sm hover:bg-gray-500/20">
+            <button onClick={() => window.location.reload()} className="px-4 min-h-[44px] md:min-h-[38px] rounded-control border border-line text-sm hover:bg-ink/5">
               Reload app
             </button>
           </div>

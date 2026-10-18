@@ -331,13 +331,11 @@ function calculateFormFactorFit(
   };
 }
 
-/**
- * Get a color class for the match score badge
- */
-export function getMatchScoreColor(score: number): string {
-  if (score >= 70) return 'bg-emerald-500/20 text-emerald-300 border-emerald-500/50';
-  if (score >= 40) return 'bg-yellow-500/20 text-yellow-300 border-yellow-500/50';
-  return 'bg-red-500/20 text-red-300 border-red-500/50';
+/** Badge tone for a match score (see Badge in components/ui). */
+export function getMatchScoreTone(score: number): 'ok' | 'warn' | 'bad' {
+  if (score >= 70) return 'ok';
+  if (score >= 40) return 'warn';
+  return 'bad';
 }
 
 /**

@@ -1,29 +1,59 @@
-import { useState, useEffect } from "react";
+import { useState, useEffect, type ReactNode } from "react";
 import { motion, AnimatePresence } from "framer-motion";
-import { 
-  Loader2, 
+import {
+  Loader2,
   GitBranch,
   Users,
   Binary,
   Zap,
   Link2,
   ChevronDown,
-  ChevronUp,
   TrendingUp,
   Target,
-  AlertCircle
+  AlertCircle,
+  Sparkles,
 } from "lucide-react";
 import type { Need, IndustryExpression, ChainAnalysis } from "../types";
-import type { Theme } from "../config/theme";
 import { DBService } from "../services/db.service";
 import { getGeminiService } from "../services/gemini.service";
+import { ratingTone } from "../utils/badge-styles";
+import { Badge, Hint, cx } from "./ui";
 
 interface ChainAnalyticsViewProps {
   need: Need;
-  theme: Theme;
 }
 
-export const ChainAnalyticsView = ({ need, theme }: ChainAnalyticsViewProps) => {
+const FRAMEWORKS: Record<string, { label: string; icon: ReactNode; description: string }> = {
+  "lineage-tracing": { label: "Lineage", icon: <GitBranch className="w-4 h-4" />, description: "How many generations deep the idea goes and where it splits." },
+  "influence-mapping": { label: "Influence", icon: <Users className="w-4 h-4" />, description: "Which industries in the tree shape the others most." },
+  "divergence-patterns": { label: "Divergence", icon: <Binary className="w-4 h-4" />, description: "How varied the branches are and where the novel ones sit." },
+  "innovation-velocity": { label: "Velocity", icon: <Zap className="w-4 h-4" />, description: "How fast ideas evolve along the chain and what speeds them up." },
+  "coherence-assessment": { label: "Coherence", icon: <Link2 className="w-4 h-4" />, description: "Whether the chain holds together as themes or scatters." },
+};
+
+const metricTone = (value: number) => (value >= 70 ? "text-ok" : value >= 40 ? "text-warn" : "text-bad");
+
+const Row = ({ label, children }: { label: string; children: ReactNode }) => (
+  <div className="flex justify-between gap-3 text-sm">
+    <span className="text-ink-2">{label}</span>
+    <span className="font-medium text-right">{children}</span>
+  </div>
+);
+
+const Score = ({ value }: { value: number }) => <span className={metricTone(value)}>{value}/100</span>;
+
+const Items = ({ title, children }: { title: string; children: ReactNode }) => (
+  <div className="mt-2 space-y-1.5">
+    <p className="text-xs font-semibold text-ink-2">{title}</p>
+    {children}
+  </div>
+);
+
+const ItemBox = ({ children }: { children: ReactNode }) => (
+  <div className="text-sm p-2.5 rounded-control bg-sheet border border-line">{children}</div>
+);
+
+export const ChainAnalyticsView = ({ need }: ChainAnalyticsViewProps) => {
   const [analyses, setAnalyses] = useState<Record<string, ChainAnalysis[]>>({});
   const [loading, setLoading] = useState<Record<string, boolean>>({});
   const [expandedExpressions, setExpandedExpressions] = useState<Record<string, boolean>>({});
@@ -97,379 +127,239 @@ export const ChainAnalyticsView = ({ need, theme }: ChainAnalyticsViewProps) => 
     }
   };
 
-  const getFrameworkIcon = (type: string) => {
-    switch (type) {
-      case 'lineage-tracing': return <GitBranch className="w-5 h-5 text-gray-400" />;
-      case 'influence-mapping': return <Users className="w-5 h-5 text-gray-400" />;
-      case 'divergence-patterns': return <Binary className="w-5 h-5 text-emerald-400" />;
-      case 'innovation-velocity': return <Zap className="w-5 h-5 text-amber-400" />;
-      case 'coherence-assessment': return <Link2 className="w-5 h-5 text-rose-400" />;
-      default: return <Target className="w-4 h-4" />;
-    }
-  };
-
-  const getMetricColor = (value: number) => {
-    if (value >= 70) return "text-emerald-400";
-    if (value >= 40) return "text-amber-400";
-    return "text-rose-400";
-  };
-
-  const getComplexityColor = (complexity: string) => {
-    switch (complexity) {
-      case 'simple': return "bg-emerald-500/20 text-emerald-300 border-emerald-500/30";
-      case 'moderate': return "bg-gray-500/20 text-gray-300 border-gray-500/30";
-      case 'complex': return "bg-amber-500/20 text-amber-300 border-amber-500/30";
-      case 'highly-complex': return "bg-rose-500/20 text-rose-300 border-rose-500/30";
-      default: return "bg-gray-500/20 text-gray-300 border-gray-500/30";
-    }
-  };
-
   if (allExpressions.length === 0) {
     return (
-      <div className={`p-6 rounded-lg ${theme.card} border text-center`}>
-        <p className={theme.muted}>No expressions found to analyze. Create some predictions first.</p>
+      <div className="p-5 rounded-card border border-dashed border-line text-sm text-ink-2">
+        No industries to analyse yet. Switch to Tree and add or branch a prediction first.
       </div>
     );
   }
 
+  const analyzedCount = Object.keys(analyses).length;
+
   return (
     <div className="space-y-4">
-      <div className={`p-6 rounded-lg ${theme.sectionBg} border`}>
-        <h2 className="text-lg font-semibold mb-2 flex items-center gap-2">
-          <GitBranch className={`w-5 h-5 ${theme.accent}`} />
-          Inspiration Chain Analytics
-        </h2>
-        <p className={`text-sm ${theme.muted} mb-4`}>
-          Analyze how expressions inspire each other, trace evolutionary lineages, and discover patterns in your innovation chains.
+      <div className="space-y-1.5">
+        <h3 className="text-lg font-semibold">Inspiration chains</h3>
+        <p className="text-sm text-ink-2">
+          How the industries in this tree inspire each other: lineage, influence, divergence, speed and coherence.
+          {" "}{analyzedCount} of {allExpressions.length} analysed.
         </p>
-        <p className={`text-xs ${theme.muted}`}>
-          {allExpressions.length} expression{allExpressions.length > 1 ? 's' : ''} available • 
-          {Object.keys(analyses).length} analyzed
-        </p>
+        <Hint>Tap an industry to analyse its chain with AI (10–30 s). Saved results open instantly.</Hint>
       </div>
 
       {error && (
-        <div className="p-4 rounded-lg bg-rose-500/10 border border-rose-500/30 flex items-start gap-3">
-          <AlertCircle className="w-5 h-5 text-rose-400 flex-shrink-0 mt-0.5" />
+        <div role="alert" className="p-3 rounded-card bg-bad/10 border border-bad/35 flex items-start gap-2.5 text-sm">
+          <AlertCircle className="w-4 h-4 text-bad shrink-0 mt-0.5" />
           <div>
-            <p className="text-sm text-rose-300 font-medium">Analysis Error</p>
-            <p className="text-xs text-rose-400/80 mt-1">{error}</p>
+            <p className="font-medium text-bad">The chain analysis failed</p>
+            <p className="text-ink-2 mt-0.5">{error} Tap the industry again to retry.</p>
           </div>
         </div>
       )}
 
-      {/* Expression Cards */}
-      <div className="space-y-3">
-        {allExpressions.map((expr, idx) => {
+      <div className="space-y-2">
+        {allExpressions.map((expr) => {
           const exprAnalyses = analyses[expr.id] || [];
           const isExpanded = expandedExpressions[expr.id];
           const isLoading = loading[expr.id];
           const isAnalyzed = exprAnalyses.length > 0;
+          const summary = exprAnalyses[0];
 
           return (
-            <motion.div
-              key={expr.id}
-              initial={{ opacity: 0, y: 20 }}
-              animate={{ opacity: 1, y: 0 }}
-              transition={{ delay: idx * 0.05 }}
-              className={`rounded-lg ${theme.card} border overflow-hidden`}
-            >
-              {/* Expression Header */}
+            <div key={expr.id} className="rounded-card bg-sheet border border-line overflow-hidden">
               <button
+                type="button"
                 onClick={() => analyzeExpression(expr)}
                 disabled={isLoading}
-                className={`w-full p-4 flex items-center justify-between ${theme.hover} transition-colors`}
+                aria-expanded={isAnalyzed ? !!isExpanded : undefined}
+                className="w-full p-3 min-h-[56px] flex items-center gap-3 text-left hover:bg-ink/5 transition-colors touch-manipulation disabled:opacity-70"
               >
-                <div className="flex items-center gap-3 flex-1 min-w-0">
-                  <GitBranch className={`w-4 h-4 ${theme.accent} flex-shrink-0`} />
-                  <div className="flex-1 min-w-0 text-left">
-                    <h3 className="font-medium text-sm truncate">{expr.name}</h3>
-                    <p className={`text-xs ${theme.muted} truncate`}>{expr.mutation}</p>
-                  </div>
-                  {isAnalyzed && (
-                    <span className="px-2 py-1 rounded text-xs bg-gray-500/20 text-gray-300 border border-gray-500/30 flex-shrink-0">
-                      {exprAnalyses.length} frameworks
-                    </span>
-                  )}
-                </div>
-                <div className="flex items-center gap-2 flex-shrink-0 ml-3">
-                  {isLoading ? (
-                    <Loader2 className="w-4 h-4 animate-spin" />
-                  ) : isAnalyzed ? (
-                    isExpanded ? <ChevronUp className="w-4 h-4" /> : <ChevronDown className="w-4 h-4" />
-                  ) : (
-                    <span className="text-xs px-2 py-1 rounded bg-gray-500/20 text-gray-300">Analyze</span>
-                  )}
-                </div>
+                <GitBranch className="w-4 h-4 text-accent shrink-0" aria-hidden />
+                <span className="flex-1 min-w-0">
+                  <span className="block font-medium truncate">{expr.name}</span>
+                  <span className="block text-sm text-ink-2 truncate">{expr.mutation}</span>
+                </span>
+                {isLoading ? (
+                  <span className="flex items-center gap-1.5 text-xs text-ink-2 shrink-0"><Loader2 className="w-4 h-4 animate-spin text-accent" />Analysing…</span>
+                ) : isAnalyzed ? (
+                  <span className="flex items-center gap-2 shrink-0">
+                    <Badge tone="ok">Saved</Badge>
+                    <ChevronDown className={cx("w-4 h-4 text-ink-2 transition-transform", isExpanded && "rotate-180")} aria-hidden />
+                  </span>
+                ) : (
+                  <span className="inline-flex items-center gap-1 text-xs font-medium text-accent shrink-0">
+                    <Sparkles className="w-3.5 h-3.5" aria-hidden />Analyse
+                  </span>
+                )}
               </button>
 
-              {/* Analysis Results */}
-              <AnimatePresence>
-                {isExpanded && exprAnalyses.length > 0 && (
+              <AnimatePresence initial={false}>
+                {isExpanded && isAnalyzed && (
                   <motion.div
                     initial={{ height: 0, opacity: 0 }}
                     animate={{ height: "auto", opacity: 1 }}
                     exit={{ height: 0, opacity: 0 }}
-                    className="border-t border-gray-700/50 overflow-hidden"
+                    className="border-t border-line overflow-hidden"
                   >
-                    <div className="p-4 space-y-4">
-                      {/* Overall Metrics */}
+                    <div className="p-3 space-y-3">
                       <div className="grid grid-cols-1 md:grid-cols-3 gap-3">
-                        {exprAnalyses[0]?.innovationPotential !== undefined && (
+                        {summary?.innovationPotential !== undefined && (
                           <div>
-                            <div className="flex justify-between items-center mb-1">
-                              <span className="text-xs font-medium">Innovation Potential</span>
-                              <span className={`text-xs font-bold ${getMetricColor(exprAnalyses[0].innovationPotential)}`}>
-                                {exprAnalyses[0].innovationPotential}/100
-                              </span>
+                            <div className="flex justify-between items-baseline mb-1 text-sm">
+                              <span className="text-ink-2">Innovation potential</span>
+                              <Score value={summary.innovationPotential} />
                             </div>
-                            <div className="w-full bg-gray-700/50 rounded-full h-2">
-                              <div 
-                                className="h-2 rounded-full bg-gradient-to-r from-gray-600 to-pink-500 transition-all"
-                                style={{ width: `${exprAnalyses[0].innovationPotential}%` }}
-                              />
+                            <div className="h-1.5 rounded-full bg-line overflow-hidden">
+                              <div className="h-full bg-accent" style={{ width: `${Math.max(0, Math.min(100, summary.innovationPotential))}%` }} />
                             </div>
                           </div>
                         )}
-                        
-                        {exprAnalyses[0]?.chainComplexity && (
-                          <div className="flex items-center gap-2">
-                            <span className="text-xs font-medium">Complexity:</span>
-                            <span className={`px-2 py-1 rounded text-xs border ${getComplexityColor(exprAnalyses[0].chainComplexity)}`}>
-                              {exprAnalyses[0].chainComplexity}
-                            </span>
+                        {summary?.chainComplexity && (
+                          <div className="flex items-center gap-2 text-sm">
+                            <span className="text-ink-2">Complexity</span>
+                            <Badge tone={ratingTone(summary.chainComplexity)}>{summary.chainComplexity}</Badge>
                           </div>
                         )}
-                        
-                        {exprAnalyses[0]?.strategicValue && (
-                          <div className="flex items-center gap-2">
-                            <span className="text-xs font-medium">Strategic Value:</span>
-                            <span className={`px-2 py-1 rounded text-xs border ${
-                              exprAnalyses[0].strategicValue === 'critical' ? 'bg-rose-500/20 text-rose-300 border-rose-500/30' :
-                              exprAnalyses[0].strategicValue === 'high' ? 'bg-amber-500/20 text-amber-300 border-amber-500/30' :
-                              exprAnalyses[0].strategicValue === 'medium' ? 'bg-gray-500/20 text-gray-300 border-gray-500/30' :
-                              'bg-gray-500/20 text-gray-300 border-gray-500/30'
-                            }`}>
-                              {exprAnalyses[0].strategicValue}
-                            </span>
+                        {summary?.strategicValue && (
+                          <div className="flex items-center gap-2 text-sm">
+                            <span className="text-ink-2">Strategic value</span>
+                            <Badge tone={ratingTone(summary.strategicValue)}>{summary.strategicValue}</Badge>
                           </div>
                         )}
                       </div>
 
-                      {/* Framework Analyses */}
-                      {exprAnalyses.map((analysis, aIdx) => (
-                        <div
-                          key={aIdx}
-                          className={`p-4 rounded-lg ${theme.itemBg} border border-gray-700/50`}
-                        >
-                          {/* Framework Header */}
-                          <div className="flex items-start gap-3 mb-3">
-                            {getFrameworkIcon(analysis.analysisType)}
-                            <div className="flex-1">
-                              <h4 className="font-semibold text-sm mb-1">
-                                {analysis.analysisType?.split('-').map((w: string) => w.charAt(0).toUpperCase() + w.slice(1)).join(' ')}
-                              </h4>
-                              {analysis.summary && (
-                                <p className={`text-xs ${theme.muted} leading-relaxed`}>{analysis.summary}</p>
-                              )}
-                            </div>
-                          </div>
+                      {exprAnalyses.map((analysis, aIdx) => {
+                        const fw = FRAMEWORKS[analysis.analysisType] ?? {
+                          label: analysis.analysisType ?? "Analysis",
+                          icon: <Target className="w-4 h-4" />,
+                          description: "",
+                        };
+                        return (
+                          <section key={aIdx} className="p-3 rounded-control bg-well border border-line space-y-2">
+                            <header className="flex items-start gap-2.5">
+                              <span className="text-accent mt-0.5">{fw.icon}</span>
+                              <div className="flex-1">
+                                <h4 className="font-semibold">{fw.label}</h4>
+                                {fw.description && <p className="text-xs text-ink-2">{fw.description}</p>}
+                              </div>
+                            </header>
+                            {analysis.summary && <p className="text-sm">{analysis.summary}</p>}
 
-                          {/* Framework-Specific Metrics */}
-                          {analysis.analysisType === 'lineage-tracing' && (
-                            <div className="space-y-2 mt-3">
-                              {analysis.generationDepth !== undefined && (
-                                <div className="flex justify-between text-xs">
-                                  <span className={theme.muted}>Generation Depth:</span>
-                                  <span className="font-medium">{analysis.generationDepth}</span>
-                                </div>
-                              )}
-                              {analysis.totalNodes !== undefined && (
-                                <div className="flex justify-between text-xs">
-                                  <span className={theme.muted}>Total Nodes:</span>
-                                  <span className="font-medium">{analysis.totalNodes}</span>
-                                </div>
-                              )}
-                              {Array.isArray(analysis.branchingPoints) && analysis.branchingPoints.length > 0 && (
-                                <div className="mt-2">
-                                  <p className="text-xs font-medium mb-1">Branching Points:</p>
-                                  <div className="space-y-1">
+                            {analysis.analysisType === "lineage-tracing" && (
+                              <>
+                                {analysis.generationDepth !== undefined && <Row label="Generations">{analysis.generationDepth}</Row>}
+                                {analysis.totalNodes !== undefined && <Row label="Industries in chain">{analysis.totalNodes}</Row>}
+                                {Array.isArray(analysis.branchingPoints) && analysis.branchingPoints.length > 0 && (
+                                  <Items title="Where it splits">
                                     {analysis.branchingPoints.map((bp: any, i: number) => (
-                                      <div key={i} className={`text-xs p-2 rounded ${theme.sectionBg}`}>
-                                        <span className="font-medium text-gray-300">{bp.node}</span>
-                                        <span className={theme.muted}> → {bp.branchCount} branches at gen {bp.generation}</span>
-                                      </div>
+                                      <ItemBox key={i}>
+                                        <span className="font-medium">{bp.node}</span>
+                                        <span className="text-ink-2">: {bp.branchCount} branches at generation {bp.generation}</span>
+                                      </ItemBox>
                                     ))}
-                                  </div>
-                                </div>
-                              )}
-                            </div>
-                          )}
+                                  </Items>
+                                )}
+                              </>
+                            )}
 
-                          {analysis.analysisType === 'influence-mapping' && (
-                            <div className="space-y-2 mt-3">
-                              {analysis.networkDensity !== undefined && (
-                                <div className="flex justify-between text-xs">
-                                  <span className={theme.muted}>Network Density:</span>
-                                  <span className={`font-medium ${getMetricColor(analysis.networkDensity)}`}>
-                                    {analysis.networkDensity}/100
-                                  </span>
-                                </div>
-                              )}
-                              {Array.isArray(analysis.centralNodes) && analysis.centralNodes.length > 0 && (
-                                <div className="mt-2">
-                                  <p className="text-xs font-medium mb-1">Central Nodes:</p>
-                                  <div className="space-y-1">
+                            {analysis.analysisType === "influence-mapping" && (
+                              <>
+                                {analysis.networkDensity !== undefined && <Row label="Network density"><Score value={analysis.networkDensity} /></Row>}
+                                {Array.isArray(analysis.centralNodes) && analysis.centralNodes.length > 0 && (
+                                  <Items title="Most influential">
                                     {analysis.centralNodes.map((node: any, i: number) => (
-                                      <div key={i} className={`text-xs p-2 rounded ${theme.sectionBg}`}>
-                                        <div className="flex justify-between items-start mb-1">
-                                          <span className="font-medium text-gray-300">{node.node}</span>
-                                          <span className="text-xs px-1.5 py-0.5 rounded bg-gray-600/20 text-gray-300">{node.role}</span>
+                                      <ItemBox key={i}>
+                                        <div className="flex justify-between items-start gap-2">
+                                          <span className="font-medium">{node.node}</span>
+                                          {node.role && <Badge>{node.role}</Badge>}
                                         </div>
-                                        <span className={theme.muted}>Score: {node.centralityScore} • Radius: {node.influenceRadius}</span>
-                                      </div>
+                                        <p className="text-xs text-ink-2 mt-1">Centrality {node.centralityScore}, reach {node.influenceRadius}</p>
+                                      </ItemBox>
                                     ))}
-                                  </div>
-                                </div>
-                              )}
-                            </div>
-                          )}
+                                  </Items>
+                                )}
+                              </>
+                            )}
 
-                          {analysis.analysisType === 'divergence-patterns' && (
-                            <div className="space-y-2 mt-3">
-                              {analysis.branchingStrategy && (
-                                <div className="flex justify-between text-xs">
-                                  <span className={theme.muted}>Branching Strategy:</span>
-                                  <span className="font-medium text-emerald-300">{analysis.branchingStrategy}</span>
-                                </div>
-                              )}
-                              {analysis.diversityScore !== undefined && (
-                                <div className="flex justify-between text-xs">
-                                  <span className={theme.muted}>Diversity Score:</span>
-                                  <span className={`font-medium ${getMetricColor(analysis.diversityScore)}`}>
-                                    {analysis.diversityScore}/100
-                                  </span>
-                                </div>
-                              )}
-                              {Array.isArray(analysis.noveltyHotspots) && analysis.noveltyHotspots.length > 0 && (
-                                <div className="mt-2">
-                                  <p className="text-xs font-medium mb-1">Novelty Hotspots:</p>
-                                  <div className="space-y-1">
+                            {analysis.analysisType === "divergence-patterns" && (
+                              <>
+                                {analysis.branchingStrategy && <Row label="Branching strategy">{analysis.branchingStrategy}</Row>}
+                                {analysis.diversityScore !== undefined && <Row label="Diversity"><Score value={analysis.diversityScore} /></Row>}
+                                {Array.isArray(analysis.noveltyHotspots) && analysis.noveltyHotspots.length > 0 && (
+                                  <Items title="Most novel">
                                     {analysis.noveltyHotspots.map((hs: any, i: number) => (
-                                      <div key={i} className={`text-xs p-2 rounded ${theme.sectionBg}`}>
-                                        <span className="font-medium text-emerald-300">{hs.node}</span>
-                                        <span className={theme.muted}> → {hs.noveltyScore}/100 ({hs.innovationType})</span>
-                                      </div>
+                                      <ItemBox key={i}>
+                                        <span className="font-medium">{hs.node}</span>
+                                        <span className="text-ink-2">: {hs.noveltyScore}/100{hs.innovationType ? `, ${hs.innovationType}` : ""}</span>
+                                      </ItemBox>
                                     ))}
-                                  </div>
-                                </div>
-                              )}
-                            </div>
-                          )}
+                                  </Items>
+                                )}
+                              </>
+                            )}
 
-                          {analysis.analysisType === 'innovation-velocity' && (
-                            <div className="space-y-2 mt-3">
-                              {analysis.overallVelocity && (
-                                <div className="flex justify-between text-xs">
-                                  <span className={theme.muted}>Overall Velocity:</span>
-                                  <span className="font-medium text-amber-300">{analysis.overallVelocity}</span>
-                                </div>
-                              )}
-                              {analysis.velocityScore !== undefined && (
-                                <div className="flex justify-between text-xs">
-                                  <span className={theme.muted}>Velocity Score:</span>
-                                  <span className={`font-medium ${getMetricColor(analysis.velocityScore)}`}>
-                                    {analysis.velocityScore}/100
-                                  </span>
-                                </div>
-                              )}
-                              {Array.isArray(analysis.accelerationZones) && analysis.accelerationZones.length > 0 && (
-                                <div className="mt-2">
-                                  <p className="text-xs font-medium mb-1 text-emerald-300">Acceleration Zones:</p>
-                                  <div className="space-y-1">
+                            {analysis.analysisType === "innovation-velocity" && (
+                              <>
+                                {analysis.overallVelocity && <Row label="Overall pace">{analysis.overallVelocity}</Row>}
+                                {analysis.velocityScore !== undefined && <Row label="Velocity"><Score value={analysis.velocityScore} /></Row>}
+                                {Array.isArray(analysis.accelerationZones) && analysis.accelerationZones.length > 0 && (
+                                  <Items title="Where it speeds up">
                                     {analysis.accelerationZones.map((zone: any, i: number) => (
-                                      <div key={i} className={`text-xs p-2 rounded ${theme.sectionBg}`}>
-                                        <p className="font-medium">{zone.nodes.join(', ')}</p>
-                                        <p className={theme.muted}>{zone.velocityChange} • {zone.triggerEvent}</p>
-                                      </div>
+                                      <ItemBox key={i}>
+                                        <p className="font-medium">{Array.isArray(zone.nodes) ? zone.nodes.join(", ") : ""}</p>
+                                        <p className="text-xs text-ink-2 mt-0.5">{[zone.velocityChange, zone.triggerEvent].filter(Boolean).join(". ")}</p>
+                                      </ItemBox>
                                     ))}
-                                  </div>
-                                </div>
-                              )}
-                            </div>
-                          )}
+                                  </Items>
+                                )}
+                              </>
+                            )}
 
-                          {analysis.analysisType === 'coherence-assessment' && (
-                            <div className="space-y-2 mt-3">
-                              {analysis.overallCoherence && (
-                                <div className="flex justify-between text-xs">
-                                  <span className={theme.muted}>Overall Coherence:</span>
-                                  <span className="font-medium text-rose-300">{analysis.overallCoherence}</span>
-                                </div>
-                              )}
-                              {analysis.coherenceScore !== undefined && (
-                                <div className="flex justify-between text-xs">
-                                  <span className={theme.muted}>Coherence Score:</span>
-                                  <span className={`font-medium ${getMetricColor(analysis.coherenceScore)}`}>
-                                    {analysis.coherenceScore}/100
-                                  </span>
-                                </div>
-                              )}
-                              {Array.isArray(analysis.thematicClusters) && analysis.thematicClusters.length > 0 && (
-                                <div className="mt-2">
-                                  <p className="text-xs font-medium mb-1">Thematic Clusters:</p>
-                                  <div className="space-y-1">
+                            {analysis.analysisType === "coherence-assessment" && (
+                              <>
+                                {analysis.overallCoherence && <Row label="Overall coherence">{analysis.overallCoherence}</Row>}
+                                {analysis.coherenceScore !== undefined && <Row label="Coherence"><Score value={analysis.coherenceScore} /></Row>}
+                                {Array.isArray(analysis.thematicClusters) && analysis.thematicClusters.length > 0 && (
+                                  <Items title="Themes">
                                     {analysis.thematicClusters.map((cluster: any, i: number) => (
-                                      <div key={i} className={`text-xs p-2 rounded ${theme.sectionBg}`}>
-                                        <span className="font-medium text-rose-300">{cluster.theme}</span>
-                                        <span className={theme.muted}> → {cluster.nodes.length} nodes (cohesion: {cluster.cohesion})</span>
-                                      </div>
+                                      <ItemBox key={i}>
+                                        <span className="font-medium">{cluster.theme}</span>
+                                        <span className="text-ink-2">: {Array.isArray(cluster.nodes) ? cluster.nodes.length : 0} industries, cohesion {cluster.cohesion}</span>
+                                      </ItemBox>
                                     ))}
-                                  </div>
-                                </div>
-                              )}
-                            </div>
-                          )}
+                                  </Items>
+                                )}
+                              </>
+                            )}
 
-                          {/* Key Insights */}
-                          {Array.isArray(analysis.keyInsights) && analysis.keyInsights.length > 0 && (
-                            <div className="mt-3 pt-3 border-t border-gray-700/30">
-                              <p className="text-xs font-medium mb-2">Key Insights:</p>
-                              <ul className="space-y-1">
-                                {analysis.keyInsights.map((insight: string, i: number) => (
-                                  <li key={i} className="text-xs text-gray-300 flex gap-2">
-                                    <span className="text-gray-500">•</span>
-                                    <span>{insight}</span>
-                                  </li>
-                                ))}
-                              </ul>
-                            </div>
-                          )}
+                            {Array.isArray(analysis.keyInsights) && analysis.keyInsights.length > 0 && (
+                              <div className="pt-2 border-t border-line">
+                                <p className="text-xs font-semibold text-ink-2 mb-1">Key insights</p>
+                                <ul className="list-disc pl-5 space-y-0.5 text-sm">
+                                  {analysis.keyInsights.map((insight: string, i: number) => <li key={i}>{insight}</li>)}
+                                </ul>
+                              </div>
+                            )}
 
-                          {/* Recommended Actions */}
-                          {Array.isArray(analysis.recommendedActions) && analysis.recommendedActions.length > 0 && (
-                            <div className="mt-3 pt-3 border-t border-gray-700/30">
-                              <p className="text-xs font-medium mb-2 flex items-center gap-1.5">
-                                <TrendingUp className="w-3.5 h-3.5 text-gray-400" />
-                                Recommended Actions:
-                              </p>
-                              <ul className="space-y-1">
-                                {analysis.recommendedActions.map((action: string, i: number) => (
-                                  <li key={i} className="text-xs text-gray-300 flex gap-2">
-                                    <span className="text-gray-500">→</span>
-                                    <span>{action}</span>
-                                  </li>
-                                ))}
-                              </ul>
-                            </div>
-                          )}
-                        </div>
-                      ))}
+                            {Array.isArray(analysis.recommendedActions) && analysis.recommendedActions.length > 0 && (
+                              <div className="pt-2 border-t border-line">
+                                <p className="text-xs font-semibold text-ink-2 mb-1 flex items-center gap-1.5">
+                                  <TrendingUp className="w-3.5 h-3.5" aria-hidden />What to do next
+                                </p>
+                                <ul className="list-disc pl-5 space-y-0.5 text-sm">
+                                  {analysis.recommendedActions.map((action: string, i: number) => <li key={i}>{action}</li>)}
+                                </ul>
+                              </div>
+                            )}
+                          </section>
+                        );
+                      })}
                     </div>
                   </motion.div>
                 )}
               </AnimatePresence>
-            </motion.div>
+            </div>
           );
         })}
       </div>

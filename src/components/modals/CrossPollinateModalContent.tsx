@@ -1,17 +1,16 @@
 /**
- * Modal content for cross-pollination between two industries.
- * Allows selecting two industries and generating novel recombinations.
+ * Cross-pollination: combine two industries into hybrids, then add the ones you like to a tree.
  */
 
 import { useEffect, useState } from "react";
-import { Sparkles, Loader2, Shuffle, Check, RefreshCw, RotateCcw } from "lucide-react";
+import { Sparkles, Shuffle, Check, RefreshCw, RotateCcw, Plus, AlertTriangle } from "lucide-react";
 import type { CrossPollinateState, IndustryExpression, Need } from "../../types";
-import type { Theme } from "../../config/theme";
+import { Badge, Button, Field, Hint, Select, cx, type Tone } from "../ui";
+import { asArray } from "./parts";
 
 export interface CrossPollinateModalContentProps {
   crossPollinate: CrossPollinateState;
   crossLoading: boolean;
-  theme: Theme;
   onExecute: () => void;
   onRegenerate: () => void;
   onReset: () => void;
@@ -21,13 +20,11 @@ export interface CrossPollinateModalContentProps {
   onAddToNeed: (result: IndustryExpression, needId: string) => boolean;
 }
 
-const scoreClass = (score: number) =>
-  score >= 85 ? 'bg-green-500/20 text-green-400' : score >= 70 ? 'bg-gray-500/20 text-gray-400' : 'bg-amber-500/20 text-amber-400';
+const synergyTone = (score: number): Tone => (score >= 85 ? "ok" : score >= 70 ? "neutral" : "warn");
 
 export const CrossPollinateModalContent = ({
   crossPollinate,
   crossLoading,
-  theme,
   onExecute,
   onRegenerate,
   onReset,
@@ -46,142 +43,146 @@ export const CrossPollinateModalContent = ({
     setAdded({});
   }, [result]);
 
-  return (
-    <>
-      <p className={`text-sm ${theme.muted} mb-4`}>Combine mechanisms from two industries to generate novel recombinations.</p>
+  const needOptions = needs.map((n) => ({ value: n.id, label: n.name }));
 
-      <div className="grid grid-cols-2 gap-4 mb-4">
-        {[0, 1].map(i => (
-          <div key={i} className={`p-3 rounded-lg border ${items[i] ? "border-amber-500/50 bg-amber-500/10" : theme.borderDashed}`}>
+  return (
+    <div className="space-y-5">
+      <p className="text-sm text-ink-2">
+        Takes the mechanisms behind two industries and asks the AI for hybrids that neither could be alone.
+      </p>
+
+      <div className="grid gap-2 sm:grid-cols-2">
+        {[0, 1].map((i) => (
+          <div
+            key={i}
+            className={cx(
+              "p-3 rounded-card border",
+              items[i] ? "border-pollen/50 bg-pollen/10" : "border-dashed border-line",
+            )}
+          >
+            <p className="text-xs text-ink-2 mb-0.5">Parent {i + 1}</p>
             {items[i] ? (
-              <div>
-                <p className="font-medium text-sm">{items[i].name}</p>
-                <p className={`text-xs ${theme.muted} line-clamp-3`}>{items[i].mutation}</p>
-              </div>
+              <>
+                <p className="font-semibold">{items[i].name}</p>
+                {items[i].mutation && <p className="text-sm text-ink-2 line-clamp-3">{items[i].mutation}</p>}
+              </>
             ) : (
-              <p className={`text-sm ${theme.muted}`}>Select industry {i + 1} with its "Cross" button, or drag one card onto another.</p>
+              <p className="text-sm text-ink-2">
+                Not chosen yet. Close this, then use Cross-pollinate on an industry card, or drag one card onto another.
+              </p>
             )}
           </div>
         ))}
       </div>
 
       {items.length === 2 && !result && (
-        <button
-          onClick={onExecute}
-          disabled={crossLoading}
-          className="w-full py-2 rounded-lg bg-amber-500 text-white text-sm font-medium hover:bg-amber-600 disabled:opacity-50 flex items-center justify-center gap-2"
-          data-autofocus
-        >
-          {crossLoading ? <Loader2 className="w-4 h-4 animate-spin" /> : <Shuffle className="w-4 h-4" />}
-          {crossLoading ? "Generating..." : "Generate Recombinations"}
-        </button>
+        <div className="space-y-2">
+          <Button variant="pollen" block loading={crossLoading} icon={<Shuffle className="w-4 h-4" />} onClick={onExecute} data-autofocus>
+            {crossLoading ? "Generating hybrids…" : "Generate hybrids"}
+          </Button>
+          <Hint>Uses AI and takes 10–30 seconds. Results are saved, so this pair opens instantly next time.</Hint>
+        </div>
       )}
 
       {result && (
-        <div className="mt-4 space-y-3">
+        <div className="space-y-4">
           <div className="flex items-center justify-between gap-2">
-            <p className={`text-sm font-medium ${theme.muted}`}>Novel Recombinations ({result.length}):</p>
+            <h3 className="font-semibold">{result.length} hybrids</h3>
             <div className="flex gap-1">
-              <button onClick={onRegenerate} disabled={crossLoading} className={`p-1.5 rounded ${theme.hover} disabled:opacity-40`} title="Generate a fresh set" aria-label="Regenerate recombinations">
-                <RefreshCw className={`w-3.5 h-3.5 ${crossLoading ? "animate-spin" : ""}`} />
-              </button>
-              <button onClick={onReset} className={`p-1.5 rounded ${theme.hover}`} title="Start over with a new pair" aria-label="Clear selection">
-                <RotateCcw className="w-3.5 h-3.5" />
-              </button>
+              <Button size="sm" variant="ghost" onClick={onRegenerate} disabled={crossLoading} icon={<RefreshCw className={cx("w-4 h-4", crossLoading && "animate-spin")} />} title="Ask the AI for a fresh set for this pair. Uses AI.">
+                New set
+              </Button>
+              <Button size="sm" variant="ghost" onClick={onReset} icon={<RotateCcw className="w-4 h-4" />} title="Clear both parents and choose a new pair.">
+                New pair
+              </Button>
             </div>
           </div>
+
           {result.map((r, i) => {
             const target = targets[i] ?? defaultTarget;
             const addedTo = added[`${i}:${target}`];
+            const challenges = asArray<string>(r.challenges);
+            const inspirations = asArray<{ source: string; mechanism?: string; twist?: string }>(r.inspirations);
             return (
-              <div key={`${r.name}-${i}`} className={`p-3 rounded-lg ${theme.itemBg} border ${theme.border}`}>
+              <article key={`${r.name}-${i}`} className="p-4 rounded-card border border-line bg-sheet space-y-3">
                 <div className="flex items-start justify-between gap-2">
-                  <p className="font-medium flex items-center gap-2">
-                    <Sparkles className={`w-3.5 h-3.5 ${theme.accent}`} />
+                  <h4 className="font-semibold flex items-center gap-2">
+                    <Sparkles className="w-4 h-4 text-pollen shrink-0" aria-hidden />
                     {r.name}
-                  </p>
+                  </h4>
                   {typeof r.synergyScore === "number" && (
-                    <div className={`flex items-center gap-1 px-2 py-0.5 rounded-full text-xs ${scoreClass(r.synergyScore)}`}>
-                      <span className="font-mono">{r.synergyScore}</span>
-                      <span className="text-xs opacity-70">synergy</span>
-                    </div>
+                    <Badge tone={synergyTone(r.synergyScore)} title="How strongly the two parents reinforce each other, out of 100">
+                      {r.synergyScore} synergy
+                    </Badge>
                   )}
                 </div>
 
-                {r.combinationType && (
-                  <div className={`mt-1 text-xs ${theme.muted} flex items-center gap-1`}>
-                    <span className="opacity-60">Strategy:</span>
-                    <span className={theme.accent}>{r.combinationType}</span>
-                    {typeof r.noveltyFactor === "number" && (
-                      <span className="ml-2 opacity-60">• Novelty: <span className={theme.accent}>{r.noveltyFactor}/100</span></span>
-                    )}
-                  </div>
+                {(r.combinationType || typeof r.noveltyFactor === "number") && (
+                  <p className="text-sm text-ink-2">
+                    {r.combinationType && <>Strategy: <span className="text-ink">{r.combinationType}</span></>}
+                    {r.combinationType && typeof r.noveltyFactor === "number" && ". "}
+                    {typeof r.noveltyFactor === "number" && <>Novelty: <span className="text-ink">{r.noveltyFactor}/100</span></>}
+                  </p>
                 )}
 
-                <p className={`text-xs ${theme.muted} mt-1`}>{r.mutation}</p>
-                <p className="text-sm mt-2">{r.insight}</p>
+                {r.mutation && <p className="text-sm text-ink-2">{r.mutation}</p>}
+                {r.insight && <p className="text-sm">{r.insight}</p>}
 
                 {r.marketFit && (
-                  <div className={`mt-2 p-2 rounded ${theme.itemBgAlt} text-xs`}>
-                    <span className={`font-medium ${theme.accent}`}>Market Fit:</span> {r.marketFit}
-                  </div>
+                  <p className="text-sm p-3 rounded-control bg-well">
+                    <span className="font-medium">Market fit: </span>
+                    {r.marketFit}
+                  </p>
                 )}
 
-                {Array.isArray(r.challenges) && r.challenges.length > 0 && (
-                  <div className="mt-2 space-y-1">
-                    <p className={`text-xs font-medium ${theme.muted}`}>Challenges:</p>
-                    {r.challenges.map((challenge, idx) => (
-                      <div key={idx} className={`text-xs ${theme.muted} flex items-start gap-1`}>
-                        <span className="text-amber-400 mt-0.5">⚠</span>
-                        <span>{challenge}</span>
-                      </div>
+                {challenges.length > 0 && (
+                  <ul className="space-y-1.5">
+                    {challenges.map((c, idx) => (
+                      <li key={idx} className="flex gap-2 text-sm text-ink-2">
+                        <AlertTriangle className="w-4 h-4 text-warn shrink-0 mt-0.5" aria-hidden />
+                        <span>{c}</span>
+                      </li>
                     ))}
-                  </div>
+                  </ul>
                 )}
 
-                {Array.isArray(r.inspirations) && r.inspirations.length > 0 && (
-                  <div className={`mt-2 pt-2 border-t ${theme.border} text-xs space-y-1`}>
-                    <p className={`font-medium ${theme.muted} mb-1`}>Combination Elements:</p>
-                    {r.inspirations.map((ins, j) => (
-                      <div key={j} className="flex items-start gap-1">
-                        <span className={theme.accent}>{ins.source}</span>
-                        <span className="opacity-60">→</span>
-                        <span className="flex-1">{ins.twist || ins.mechanism}</span>
-                      </div>
+                {inspirations.length > 0 && (
+                  <div className="pt-3 border-t border-line space-y-1">
+                    <p className="text-sm font-medium">What it borrows</p>
+                    {inspirations.map((ins, j) => (
+                      <p key={j} className="text-sm">
+                        <span className="text-accent">{ins.source}</span>
+                        <span className="text-ink-2">: {ins.twist || ins.mechanism}</span>
+                      </p>
                     ))}
                   </div>
                 )}
 
                 {needs.length > 0 ? (
-                  <div className="mt-3 flex items-center gap-2">
-                    <select
-                      value={target}
-                      onChange={(e) => setTargets((p) => ({ ...p, [i]: e.target.value }))}
-                      className={`flex-1 min-w-0 px-2 py-1.5 rounded text-xs ${theme.inputBg} border`}
-                      aria-label={`Need to add "${r.name}" to`}
-                    >
-                      {needs.map(n => (
-                        <option key={n.id} value={n.id}>{n.name}</option>
-                      ))}
-                    </select>
-                    <button
+                  <div className="pt-1 space-y-2">
+                    <Field label="Add to" hint="Where the hybrid is added as a new prediction, in that need's future era.">
+                      <Select value={target} options={needOptions} onChange={(v) => setTargets((p) => ({ ...p, [i]: v }))} />
+                    </Field>
+                    <Button
+                      variant={addedTo ? "secondary" : "primary"}
+                      block
+                      disabled={!target || !!addedTo}
+                      icon={addedTo ? <Check className="w-4 h-4" /> : <Plus className="w-4 h-4" />}
                       onClick={() => {
                         if (target && onAddToNeed(r, target)) setAdded((p) => ({ ...p, [`${i}:${target}`]: target }));
                       }}
-                      disabled={!target || !!addedTo}
-                      className="px-3 py-1.5 rounded text-xs bg-gray-500 text-white hover:bg-gray-600 disabled:opacity-60 transition-colors flex items-center gap-1"
                     >
-                      {addedTo ? <><Check className="w-3 h-3" />Added</> : "Add to Tree"}
-                    </button>
+                      {addedTo ? "Added to tree" : "Add to tree"}
+                    </Button>
                   </div>
                 ) : (
-                  <p className={`mt-3 text-xs ${theme.muted}`}>Open a need to add this result to its tree.</p>
+                  <Hint>Open a need first to add this hybrid to its tree.</Hint>
                 )}
-              </div>
+              </article>
             );
           })}
         </div>
       )}
-    </>
+    </div>
   );
 };
