@@ -33,12 +33,8 @@ export const HistoryPanel = ({ history, theme, onUndo, onRedo, onClear }: Histor
         return '➕';
       case 'delete_expression':
         return '🗑️';
-      case 'cross_pollinate':
-        return '🔀';
-      case 'add_need':
-        return '📋';
-      case 'delete_need':
-        return '❌';
+      case 'close_need':
+        return '📕';
       default:
         return '•';
     }
@@ -58,6 +54,7 @@ export const HistoryPanel = ({ history, theme, onUndo, onRedo, onClear }: Histor
             disabled={!history.canUndo}
             className={`p-1.5 rounded ${theme.hover} disabled:opacity-40 disabled:cursor-not-allowed`}
             title="Undo (Ctrl+Z)"
+            aria-label="Undo"
           >
             <Undo2 className="w-4 h-4" />
           </button>
@@ -66,6 +63,7 @@ export const HistoryPanel = ({ history, theme, onUndo, onRedo, onClear }: Histor
             disabled={!history.canRedo}
             className={`p-1.5 rounded ${theme.hover} disabled:opacity-40 disabled:cursor-not-allowed`}
             title="Redo (Ctrl+Y)"
+            aria-label="Redo"
           >
             <Redo2 className="w-4 h-4" />
           </button>
@@ -74,6 +72,7 @@ export const HistoryPanel = ({ history, theme, onUndo, onRedo, onClear }: Histor
               onClick={onClear}
               className={`p-1.5 rounded ${theme.hover} text-red-400 hover:text-red-300`}
               title="Clear history"
+              aria-label="Clear history"
             >
               <Trash2 className="w-4 h-4" />
             </button>

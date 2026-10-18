@@ -17,3 +17,6 @@ export type { AddPredictionModalContentProps } from './AddPredictionModalContent
 
 export { KeyboardShortcutsModalContent } from './KeyboardShortcutsModalContent';
 export type { KeyboardShortcutsModalContentProps } from './KeyboardShortcutsModalContent';
+
+export { AppConceptModalContent } from './AppConceptModalContent';
+export type { AppConceptModalContentProps } from './AppConceptModalContent';

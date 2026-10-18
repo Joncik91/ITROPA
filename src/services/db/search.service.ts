@@ -1,5 +1,6 @@
 import { db, DBNeed } from './db-client';
 import type { IndustryExpression } from '../../types';
+import { isFutureEra } from '../../utils/need-model';
 
 /**
  * Service for cross-entity search operations
@@ -15,9 +16,7 @@ export class SearchService {
 
     const searchInExpressions = (expressions: IndustryExpression[], need: DBNeed, path: string[] = []) => {
       expressions.forEach(expr => {
-        if (expr.name.toLowerCase().includes(lowerQuery) ||
-            expr.mutation.toLowerCase().includes(lowerQuery) ||
-            expr.insight.toLowerCase().includes(lowerQuery)) {
+        if ([expr.name, expr.mutation, expr.insight].some(f => (f ?? '').toLowerCase().includes(lowerQuery))) {
           results.push({ need, expression: expr, path: [...path, expr.name] });
         }
         if (expr.children?.length) {
@@ -28,9 +27,7 @@ export class SearchService {
 
     allNeeds.forEach(need => {
       need.eras.forEach(era => {
-        if (Array.isArray(era.expressions) && era.expressions.length > 0 && typeof era.expressions[0] === 'object') {
-          searchInExpressions(era.expressions as IndustryExpression[], need);
-        }
+        if (isFutureEra(era)) searchInExpressions(era.expressions as IndustryExpression[], need);
       });
     });
 

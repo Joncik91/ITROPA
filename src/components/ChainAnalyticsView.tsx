@@ -290,7 +290,7 @@ export const ChainAnalyticsView = ({ need, theme }: ChainAnalyticsViewProps) => 
                                   <span className="font-medium">{analysis.totalNodes}</span>
                                 </div>
                               )}
-                              {analysis.branchingPoints && analysis.branchingPoints.length > 0 && (
+                              {Array.isArray(analysis.branchingPoints) && analysis.branchingPoints.length > 0 && (
                                 <div className="mt-2">
                                   <p className="text-xs font-medium mb-1">Branching Points:</p>
                                   <div className="space-y-1">
@@ -316,7 +316,7 @@ export const ChainAnalyticsView = ({ need, theme }: ChainAnalyticsViewProps) => 
                                   </span>
                                 </div>
                               )}
-                              {analysis.centralNodes && analysis.centralNodes.length > 0 && (
+                              {Array.isArray(analysis.centralNodes) && analysis.centralNodes.length > 0 && (
                                 <div className="mt-2">
                                   <p className="text-xs font-medium mb-1">Central Nodes:</p>
                                   <div className="space-y-1">
@@ -351,7 +351,7 @@ export const ChainAnalyticsView = ({ need, theme }: ChainAnalyticsViewProps) => 
                                   </span>
                                 </div>
                               )}
-                              {analysis.noveltyHotspots && analysis.noveltyHotspots.length > 0 && (
+                              {Array.isArray(analysis.noveltyHotspots) && analysis.noveltyHotspots.length > 0 && (
                                 <div className="mt-2">
                                   <p className="text-xs font-medium mb-1">Novelty Hotspots:</p>
                                   <div className="space-y-1">
@@ -383,7 +383,7 @@ export const ChainAnalyticsView = ({ need, theme }: ChainAnalyticsViewProps) => 
                                   </span>
                                 </div>
                               )}
-                              {analysis.accelerationZones && analysis.accelerationZones.length > 0 && (
+                              {Array.isArray(analysis.accelerationZones) && analysis.accelerationZones.length > 0 && (
                                 <div className="mt-2">
                                   <p className="text-xs font-medium mb-1 text-emerald-300">Acceleration Zones:</p>
                                   <div className="space-y-1">
@@ -415,7 +415,7 @@ export const ChainAnalyticsView = ({ need, theme }: ChainAnalyticsViewProps) => 
                                   </span>
                                 </div>
                               )}
-                              {analysis.thematicClusters && analysis.thematicClusters.length > 0 && (
+                              {Array.isArray(analysis.thematicClusters) && analysis.thematicClusters.length > 0 && (
                                 <div className="mt-2">
                                   <p className="text-xs font-medium mb-1">Thematic Clusters:</p>
                                   <div className="space-y-1">
@@ -432,7 +432,7 @@ export const ChainAnalyticsView = ({ need, theme }: ChainAnalyticsViewProps) => 
                           )}
 
                           {/* Key Insights */}
-                          {analysis.keyInsights && analysis.keyInsights.length > 0 && (
+                          {Array.isArray(analysis.keyInsights) && analysis.keyInsights.length > 0 && (
                             <div className="mt-3 pt-3 border-t border-gray-700/30">
                               <p className="text-xs font-medium mb-2">Key Insights:</p>
                               <ul className="space-y-1">
@@ -447,7 +447,7 @@ export const ChainAnalyticsView = ({ need, theme }: ChainAnalyticsViewProps) => 
                           )}
 
                           {/* Recommended Actions */}
-                          {analysis.recommendedActions && analysis.recommendedActions.length > 0 && (
+                          {Array.isArray(analysis.recommendedActions) && analysis.recommendedActions.length > 0 && (
                             <div className="mt-3 pt-3 border-t border-gray-700/30">
                               <p className="text-xs font-medium mb-2 flex items-center gap-1.5">
                                 <TrendingUp className="w-3.5 h-3.5 text-gray-400" />

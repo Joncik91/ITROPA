@@ -10,7 +10,8 @@ export {
   DeepDiveModalContent,
   CrossPollinateModalContent,
   AddPredictionModalContent,
-  KeyboardShortcutsModalContent
+  KeyboardShortcutsModalContent,
+  AppConceptModalContent
 } from './modals';
 
 export type {
@@ -18,5 +19,6 @@ export type {
   DeepDiveModalContentProps,
   CrossPollinateModalContentProps,
   AddPredictionModalContentProps,
-  KeyboardShortcutsModalContentProps
+  KeyboardShortcutsModalContentProps,
+  AppConceptModalContentProps
 } from './modals';

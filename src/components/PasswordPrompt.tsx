@@ -7,7 +7,6 @@ import type { Theme } from '../config/theme';
 interface PasswordPromptProps {
   onAuthenticated: () => void;
   theme: Theme;
-  dark: boolean;
 }
 
 export const PasswordPrompt = ({ onAuthenticated, theme }: PasswordPromptProps) => {
@@ -25,29 +24,24 @@ export const PasswordPrompt = ({ onAuthenticated, theme }: PasswordPromptProps) 
     setLoading(true);
 
     try {
+      // The server answers with an HttpOnly session cookie; nothing is stored client-side.
       const response = await fetch('/api/auth', {
         method: 'POST',
-        headers: {
-          'Content-Type': 'application/json',
-        },
+        headers: { 'Content-Type': 'application/json' },
+        credentials: 'same-origin',
         body: JSON.stringify({ password }),
       });
-
-      const data = await response.json();
+      const data = await response.json().catch(() => ({} as { error?: string }));
 
       if (response.ok) {
-        // Store auth token in localStorage
-        localStorage.setItem('authenticated', 'true');
-        toast.success('Access granted!');
+        toast.success('Access granted');
         onAuthenticated();
       } else {
-        console.error('Auth failed:', response.status, data);
-        toast.error(data.error || 'Invalid password');
+        toast.error(response.status === 401 ? 'Incorrect password' : data.error || `Sign-in failed (HTTP ${response.status})`);
         setPassword('');
       }
-    } catch (error) {
-      console.error('Auth error:', error);
-      toast.error('Authentication failed');
+    } catch {
+      toast.error('Could not reach the server. Check your connection and try again.');
     } finally {
       setLoading(false);
     }
@@ -74,8 +68,11 @@ export const PasswordPrompt = ({ onAuthenticated, theme }: PasswordPromptProps) 
 
         <form onSubmit={handleSubmit}>
           <div className={`rounded-lg p-6 space-y-4 ${theme.card}`}>
+            <label htmlFor="itropa-password" className="sr-only">Password</label>
             <input
+              id="itropa-password"
               type="password"
+              autoComplete="current-password"
               value={password}
               onChange={(e) => setPassword(e.target.value)}
               placeholder="Enter password"

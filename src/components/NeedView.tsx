@@ -1,23 +1,30 @@
 import { useState } from "react";
-import { Plus, Clock, List } from "lucide-react";
+import { Plus, Clock, List, BookOpen, GitBranch } from "lucide-react";
 import type { Need, IndustryExpression } from "../types";
 import type { Theme } from "../config/theme";
 import { getIcon } from "../config/constants";
 import { TimelineView } from "./TimelineView";
+import { PriorArtDisplay } from "./PriorArtDisplay";
+import { ChainAnalyticsView } from "./ChainAnalyticsView";
+import { ErrorBoundary } from "./ErrorBoundary";
+import { isFutureEra } from "../utils/need-model";
+
+type ViewMode = "tree" | "timeline" | "prior-art" | "chains";
+
+const VIEW_MODES: Array<{ id: ViewMode; label: string; icon: typeof List }> = [
+  { id: "tree", label: "Tree", icon: List },
+  { id: "timeline", label: "Timeline", icon: Clock },
+  { id: "prior-art", label: "Prior Art", icon: BookOpen },
+  { id: "chains", label: "Chains", icon: GitBranch },
+];
 
 interface NeedViewProps {
   need: Need;
   theme: Theme;
   dark: boolean;
-  isPriorArtOpen?: boolean;
-  onTogglePriorArt?: () => void;
-  renderBranch: (expr: IndustryExpression, depth: number, needId: string) => JSX.Element;
+  renderBranch: (expr: IndustryExpression, depth: number, needId: string) => JSX.Element | null;
   onAddPrediction: () => void;
   onFetchNeed: (needName: string) => void;
-  aiSuggestions?: any;
-  onAISuggest?: () => void;
-  aiLoading?: boolean;
-  onExecuteAction?: (suggestion: any) => Promise<void>;
 }
 
 export const NeedView = ({
@@ -29,7 +36,7 @@ export const NeedView = ({
   onFetchNeed,
 }: NeedViewProps) => {
   const Icon = getIcon(need.icon);
-  const [viewMode, setViewMode] = useState<"tree" | "timeline">("tree");
+  const [viewMode, setViewMode] = useState<ViewMode>("tree");
 
   return (
     <div>
@@ -40,39 +47,43 @@ export const NeedView = ({
           </div>
           <div className="flex-1 min-w-0">
             <h2 className="font-medium text-base md:text-lg truncate">{need.name}</h2>
-          <p className={`text-xs md:text-sm ${theme.muted}`}>{need.description}</p>
-        </div>
+            <p className={`text-xs md:text-sm ${theme.muted}`}>{need.description}</p>
+          </div>
         </div>
         <div className="flex gap-2 w-full md:w-auto">
-          <div className={`flex items-center rounded-lg border ${theme.border} overflow-hidden flex-1 md:flex-initial`}>
-            <button
-              onClick={() => setViewMode("tree")}
-              className={`flex-1 md:flex-initial px-3 py-2 text-xs flex items-center justify-center gap-1.5 transition-colors touch-manipulation ${
-                viewMode === "tree" ? "bg-gray-500/20 text-gray-300" : theme.hover
-              }`}
-            >
-              <List className="w-3.5 h-3.5" />
-              Tree
-            </button>
-            <button
-              onClick={() => setViewMode("timeline")}
-              className={`flex-1 md:flex-initial px-3 py-2 text-xs flex items-center justify-center gap-1.5 transition-colors touch-manipulation ${
-                viewMode === "timeline" ? "bg-gray-500/20 text-gray-300" : theme.hover
-              }`}
-            >
-              <Clock className="w-3.5 h-3.5" />
-              Timeline
-            </button>
+          <div className={`flex items-center rounded-lg border ${theme.border} overflow-hidden flex-1 md:flex-initial`} role="tablist" aria-label="View">
+            {VIEW_MODES.map(({ id, label, icon: ModeIcon }) => (
+              <button
+                key={id}
+                role="tab"
+                aria-selected={viewMode === id}
+                onClick={() => setViewMode(id)}
+                className={`flex-1 md:flex-initial px-3 py-2 text-xs flex items-center justify-center gap-1.5 transition-colors touch-manipulation ${
+                  viewMode === id ? "bg-gray-500/20 text-gray-300" : theme.hover
+                }`}
+              >
+                <ModeIcon className="w-3.5 h-3.5" />
+                {label}
+              </button>
+            ))}
           </div>
         </div>
       </div>
 
       {viewMode === "timeline" ? (
         <TimelineView need={need} theme={theme} dark={dark} />
+      ) : viewMode === "prior-art" ? (
+        <ErrorBoundary inline label="the prior art analysis" resetKey={need.id}>
+          <PriorArtDisplay key={need.id} needName={need.name} priorArt={need.priorArt ?? {}} theme={theme} />
+        </ErrorBoundary>
+      ) : viewMode === "chains" ? (
+        <ErrorBoundary inline label="the inspiration chains" resetKey={need.id}>
+          <ChainAnalyticsView key={need.id} need={need} theme={theme} />
+        </ErrorBoundary>
       ) : (
         <div className="space-y-4">
           {need.eras.map((era, i) => {
-            const isFuture = era.name.includes("2025");
+            const isFuture = isFutureEra(era);
             return (
               <div key={i} className={`pl-4 border-l-2 ${theme.border}`}>
                 <p className={`text-xs font-medium mb-2 ${isFuture ? theme.accent : theme.muted}`}>
@@ -104,13 +115,13 @@ export const NeedView = ({
         </div>
       )}
 
-      {need.relatedNeeds && (
+      {!!need.relatedNeeds?.length && (
         <div className="mt-4 pt-4 border-t border-gray-700">
           <p className={`text-xs ${theme.muted} mb-2`}>Explore related:</p>
           <div className="flex flex-wrap gap-2">
-            {need.relatedNeeds.map((r: string, i: number) => (
+            {need.relatedNeeds.map((r: string) => (
               <button
-                key={i}
+                key={r}
                 onClick={() => onFetchNeed(r)}
                 className={`text-xs px-2 py-1 rounded ${theme.itemBgAlt} ${theme.hover} transition-colors cursor-pointer`}
               >

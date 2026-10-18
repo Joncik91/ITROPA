@@ -25,8 +25,11 @@ export const SUGGESTED_NEEDS: SuggestedNeed[] = [
 ];
 
 export const KEYBOARD_SHORTCUTS = [
-  ["←/→", "Switch tabs"],
-  ["Esc", "Close modals"],
+  ["←/→", "Switch needs"],
+  ["Ctrl/⌘ + Z", "Undo"],
+  ["Ctrl/⌘ + Y, Ctrl/⌘ + ⇧ + Z", "Redo"],
+  ["Esc", "Close dialogs"],
   ["?", "Toggle shortcuts"],
-  ["Enter", "Search"]
+  ["Enter", "Research need (in search box)"],
+  ["Right-click a card", "More actions"],
 ];

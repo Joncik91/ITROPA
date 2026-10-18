@@ -95,49 +95,55 @@ The frontend communicates with Vercel Serverless Functions via REST API calls. T
 
 ---
 
-## Development vs Production Mode
+## Development vs Production
 
-### Development Mode
-- **Condition:** No `VITE_API_URL` set AND `VITE_GEMINI_API_KEY` present
-- **Behavior:** Direct calls to Google Gemini API
-- **Endpoint:** `https://generativelanguage.googleapis.com/v1beta/models/gemma-3-27b-it:generateContent`
-- **Model:** `gemma-3-27b-it`
+There is a single code path. The browser always calls the same-origin endpoints
+`/api/gemini` and `/api/ai-assistant`; the Gemini key never reaches the browser.
 
-### Production Mode
-- **Condition:** `VITE_API_URL` is set
-- **Behavior:** Calls to Vercel Serverless Functions
-- **Endpoints:** `/api/gemini`, `/api/ai-assistant`
-- **Model:** `gemma-3-27b-it` (backend)
+- **Production:** Vercel Serverless Functions in `/api` (thin adapters over `api/_lib/core.ts`).
+- **Development:** `npm run dev` serves the same handlers through Vite middleware
+  (`vite-plugin-dev-api.ts`), reading `GEMINI_API_KEY`, `GEMINI_MODEL` and `APP_PASSWORD` from `.env`.
+- **Model:** `GEMINI_MODEL` (default `gemini-2.5-flash`). Gemini models run in native JSON mode;
+  2.5 Flash runs with thinking disabled so the output budget is spent on the answer.
 
----
+### Request / response
 
-## Retry Logic
+`POST /api/gemini` and `POST /api/ai-assistant`
 
-Both endpoints implement automatic retry with exponential backoff:
-- **Retries:** 1 (configurable)
-- **Delay:** 2000ms between attempts
-- **Quota Errors:** Immediate failure with user-friendly message
-- **Network Errors:** Retry once before failing
+```json
+{ "prompt": "string (≤ 60,000 chars)", "maxTokens": 256–8192, "temperature": 0–1.5 }
+```
 
----
-
-## Error Messages
-
-| Error Type | User Message |
-|-----------|--------------|
-| Quota Exceeded | "API quota exceeded. Please wait a minute or upgrade your Gemini API plan at https://ai.google.dev/pricing" |
-| Model Not Found | "Model not available. Please check the model name." |
-| Network Error | "API Error: [error message]" |
-| Missing API Key | "VITE_GEMINI_API_KEY not found in environment variables" (dev mode only) |
+Success: `{ "text": "<model output>", "truncated": false }`.
+Errors: `{ "error": "message", "code": "auth|quota|timeout|invalid|config|model|blocked|empty|upstream" }`
+with status 400/401/405/422/429/500/502/504.
 
 ---
 
-## Security
+## Client behaviour (`src/services/api-client.service.ts`)
 
-- **API Keys:** Never exposed in frontend (production mode)
-- **CORS:** Handled by backend serverless functions
-- **Authentication:** Password protection in production (managed at app level)
-- **Rate Limiting:** Handled by Gemini API quotas
+- At most 4 requests in flight; extra calls queue.
+- 70 s client timeout (server-side upstream timeout is 55 s; Vercel `maxDuration` is 60 s).
+- Retries only transient failures (network, timeout, 429, 5xx, empty or malformed output), with
+  jittered exponential backoff (longer for 429). Client errors (400/401) are never retried.
+- A 401 dispatches the `itropa:auth-required` window event; the app shows the password prompt.
+- Every response is parsed and then normalised (`src/utils/need-model.ts`, `src/utils/ai-normalizers.ts`):
+  IDs are assigned client-side, and arrays and strings are guaranteed before data reaches state or IndexedDB.
+
+---
+
+## Authentication
+
+Opt-in via `APP_PASSWORD`. Enforced **server-side** on every AI call.
+
+| Method | `/api/auth` | Result |
+|--------|-------------|--------|
+| GET    | — | `{ required, authenticated }` |
+| POST   | `{ password }` | 200 + `HttpOnly; SameSite=Strict` session cookie (30 days), or 401 |
+| DELETE | — | Clears the session cookie |
+
+The session token is an HMAC of its expiry, keyed from the password, so changing
+`APP_PASSWORD` revokes every session. Nothing auth-related is stored in `localStorage`.
 
 ---
 

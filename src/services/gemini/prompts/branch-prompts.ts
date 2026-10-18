@@ -10,8 +10,8 @@ export function buildBranchIndustryPrompt(parent: IndustryExpression): string {
 ${JSON_ARRAY_ONLY}
 
 [
-  {"id": "${parent.id}-1", "type": "future", "name": "Sub-industry 1", "mutation": "What enables it", "insight": "Why it branches from parent", "inspirations": [{"source": "${parent.name}", "mechanism": "What is borrowed", "twist": "New application"}], "children": []},
-  {"id": "${parent.id}-2", "type": "future", "name": "Sub-industry 2", "mutation": "What enables it", "insight": "Why it branches from parent", "inspirations": [{"source": "${parent.name}", "mechanism": "What is borrowed", "twist": "New application"}], "children": []},
-  {"id": "${parent.id}-3", "type": "future", "name": "Sub-industry 3", "mutation": "What enables it", "insight": "Why it branches from parent", "inspirations": [{"source": "${parent.name}", "mechanism": "What is borrowed", "twist": "New application"}], "children": []}
+  {"name": "Sub-industry 1", "mutation": "What enables it", "insight": "Why it branches from parent", "inspirations": [{"source": "${parent.name}", "mechanism": "What is borrowed", "twist": "New application"}], "children": []},
+  {"name": "Sub-industry 2", "mutation": "What enables it", "insight": "Why it branches from parent", "inspirations": [{"source": "${parent.name}", "mechanism": "What is borrowed", "twist": "New application"}], "children": []},
+  {"name": "Sub-industry 3", "mutation": "What enables it", "insight": "Why it branches from parent", "inspirations": [{"source": "${parent.name}", "mechanism": "What is borrowed", "twist": "New application"}], "children": []}
 ]`;
 }

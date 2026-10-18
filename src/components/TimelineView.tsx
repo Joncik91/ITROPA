@@ -1,6 +1,7 @@
 import { motion } from "framer-motion";
 import type { Need, IndustryExpression } from "../types";
 import type { Theme } from "../config/theme";
+import { isFutureEra } from "../utils/need-model";
 
 interface TimelineViewProps {
   need: Need;
@@ -17,7 +18,7 @@ export const TimelineView = ({ need, theme, dark }: TimelineViewProps) => {
       {/* Eras */}
       <div className="space-y-8">
         {need.eras.map((era, index) => {
-          const isFuture = era.name.includes("2025");
+          const isFuture = isFutureEra(era);
           const expressions = era.expressions;
           
           return (

@@ -14,7 +14,7 @@ export interface DeepDiveModalContentProps {
   aiSuggestions?: { suggestions: AIActionSuggestion[]; reasoning: string } | null;
   onAIAssist?: () => void;
   aiLoading?: boolean;
-  onExecuteAction?: (suggestion: AIActionSuggestion) => Promise<void>;
+  onExecuteAction?: (suggestion: AIActionSuggestion) => Promise<boolean>;
 }
 
 /** Score bar component for opportunity scores */
@@ -210,7 +210,7 @@ export const DeepDiveModalContent = ({
     )}
 
     {/* Monetization Models */}
-    {data.monetizationModels && data.monetizationModels.length > 0 && (
+    {Array.isArray(data.monetizationModels) && data.monetizationModels.length > 0 && (
       <div>
         <p className={`text-xs font-medium ${theme.muted} mb-2`}>Monetization Models</p>
         <div className="space-y-2">
@@ -234,7 +234,7 @@ export const DeepDiveModalContent = ({
       <p>{data.marketOpportunity || 'No market opportunity data available.'}</p>
     </div>
 
-    {data.keyEnablers && data.keyEnablers.length > 0 && (
+    {Array.isArray(data.keyEnablers) && data.keyEnablers.length > 0 && (
       <div>
         <p className={`text-xs font-medium ${theme.muted} mb-2`}>Key Enablers</p>
         {data.keyEnablers.map((e: string, i: number) => (
@@ -243,7 +243,7 @@ export const DeepDiveModalContent = ({
       </div>
     )}
 
-    {data.challenges && data.challenges.length > 0 && (
+    {Array.isArray(data.challenges) && data.challenges.length > 0 && (
       <div>
         <p className={`text-xs font-medium ${theme.muted} mb-2`}>Challenges & Solutions</p>
         {data.challenges.map((c: any, i: number) => (
@@ -276,7 +276,7 @@ export const DeepDiveModalContent = ({
       </div>
     )}
 
-    {data.keyPlayers && data.keyPlayers.length > 0 && (
+    {Array.isArray(data.keyPlayers) && data.keyPlayers.length > 0 && (
       <div>
         <p className={`text-xs font-medium ${theme.muted} mb-2`}>Potential Key Players</p>
         <div className="flex flex-wrap gap-2">
@@ -289,7 +289,7 @@ export const DeepDiveModalContent = ({
       </div>
     )}
 
-    {data.risks && data.risks.length > 0 && (
+    {Array.isArray(data.risks) && data.risks.length > 0 && (
       <div>
         <p className={`text-xs font-medium ${theme.muted} mb-2`}>Risk Factors</p>
         <div className="space-y-1">

@@ -1,141 +1,118 @@
-import { useCallback } from 'react';
+import { useCallback, useRef } from 'react';
 import toast from 'react-hot-toast';
 import { getGeminiService } from '../../services/gemini.service';
 import { DBService } from '../../services/db.service';
+import { getFutureExpressions, hasPriorArt, needKey } from '../../utils/need-model';
+import type { NeedStateApi } from './useNeedState';
 import type { UseHistoryReturn } from '../useHistory';
 
 /**
- * CRUD operations for needs
- * Dependencies: needState, history
+ * Creating, opening, closing and deleting needs.
  */
-export function useNeedCRUD(deps: {
-  needs: any[];
-  setNeeds: (fn: any) => void;
-  activeTab: string | null;
-  setActiveTab: (id: string | null) => void;
-  cache: Record<string, any>;
-  setCache: (fn: any) => void;
-  setLoading: (loading: boolean) => void;
-  setLoadingStage: (stage: string) => void;
-  setError: (error: string | null) => void;
-  setShowPriorArt: (fn: any) => void;
-  setExpandedBranches: (fn: any) => void;
-  history: UseHistoryReturn;
-}) {
-  const {
-    needs,
-    setNeeds,
-    activeTab,
-    setActiveTab,
-    cache,
-    setCache,
-    setLoading,
-    setLoadingStage,
-    setError,
-    setShowPriorArt,
-    setExpandedBranches,
-    history,
-  } = deps;
+export function useNeedCRUD(state: NeedStateApi, history: UseHistoryReturn) {
+  const { needsRef, openInWorkspace, removeFromWorkspace, setActiveTab, setLoading, setLoadingStage, setError } = state;
+  const inFlight = useRef(new Set<string>());
 
-  const geminiService = getGeminiService();
-
+  /**
+   * Open a need by name: switch to it if open, reopen it from the library if saved,
+   * otherwise research and generate it. Concurrent requests for the same name collapse.
+   */
   const fetchNeed = useCallback(async (needName: string, userDescription?: string) => {
-    const key = needName.toLowerCase().trim();
-    if (cache[key]) {
-      if (!needs.find(n => n.id === cache[key].id)) {
-        setNeeds((p: any) => [...p, cache[key]]);
-        setActiveTab(cache[key].id);
-      } else setActiveTab(cache[key].id);
-      toast.success(`Switched to: ${needName}`);
+    const name = needName?.trim();
+    if (!name) return;
+    const key = needKey(name);
+
+    const open = needsRef.current.find((n) => needKey(n.name) === key);
+    if (open && !userDescription) {
+      setActiveTab(open.id);
       return;
     }
-    setLoading(true);
-    setError(null);
-    const toastId = toast.loading(`Researching prior art for: ${needName}...`);
+    if (inFlight.current.has(key)) return;
+    inFlight.current.add(key);
+
+    let toastId: string | undefined;
+    const gemini = getGeminiService();
     try {
-      setLoadingStage("Researching prior art...");
-      const priorArt = await geminiService.fetchPriorArt(needName, userDescription);
+      if (!userDescription) {
+        const saved = await DBService.findNeedByName(name).catch(() => undefined);
+        if (saved) {
+          openInWorkspace(saved);
+          toast.success(`Opened from library: ${saved.name}`);
+          return;
+        }
+      }
 
-      // Run prior art analysis in background (don't block need generation)
-      geminiService.analyzePriorArt(needName, priorArt)
-        .then(analyses => {
-          if (analyses.length > 0) {
-            DBService.savePriorArtAnalysis(needName, analyses);
-            console.log(`Cached ${analyses.length} prior art analyses for: ${needName}`);
-          }
-        })
-        .catch(err => console.warn('Prior art analysis failed:', err));
+      setLoading(true);
+      setError(null);
+      toastId = toast.loading(`Researching prior art for: ${name}...`);
+      setLoadingStage('Researching prior art...');
+      const cached = userDescription ? undefined : await DBService.getSearchCache(name).catch(() => undefined);
+      const priorArt = cached && hasPriorArt(cached.priorArt) ? cached.priorArt : await gemini.fetchPriorArt(name, userDescription);
+      if (!cached) void DBService.saveSearchCache(name, priorArt).catch(() => {});
 
-      toast.loading("Generating predictions from prior art...", { id: toastId });
-      setLoadingStage("Generating predictions from prior art...");
-      const parsed = await geminiService.generateNeed(needName, priorArt, userDescription);
-      setCache((p: any) => ({ ...p, [key]: parsed }));
-      setNeeds((p: any) => [...p, parsed]);
-      setActiveTab(parsed.id);
-      setShowPriorArt((p: any) => ({ ...p, [parsed.id]: false }));
-      // Save to database
-      await DBService.saveNeed(parsed);
-      await DBService.saveSearchCache(needName, priorArt);
-      toast.success(`Created: ${needName} with ${parsed.eras.find((e: any) => e.name.includes('2025'))?.expressions?.length || 0} predictions`, { id: toastId });
-    } catch (e: any) {
-      setError(e.message);
-      toast.error(`Failed to create need: ${e.message}`, { id: toastId });
+      // Strategic prior-art analysis runs in the background; it never blocks generation.
+      void (async () => {
+        if (await DBService.getPriorArtAnalysis(name)) return;
+        const analyses = await gemini.analyzePriorArt(name, priorArt);
+        if (analyses.length) await DBService.savePriorArtAnalysis(name, analyses);
+      })().catch((err) => console.warn('Prior art analysis failed:', err));
+
+      toast.loading('Generating predictions from prior art...', { id: toastId });
+      setLoadingStage('Generating predictions from prior art...');
+      const need = await gemini.generateNeed(name, priorArt, userDescription);
+
+      await DBService.saveNeed(need);
+      openInWorkspace(need);
+      toast.success(`Created: ${need.name} with ${getFutureExpressions(need).length} predictions`, { id: toastId });
+    } catch (e) {
+      const message = e instanceof Error ? e.message : String(e);
+      setError(message);
+      toast.error(`Failed to create need: ${message}`, { id: toastId });
     } finally {
-      setLoading(false);
-      setLoadingStage("");
+      inFlight.current.delete(key);
+      setLoading(inFlight.current.size > 0);
+      if (inFlight.current.size === 0) setLoadingStage('');
     }
-  }, [cache, needs, geminiService, setNeeds, setActiveTab, setCache, setLoading, setLoadingStage, setError, setShowPriorArt]);
+  }, [needsRef, openInWorkspace, setActiveTab, setLoading, setLoadingStage, setError]);
 
-  const closeNeed = (id: string) => {
-    // Close need (remove from workspace but keep in DB)
-    const needToClose = needs.find(n => n.id === id);
-    if (!needToClose) return;
-
-    // Add to history for undo
-    history.addToHistory({
-      type: 'close_need',
-      description: `Closed: ${needToClose.name}`,
-      data: {
-        needId: id,
-        previousState: needToClose,
-      },
-    });
-
-    // Remove from workspace
-    setNeeds((p: any) => p.filter((n: any) => n.id !== id));
-
-    // Switch active tab if closing the active need
-    if (activeTab === id) {
-      const remainingNeeds = needs.filter(n => n.id !== id);
-      const currentIndex = needs.findIndex(n => n.id === id);
-      const nextNeed = remainingNeeds[Math.min(currentIndex, remainingNeeds.length - 1)];
-      setActiveTab(nextNeed?.id || null);
+  /** Open a saved need by id (from the library or a pattern instance). */
+  const openNeed = useCallback(async (needId: string) => {
+    const open = needsRef.current.find((n) => n.id === needId);
+    if (open) {
+      setActiveTab(open.id);
+      return true;
     }
+    const saved = await DBService.getNeed(needId).catch(() => undefined);
+    if (!saved) {
+      toast.error('That need no longer exists.');
+      return false;
+    }
+    openInWorkspace(saved);
+    return true;
+  }, [needsRef, openInWorkspace, setActiveTab]);
 
-    toast.success(`Closed: ${needToClose.name}`);
-  };
+  /** Close a need's tab (it stays in the library). Undoable. */
+  const closeNeed = useCallback((id: string) => {
+    const need = needsRef.current.find((n) => n.id === id);
+    if (!need) return;
+    history.addToHistory({ type: 'close_need', description: `Closed: ${need.name}`, data: { needId: id } });
+    removeFromWorkspace(id);
+    toast.success(`Closed: ${need.name}`);
+  }, [needsRef, history, removeFromWorkspace]);
 
-  const removeNeed = async (id: string) => {
-    setNeeds((p: any) => p.filter((n: any) => n.id !== id));
-    if (activeTab === id) setActiveTab(needs.find(n => n.id !== id)?.id || null);
-    // Delete from database
+  /** Permanently delete a need and all of its analyses. */
+  const removeNeed = useCallback(async (id: string) => {
+    removeFromWorkspace(id);
     await DBService.deleteNeed(id);
-  };
+  }, [removeFromWorkspace]);
 
-  const clearAll = async () => {
-    setNeeds([]);
+  /** Wipe all saved data and reset the workspace and history to match. */
+  const clearAllData = useCallback(async () => {
+    await DBService.clearAllData();
+    state.commitNeeds([]);
     setActiveTab(null);
-    setCache({});
-    setShowPriorArt({});
-    setExpandedBranches({});
-    // Clear database
-    await DBService.clearAllNeeds();
-  };
+    history.clearHistory();
+  }, [state.commitNeeds, setActiveTab, history]);
 
-  return {
-    fetchNeed,
-    closeNeed,
-    removeNeed,
-    clearAll,
-  };
+  return { fetchNeed, openNeed, closeNeed, removeNeed, clearAllData };
 }

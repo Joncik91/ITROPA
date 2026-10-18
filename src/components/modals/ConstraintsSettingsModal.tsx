@@ -4,7 +4,7 @@
  * for personalized industry analysis and app concept generation.
  */
 
-import { useState } from "react";
+import { useEffect, useState } from "react";
 import { Settings, RotateCcw, Save, Plus, X } from "lucide-react";
 import type { Theme } from "../../config/theme";
 import type { ConstraintsProfile } from "../../types";
@@ -45,6 +45,15 @@ export const ConstraintsSettingsModal = ({
   const [localProfile, setLocalProfile] = useState<ConstraintsProfile>(profile);
   const [newTech, setNewTech] = useState("");
   const [newAvoidCategory, setNewAvoidCategory] = useState("");
+
+  // Each opening edits a fresh copy of the saved profile; unsaved edits are discarded.
+  useEffect(() => {
+    if (isOpen) {
+      setLocalProfile(profile);
+      setNewTech("");
+      setNewAvoidCategory("");
+    }
+  }, [isOpen, profile]);
 
   const handleSave = () => {
     onSave(localProfile);
@@ -125,7 +134,7 @@ export const ConstraintsSettingsModal = ({
                   className={`px-2 py-1 rounded-full text-xs flex items-center gap-1 ${theme.itemBg}`}
                 >
                   {tech}
-                  <button onClick={() => removeTechStack(tech)} className="hover:text-red-400">
+                  <button onClick={() => removeTechStack(tech)} className="hover:text-red-400" aria-label={`Remove ${tech}`}>
                     <X className="w-3 h-3" />
                   </button>
                 </span>

@@ -1,4 +1,4 @@
-import { db } from './db-client';
+import { db, ALL_TABLES, migrateToV6 } from './db-client';
 import { mirrorService } from './mirror.service';
 import { NeedRepository } from './repositories/need.repository';
 import { MechanismRepository } from './repositories/mechanism.repository';
@@ -10,14 +10,15 @@ import { ChainAnalysisRepository } from './repositories/chain-analysis.repositor
 import { SearchCacheRepository } from './repositories/search-cache.repository';
 import { AppConceptRepository } from './repositories/app-concept.repository';
 import { SearchService } from './search.service';
-import type { Need, IndustryExpression, AppConcept } from '../../types';
+import { collectExpressionIds } from '../../utils/need-model';
+import type { Need, IndustryExpression, AppConcept, DeepDiveDetails, MechanismDetails, PriorArt } from '../../types';
+
+const allTables = () => ALL_TABLES.map((t) => db.table(t));
 
 /**
- * Facade service that delegates to specialized repositories.
- * Maintains the same API as the original DBService for backwards compatibility.
+ * Facade over the repositories. Components and hooks go through this, never through Dexie.
  */
 export class DBService {
-  // Repository instances
   private static needRepo = new NeedRepository();
   private static mechanismRepo = new MechanismRepository();
   private static deepDiveRepo = new DeepDiveRepository();
@@ -31,44 +32,43 @@ export class DBService {
   // ============ MIRROR SYNC ============
 
   /**
-   * On startup: restore IndexedDB from the SQLite mirror.
-   * Runs only in dev mode; silently no-ops in production.
+   * On startup: restore IndexedDB from the SQLite mirror (dev only; no-op in production).
+   * Mirrored rows may predate the v6 ID migration, so it is re-applied (it is idempotent).
    */
   static async syncFromMirror(): Promise<void> {
     const data = await mirrorService.loadAll();
-    if (!Object.keys(data).length) return;
+    if (!Object.values(data).some((rows) => rows?.length)) return;
 
-    await db.transaction('rw', [
-      db.needs, db.mechanisms, db.deepDives, db.crossPollinates,
-      db.searchCache, db.patternAnalyses, db.priorArtAnalyses,
-      db.chainAnalyses, db.appConcepts,
-    ], async () => {
-      if (data.needs?.length)            await db.needs.bulkPut(data.needs);
-      if (data.mechanisms?.length)       await db.mechanisms.bulkPut(data.mechanisms);
-      if (data.deepDives?.length)        await db.deepDives.bulkPut(data.deepDives);
-      if (data.crossPollinates?.length)  await db.crossPollinates.bulkPut(data.crossPollinates);
-      if (data.searchCache?.length)      await db.searchCache.bulkPut(data.searchCache);
-      if (data.patternAnalyses?.length)  await db.patternAnalyses.bulkPut(data.patternAnalyses);
-      if (data.priorArtAnalyses?.length) await db.priorArtAnalyses.bulkPut(data.priorArtAnalyses);
-      if (data.chainAnalyses?.length)    await db.chainAnalyses.bulkPut(data.chainAnalyses);
-      if (data.appConcepts?.length)      await db.appConcepts.bulkPut(data.appConcepts);
-    });
-
-    console.log('🔄 Restored from SQLite mirror');
+    await mirrorService.withoutMirroring(() =>
+      db.transaction('rw', allTables(), async (tx) => {
+        for (const table of ALL_TABLES) {
+          const rows = data[table];
+          if (rows?.length) await db.table(table).bulkPut(rows);
+        }
+        await migrateToV6(tx);
+      }),
+    );
+    console.info('🔄 Restored from SQLite mirror');
   }
 
   // ============ NEEDS ============
 
-  static async saveNeed(need: Need): Promise<void> {
-    return this.needRepo.saveNeed(need);
-  }
-
-  static async updateNeed(need: Need): Promise<void> {
-    return this.needRepo.updateNeed(need);
+  static async saveNeed(need: Need) {
+    return this.needRepo.upsertNeed(need);
   }
 
   static async getNeed(id: string) {
     return this.needRepo.get(id);
+  }
+
+  static async findNeedByName(name: string) {
+    return this.needRepo.findByName(name);
+  }
+
+  /** The saved need whose tree contains the expression, if any. */
+  static async findNeedIdByExpression(expressionId: string): Promise<string | undefined> {
+    const needs = await db.needs.toArray();
+    return needs.find((n) => collectExpressionIds(n).has(expressionId))?.id;
   }
 
   static async getAllNeeds() {
@@ -79,13 +79,9 @@ export class DBService {
     return this.needRepo.deleteNeed(id);
   }
 
-  static async clearAllNeeds(): Promise<void> {
-    return this.needRepo.clearAllNeeds();
-  }
-
   // ============ MECHANISMS ============
 
-  static async saveMechanism(expressionId: string, expressionName: string, needId: string, details: any): Promise<void> {
+  static async saveMechanism(expressionId: string, expressionName: string, needId: string, details: MechanismDetails[]): Promise<void> {
     return this.mechanismRepo.saveMechanism(expressionId, expressionName, needId, details);
   }
 
@@ -103,20 +99,16 @@ export class DBService {
 
   // ============ DEEP DIVES ============
 
-  static async saveDeepDive(expressionId: string, expressionName: string, needId: string, details: any): Promise<void> {
+  static async saveDeepDive(expressionId: string, expressionName: string, needId: string, details: DeepDiveDetails): Promise<void> {
     return this.deepDiveRepo.saveDeepDive(expressionId, expressionName, needId, details);
   }
 
-  static async getDeepDive(expressionId: string, needId: string) {
-    return this.deepDiveRepo.getDeepDive(expressionId, needId);
+  static async getDeepDiveById(expressionId: string) {
+    return this.deepDiveRepo.get(expressionId);
   }
 
   static async getDeepDivesByNeed(needId: string) {
     return this.deepDiveRepo.getDeepDivesByNeed(needId);
-  }
-
-  static async getAllDeepDives() {
-    return this.deepDiveRepo.toArray();
   }
 
   // ============ CROSS-POLLINATION ============
@@ -143,10 +135,6 @@ export class DBService {
     return this.patternAnalysisRepo.getPatternAnalysis(patternName);
   }
 
-  static async getAllPatternAnalyses() {
-    return this.patternAnalysisRepo.getAllPatternAnalyses();
-  }
-
   // ============ PRIOR ART ANALYSES ============
 
   static async savePriorArtAnalysis(needName: string, analyses: any[]): Promise<void> {
@@ -157,31 +145,19 @@ export class DBService {
     return this.priorArtAnalysisRepo.getPriorArtAnalysis(needName);
   }
 
-  static async getAllPriorArtAnalyses() {
-    return this.priorArtAnalysisRepo.getAll();
-  }
-
   // ============ CHAIN ANALYSES ============
 
   static async saveChainAnalysis(expressionId: string, expressionName: string, needId: string, analyses: any[]): Promise<void> {
     return this.chainAnalysisRepo.saveChainAnalysis(expressionId, expressionName, needId, analyses);
   }
 
-  static async getChainAnalysis(expressionId: string) {
-    return this.chainAnalysisRepo.get(expressionId);
-  }
-
   static async getChainAnalysesByNeed(needId: string) {
     return this.chainAnalysisRepo.getChainAnalysesByNeed(needId);
   }
 
-  static async getAllChainAnalyses() {
-    return this.chainAnalysisRepo.getAll();
-  }
+  // ============ SEARCH CACHE (prior art per need name) ============
 
-  // ============ SEARCH CACHE ============
-
-  static async saveSearchCache(needName: string, priorArt: any): Promise<void> {
+  static async saveSearchCache(needName: string, priorArt: PriorArt): Promise<void> {
     return this.searchCacheRepo.saveSearchCache(needName, priorArt);
   }
 
@@ -203,14 +179,6 @@ export class DBService {
 
   static async getAppConcepts(industryId: string) {
     return this.appConceptRepo.getAppConcepts(industryId);
-  }
-
-  static async getAppConceptsByNeed(needId: string) {
-    return this.appConceptRepo.getAppConceptsByNeed(needId);
-  }
-
-  static async getAllAppConcepts() {
-    return this.appConceptRepo.getAll();
   }
 
   // ============ SEARCH & LOOKUP ============
@@ -237,98 +205,50 @@ export class DBService {
 
   // ============ UTILITY ============
 
+  /** Wipe every table atomically. */
   static async clearAllData(): Promise<void> {
-    await db.needs.clear();
-    await db.mechanisms.clear();
-    await db.deepDives.clear();
-    await db.crossPollinates.clear();
-    await db.searchCache.clear();
+    await db.transaction('rw', allTables(), async () => {
+      for (const table of ALL_TABLES) await db.table(table).clear();
+    });
   }
 
-  static async exportAllData() {
-    return {
-      needs: await db.needs.toArray(),
-      mechanisms: await db.mechanisms.toArray(),
-      deepDives: await db.deepDives.toArray(),
-      crossPollinates: await db.crossPollinates.toArray(),
-      searchCache: await db.searchCache.toArray()
-    };
+  static async exportAllData(): Promise<Record<string, unknown[]>> {
+    return db.transaction('r', allTables(), async () => {
+      const out: Record<string, unknown[]> = {};
+      for (const table of ALL_TABLES) out[table] = await db.table(table).toArray();
+      return out;
+    });
   }
 
   static async getDatabaseStats() {
-    const needsCount = await db.needs.count();
-    const mechanismsCount = await db.mechanisms.count();
-    const deepDivesCount = await db.deepDives.count();
-    const crossPollinatesCount = await db.crossPollinates.count();
-    const cacheCount = await db.searchCache.count();
-
-    return {
-      needs: needsCount,
-      mechanisms: mechanismsCount,
-      deepDives: deepDivesCount,
-      crossPollinates: crossPollinatesCount,
-      searchCache: cacheCount,
-      total: needsCount + mechanismsCount + deepDivesCount + crossPollinatesCount + cacheCount
-    };
+    const [needs, mechanisms, deepDives, crossPollinates, appConcepts] = await Promise.all([
+      db.needs.count(), db.mechanisms.count(), db.deepDives.count(), db.crossPollinates.count(), db.appConcepts.count(),
+    ]);
+    return { needs, mechanisms, deepDives, crossPollinates, appConcepts, total: needs + mechanisms + deepDives + crossPollinates + appConcepts };
   }
 
-  static async cleanupOrphanedData(): Promise<{ mechanisms: number; deepDives: number; crossPollinates: number }> {
-    const removed = { mechanisms: 0, deepDives: 0, crossPollinates: 0 };
+  /** Remove analyses whose expression no longer exists in any saved need. */
+  static async cleanupOrphanedData(): Promise<{ mechanisms: number; deepDives: number; crossPollinates: number; other: number }> {
+    return db.transaction('rw', allTables(), async () => {
+      const valid = new Set<string>();
+      for (const need of await db.needs.toArray()) for (const id of collectExpressionIds(need)) valid.add(id);
 
-    // Get all valid need IDs
-    const allNeeds = await db.needs.toArray();
-    const validNeedIds = new Set(allNeeds.map(n => n.id));
+      const prune = async (table: 'mechanisms' | 'deepDives' | 'chainAnalyses' | 'appConcepts') => {
+        const orphanIds = (await db.table(table).toCollection().primaryKeys()).filter((k) => !valid.has(String(k)));
+        await db.table(table).bulkDelete(orphanIds);
+        return orphanIds.length;
+      };
 
-    // Build set of all valid expression IDs
-    const validExpressionIds = new Set<string>();
-    allNeeds.forEach(need => {
-      need.eras.forEach(era => {
-        if (Array.isArray(era.expressions)) {
-          era.expressions.forEach((expr: any) => {
-            if (typeof expr === 'object' && expr.id) {
-              validExpressionIds.add(expr.id);
-              const addChildrenIds = (expression: any) => {
-                if (expression.children) {
-                  expression.children.forEach((child: any) => {
-                    validExpressionIds.add(child.id);
-                    addChildrenIds(child);
-                  });
-                }
-              };
-              addChildrenIds(expr);
-            }
-          });
-        }
-      });
+      const mechanisms = await prune('mechanisms');
+      const deepDives = await prune('deepDives');
+      const other = (await prune('chainAnalyses')) + (await prune('appConcepts'));
+
+      const crossIds = (await db.crossPollinates.toArray())
+        .filter((cp) => !valid.has(cp.expression1Id) || !valid.has(cp.expression2Id))
+        .map((cp) => cp.id);
+      await db.crossPollinates.bulkDelete(crossIds);
+
+      return { mechanisms, deepDives, crossPollinates: crossIds.length, other };
     });
-
-    // Clean up orphaned mechanisms
-    const allMechanisms = await db.mechanisms.toArray();
-    for (const mech of allMechanisms) {
-      if (!validNeedIds.has(mech.needId) || !validExpressionIds.has(mech.id)) {
-        await db.mechanisms.delete(mech.id);
-        removed.mechanisms++;
-      }
-    }
-
-    // Clean up orphaned deep dives
-    const allDeepDives = await db.deepDives.toArray();
-    for (const dive of allDeepDives) {
-      if (!validNeedIds.has(dive.needId) || !validExpressionIds.has(dive.id)) {
-        await db.deepDives.delete(dive.id);
-        removed.deepDives++;
-      }
-    }
-
-    // Clean up orphaned cross-pollinations
-    const allCrossPollinates = await db.crossPollinates.toArray();
-    for (const cp of allCrossPollinates) {
-      if (!validExpressionIds.has(cp.expression1Id) || !validExpressionIds.has(cp.expression2Id)) {
-        await db.crossPollinates.delete(cp.id);
-        removed.crossPollinates++;
-      }
-    }
-
-    return removed;
   }
 }

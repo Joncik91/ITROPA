@@ -1,140 +1,117 @@
-import { useState } from 'react';
+import { useCallback, useEffect, useState } from 'react';
 import toast from 'react-hot-toast';
 import { getAIAssistant } from '../../services/ai-assistant.service';
-import { getGeminiService } from '../../services/gemini.service';
-import { findExpressionInNeed, findExpressionByNameInNeed } from '../../utils/tree-search';
-import type { Need, IndustryExpression, AIActionSuggestion, AIAssistantResponse } from '../../types';
+import { findExpressionByNameInNeed } from '../../utils/tree-search';
+import type { AIActionSuggestion, AIAssistantResponse, IndustryExpression, Need } from '../../types';
+import type { NeedStateApi } from './useNeedState';
+
+type Scope = 'need' | 'mechanism' | 'deepDive';
+
+/** Suggestions are tagged with what they were generated for, so they never leak across contexts. */
+interface ScopedSuggestions {
+  targetId: string;
+  response: AIAssistantResponse;
+}
 
 /**
- * AI Assistant operations
- * Dependencies: needState, crud, tree, analysis
+ * AI "next step" suggestions and their execution.
+ * Only executable actions are offered; execution reports success so callers can show truthful status.
  */
-export function useAIAssistant(deps: {
-  needs: Need[];
-  setNeeds: (fn: any) => void;
-  activeNeed: Need | undefined;
-  fetchMechanism: (expr: IndustryExpression) => Promise<void>;
-  fetchDeepDive: (expr: IndustryExpression) => Promise<void>;
-  branchIndustry: (expr: IndustryExpression, needId: string) => Promise<void>;
-}) {
-  const {
-    setNeeds,
-    activeNeed,
-    fetchMechanism,
-    fetchDeepDive,
-    branchIndustry,
-  } = deps;
+export function useAIAssistant(
+  state: NeedStateApi,
+  actions: {
+    fetchNeed: (name: string, description?: string) => Promise<void>;
+    fetchMechanism: (expr: IndustryExpression) => Promise<void>;
+    fetchDeepDive: (expr: IndustryExpression) => Promise<void>;
+    branchIndustry: (expr: IndustryExpression, needId: string) => Promise<void>;
+  },
+) {
+  const { needsRef, activeTabRef, activeNeed } = state;
+  const [suggestions, setSuggestions] = useState<Partial<Record<Scope, ScopedSuggestions>>>({});
+  const [loadingScope, setLoadingScope] = useState<Scope | null>(null);
 
-  const [mechanismAISuggestions, setMechanismAISuggestions] = useState<AIAssistantResponse | null>(null);
-  const [deepDiveAISuggestions, setDeepDiveAISuggestions] = useState<AIAssistantResponse | null>(null);
-  const [needAISuggestions, setNeedAISuggestions] = useState<AIAssistantResponse | null>(null);
-  const [aiLoading, setAILoading] = useState(false);
+  // Need-level suggestions belong to one need; drop them when the user switches.
+  const activeNeedId = activeNeed?.id;
+  useEffect(() => {
+    setSuggestions((prev) => (prev.need && prev.need.targetId !== activeNeedId ? { ...prev, need: undefined } : prev));
+  }, [activeNeedId]);
 
-  const geminiService = getGeminiService();
-
-  const requestMechanismAIAssist = async (mechanismId: string) => {
-    setAILoading(true);
+  const request = useCallback(async (scope: Scope, targetId: string | undefined) => {
+    if (!targetId) return;
+    setLoadingScope(scope);
     try {
-      const suggestions = await getAIAssistant().suggestMechanismActions(mechanismId);
-      setMechanismAISuggestions(suggestions);
-    } catch (e: any) {
-      toast.error(`AI assist failed: ${e.message}`);
+      const assistant = getAIAssistant();
+      const response =
+        scope === 'need' ? await assistant.suggestNeedActions(targetId)
+        : scope === 'mechanism' ? await assistant.suggestMechanismActions(targetId)
+        : await assistant.suggestDeepDiveActions(targetId);
+      if (response.suggestions.length === 0) toast('The assistant had no actionable suggestions this time.');
+      setSuggestions((prev) => ({ ...prev, [scope]: { targetId, response } }));
+    } catch (e) {
+      toast.error(`AI assist failed: ${(e as Error).message}`);
     } finally {
-      setAILoading(false);
+      setLoadingScope(null);
     }
+  }, []);
+
+  const requestNeedAIAssist = useCallback((needId: string) => request('need', needId), [request]);
+  const requestMechanismAIAssist = useCallback((expressionId: string) => request('mechanism', expressionId), [request]);
+  const requestDeepDiveAIAssist = useCallback((expressionId: string) => request('deepDive', expressionId), [request]);
+  const clearSuggestions = useCallback((scope: Scope) => setSuggestions((prev) => ({ ...prev, [scope]: undefined })), []);
+
+  /** Resolve an expression by name, preferring the active need, then any open need. */
+  const resolveExpression = (name: unknown): { expr: IndustryExpression; need: Need } | null => {
+    if (typeof name !== 'string' || !name.trim()) return null;
+    const needs = needsRef.current;
+    const ordered = [...needs.filter((n) => n.id === activeTabRef.current), ...needs.filter((n) => n.id !== activeTabRef.current)];
+    for (const need of ordered) {
+      const expr = findExpressionByNameInNeed(need, name);
+      if (expr) return { expr, need };
+    }
+    return null;
   };
 
-  const requestDeepDiveAIAssist = async (deepDiveId: string) => {
-    setAILoading(true);
-    try {
-      const suggestions = await getAIAssistant().suggestDeepDiveActions(deepDiveId);
-      setDeepDiveAISuggestions(suggestions);
-    } catch (e: any) {
-      toast.error(`AI assist failed: ${e.message}`);
-    } finally {
-      setAILoading(false);
-    }
-  };
-
-  const requestNeedAIAssist = async (needId: string) => {
-    setAILoading(true);
-    try {
-      const suggestions = await getAIAssistant().suggestNeedActions(needId);
-      setNeedAISuggestions(suggestions);
-    } catch (e: any) {
-      toast.error(`AI assist failed: ${e.message}`);
-    } finally {
-      setAILoading(false);
-    }
-  };
-
-  const executeAIAction = async (suggestion: AIActionSuggestion) => {
-    const toastId = toast.loading(suggestion.action);
+  /** Execute a suggestion. Resolves true on success; never throws. */
+  const executeAIAction = useCallback(async (suggestion: AIActionSuggestion): Promise<boolean> => {
     try {
       switch (suggestion.actionType) {
-        case 'branch': {
-          if (!activeNeed) throw new Error('No active need');
-          const expr = suggestion.params.expressionName
-            ? findExpressionByNameInNeed(activeNeed, suggestion.params.expressionName)
-            : findExpressionInNeed(activeNeed, suggestion.params.expressionId);
-          if (!expr) throw new Error('Expression not found');
-          await branchIndustry(expr, activeNeed.id);
-          toast.success(suggestion.action, { id: toastId });
-          break;
-        }
-
-        case 'analyze': {
-          if (!activeNeed) throw new Error('No active need');
-          const expr = suggestion.params.expressionName
-            ? findExpressionByNameInNeed(activeNeed, suggestion.params.expressionName)
-            : findExpressionInNeed(activeNeed, suggestion.params.expressionId);
-          if (!expr) throw new Error('Expression not found');
-          await fetchMechanism(expr);
-          toast.success(suggestion.action, { id: toastId });
-          break;
-        }
-
+        case 'branch':
+        case 'analyze':
         case 'extract': {
-          if (!activeNeed) throw new Error('No active need');
-          const expr = suggestion.params.expressionName
-            ? findExpressionByNameInNeed(activeNeed, suggestion.params.expressionName)
-            : findExpressionInNeed(activeNeed, suggestion.params.expressionId);
-          if (!expr) throw new Error('Expression not found');
-          await fetchDeepDive(expr);
-          toast.success(suggestion.action, { id: toastId });
-          break;
+          const target = resolveExpression(suggestion.params.expressionName);
+          if (!target) throw new Error(`Could not find prediction "${suggestion.params.expressionName ?? '?'}"`);
+          if (suggestion.actionType === 'branch') await actions.branchIndustry(target.expr, target.need.id);
+          else if (suggestion.actionType === 'analyze') await actions.fetchMechanism(target.expr);
+          else await actions.fetchDeepDive(target.expr);
+          return true;
         }
-
         case 'create_need': {
-          const newNeed = await geminiService.generateNeed(
-            suggestion.params.needName,
-            activeNeed?.priorArt || {},
-            suggestion.params.needDescription
-          );
-          setNeeds((prev: Need[]) => [...prev, newNeed]);
-          toast.success(suggestion.action, { id: toastId });
-          break;
+          const name = typeof suggestion.params.needName === 'string' ? suggestion.params.needName : '';
+          if (!name.trim()) throw new Error('The suggestion did not name a need.');
+          const description = typeof suggestion.params.needDescription === 'string' ? suggestion.params.needDescription : undefined;
+          await actions.fetchNeed(name, description);
+          return true;
         }
-
         default:
-          throw new Error(`Unknown action: ${suggestion.actionType}`);
+          throw new Error(`"${suggestion.actionType}" actions are not supported.`);
       }
-    } catch (e: any) {
-      toast.error(`Action failed: ${e.message}`, { id: toastId });
+    } catch (e) {
+      toast.error(`Action failed: ${(e as Error).message}`);
+      return false;
     }
-  };
+    // resolveExpression reads refs only; actions are stable callbacks.
+  }, [actions.branchIndustry, actions.fetchMechanism, actions.fetchDeepDive, actions.fetchNeed]);
 
   return {
-    mechanismAISuggestions,
-    setMechanismAISuggestions,
-    deepDiveAISuggestions,
-    setDeepDiveAISuggestions,
-    needAISuggestions,
-    setNeedAISuggestions,
-    aiLoading,
+    needAISuggestions: suggestions.need && suggestions.need.targetId === activeNeedId ? suggestions.need.response : null,
+    mechanismSuggestions: suggestions.mechanism ?? null,
+    deepDiveSuggestions: suggestions.deepDive ?? null,
+    aiLoading: loadingScope !== null,
+    aiLoadingScope: loadingScope,
+    requestNeedAIAssist,
     requestMechanismAIAssist,
     requestDeepDiveAIAssist,
-    requestNeedAIAssist,
+    clearSuggestions,
     executeAIAction,
   };
 }

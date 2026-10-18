@@ -1,5 +1,7 @@
 import { BaseRepository } from '../base.repository';
-import { db, DBNeed } from '../db-client';
+import { db, DBNeed, ALL_TABLES } from '../db-client';
+import { collectExpressionIds, needKey } from '../../../utils/need-model';
+import { normalizeToId } from '../../../utils/string-helpers';
 import type { Need } from '../../../types';
 
 /**
@@ -10,29 +12,15 @@ export class NeedRepository extends BaseRepository<DBNeed, string> {
     super(db.needs);
   }
 
-  /**
-   * Save a new need
-   */
-  async saveNeed(need: Need): Promise<void> {
-    const dbNeed: DBNeed = {
-      ...need,
-      createdAt: Date.now(),
-      updatedAt: Date.now()
-    };
-    await this.save(dbNeed);
-  }
-
-  /**
-   * Update an existing need
-   */
-  async updateNeed(need: Need): Promise<void> {
-    const existing = await this.get(need.id);
-    const dbNeed: DBNeed = {
-      ...need,
-      createdAt: existing?.createdAt || Date.now(),
-      updatedAt: Date.now()
-    };
-    await this.save(dbNeed);
+  /** Insert or update, preserving the original creation time. */
+  async upsertNeed(need: Need): Promise<DBNeed> {
+    return db.transaction('rw', db.needs, async () => {
+      const existing = await db.needs.get(need.id);
+      const now = Date.now();
+      const record: DBNeed = { ...need, createdAt: existing?.createdAt ?? now, updatedAt: now };
+      await db.needs.put(record);
+      return record;
+    });
   }
 
   /**
@@ -42,63 +30,46 @@ export class NeedRepository extends BaseRepository<DBNeed, string> {
     return await db.needs.orderBy('updatedAt').reverse().toArray();
   }
 
-  /**
-   * Delete a need and cascade delete related entities
-   */
-  async deleteNeed(id: string): Promise<void> {
-    await this.delete(id);
-
-    // Clean up related data
-    await db.mechanisms.where('needId').equals(id).delete();
-    await db.deepDives.where('needId').equals(id).delete();
-    await db.chainAnalyses.where('needId').equals(id).delete();
-
-    // Clean up orphaned cross-pollinations (where either source expression no longer exists)
-    const allCrossPollinates = await db.crossPollinates.toArray();
-    const allNeeds = await db.needs.toArray();
-
-    // Build a set of all valid expression IDs
-    const validExpressionIds = new Set<string>();
-    allNeeds.forEach(need => {
-      need.eras.forEach(era => {
-        if (Array.isArray(era.expressions)) {
-          era.expressions.forEach((expr: any) => {
-            if (typeof expr === 'object' && expr.id) {
-              validExpressionIds.add(expr.id);
-              // Also add children IDs
-              const addChildrenIds = (expression: any) => {
-                if (expression.children) {
-                  expression.children.forEach((child: any) => {
-                    validExpressionIds.add(child.id);
-                    addChildrenIds(child);
-                  });
-                }
-              };
-              addChildrenIds(expr);
-            }
-          });
-        }
-      });
-    });
-
-    // Delete cross-pollinations with invalid source expressions
-    for (const cp of allCrossPollinates) {
-      if (!validExpressionIds.has(cp.expression1Id) || !validExpressionIds.has(cp.expression2Id)) {
-        await db.crossPollinates.delete(cp.id);
-      }
-    }
+  async findByName(name: string): Promise<DBNeed | undefined> {
+    const key = needKey(name);
+    return db.needs.filter((n) => needKey(n.name) === key).first();
   }
 
   /**
-   * Clear all needs and related data
+   * Delete a need and everything derived from it, atomically.
    */
-  async clearAllNeeds(): Promise<void> {
-    await this.clear();
-    await db.mechanisms.clear();
-    await db.deepDives.clear();
-    await db.patternAnalyses.clear();
-    await db.priorArtAnalyses.clear();
-    await db.chainAnalyses.clear();
+  async deleteNeed(id: string): Promise<void> {
+    await db.transaction('rw', ALL_TABLES.map((t) => db.table(t)), async () => {
+      const need = await db.needs.get(id);
+      if (!need) return;
+      const exprIds = [...collectExpressionIds(need)];
+
+      await db.needs.delete(id);
+      await db.mechanisms.where('needId').equals(id).delete();
+      await db.deepDives.where('needId').equals(id).delete();
+      await db.chainAnalyses.where('needId').equals(id).delete();
+      await db.appConcepts.where('needId').equals(id).delete();
+      // Analyses keyed by expression id but saved before needId was tracked correctly.
+      await db.mechanisms.bulkDelete(exprIds);
+      await db.deepDives.bulkDelete(exprIds);
+      await db.chainAnalyses.bulkDelete(exprIds);
+      await db.appConcepts.bulkDelete(exprIds);
+
+      if (exprIds.length) {
+        const gone = new Set(exprIds);
+        const crossIds = (await db.crossPollinates.toArray())
+          .filter((cp) => gone.has(cp.expression1Id) || gone.has(cp.expression2Id))
+          .map((cp) => cp.id);
+        await db.crossPollinates.bulkDelete(crossIds);
+      }
+
+      // Name-keyed caches belong to this need unless another need shares its name.
+      const sameName = await db.needs.filter((n) => needKey(n.name) === needKey(need.name)).count();
+      if (sameName === 0) {
+        await db.searchCache.delete(needKey(need.name));
+        await db.priorArtAnalyses.delete(normalizeToId(need.name));
+      }
+    });
   }
 
   /**
@@ -109,7 +80,7 @@ export class NeedRepository extends BaseRepository<DBNeed, string> {
     const allNeeds = await this.toArray();
     return allNeeds.filter(need =>
       need.name.toLowerCase().includes(lowerQuery) ||
-      need.description.toLowerCase().includes(lowerQuery)
+      (need.description ?? '').toLowerCase().includes(lowerQuery)
     );
   }
 }

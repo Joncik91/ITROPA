@@ -67,11 +67,9 @@ Prior art context: ${JSON.stringify(priorArt)}
 ${JSON_ONLY}
 
 {
-  "id": "${needName.toLowerCase().replace(/\s+/g, '-')}",
-  "name": "${needName}",
+  "name": ${JSON.stringify(needName)},
   "icon": "Users",
   "description": "Brief description of the CORE NEED this serves (not just the literal term)",
-  "priorArt": ${JSON.stringify(priorArt)},
   "eras": [
     {"name": "Pre-Industrial", "expressions": ["Example 1", "Example 2"]},
     {"name": "Industrial", "expressions": ["Example 1", "Example 2"]},
@@ -79,11 +77,11 @@ ${JSON_ONLY}
     {
       "name": "Post-AI Era (2025+)",
       "expressions": [
-        {"id": "1", "type": "future", "name": "Future Industry 1", "mutation": "What enables it", "insight": "Why it emerges from the CORE NEED", "inspirations": [{"source": "Prior art name", "mechanism": "What is borrowed", "twist": "How it is changed"}], "children": []},
-        {"id": "2", "type": "future", "name": "Future Industry 2", "mutation": "What enables it", "insight": "Why it emerges from the CORE NEED", "inspirations": [{"source": "Prior art name", "mechanism": "What is borrowed", "twist": "How it is changed"}], "children": []},
-        {"id": "3", "type": "future", "name": "Future Industry 3", "mutation": "What enables it", "insight": "Why it emerges from the CORE NEED", "inspirations": [{"source": "Prior art name", "mechanism": "What is borrowed", "twist": "How it is changed"}], "children": []},
-        {"id": "4", "type": "future", "name": "Future Industry 4", "mutation": "What enables it", "insight": "Why it emerges from the CORE NEED", "inspirations": [{"source": "Prior art name", "mechanism": "What is borrowed", "twist": "How it is changed"}], "children": []},
-        {"id": "5", "type": "future", "name": "Future Industry 5", "mutation": "What enables it", "insight": "Why it emerges from the CORE NEED", "inspirations": [{"source": "Prior art name", "mechanism": "What is borrowed", "twist": "How it is changed"}], "children": []}
+        {"name": "Future Industry 1", "mutation": "What enables it", "insight": "Why it emerges from the CORE NEED", "inspirations": [{"source": "Prior art name", "mechanism": "What is borrowed", "twist": "How it is changed"}], "children": []},
+        {"name": "Future Industry 2", "mutation": "What enables it", "insight": "Why it emerges from the CORE NEED", "inspirations": [{"source": "Prior art name", "mechanism": "What is borrowed", "twist": "How it is changed"}], "children": []},
+        {"name": "Future Industry 3", "mutation": "What enables it", "insight": "Why it emerges from the CORE NEED", "inspirations": [{"source": "Prior art name", "mechanism": "What is borrowed", "twist": "How it is changed"}], "children": []},
+        {"name": "Future Industry 4", "mutation": "What enables it", "insight": "Why it emerges from the CORE NEED", "inspirations": [{"source": "Prior art name", "mechanism": "What is borrowed", "twist": "How it is changed"}], "children": []},
+        {"name": "Future Industry 5", "mutation": "What enables it", "insight": "Why it emerges from the CORE NEED", "inspirations": [{"source": "Prior art name", "mechanism": "What is borrowed", "twist": "How it is changed"}], "children": []}
       ]
     }
   ],

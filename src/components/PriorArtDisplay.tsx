@@ -275,7 +275,7 @@ export const PriorArtDisplay = ({ needName, priorArt, theme }: PriorArtDisplayPr
             {/* Framework-Specific Content */}
             {analysis.analysisType === 'competitive-landscape' && (
               <div className="space-y-3 mt-3">
-                {analysis.competitiveSegments && analysis.competitiveSegments.length > 0 && (
+                {Array.isArray(analysis.competitiveSegments) && analysis.competitiveSegments.length > 0 && (
                   <div>
                     <p className="text-xs font-medium mb-2 flex items-center gap-1.5">
                       <BarChart3 className="w-3.5 h-3.5" />
@@ -292,7 +292,7 @@ export const PriorArtDisplay = ({ needName, priorArt, theme }: PriorArtDisplayPr
                   </div>
                 )}
                 
-                {analysis.leaderProfiles && analysis.leaderProfiles.length > 0 && (
+                {Array.isArray(analysis.leaderProfiles) && analysis.leaderProfiles.length > 0 && (
                   <div>
                     <p className="text-xs font-medium mb-2">Market Leaders</p>
                     <div className="space-y-2">
@@ -313,7 +313,7 @@ export const PriorArtDisplay = ({ needName, priorArt, theme }: PriorArtDisplayPr
 
             {analysis.analysisType === 'gap-analysis' && (
               <div className="space-y-3 mt-3">
-                {analysis.unmetNeeds && analysis.unmetNeeds.length > 0 && (
+                {Array.isArray(analysis.unmetNeeds) && analysis.unmetNeeds.length > 0 && (
                   <div>
                     <p className="text-xs font-medium mb-2 flex items-center gap-1.5">
                       <AlertCircle className="w-3.5 h-3.5 text-rose-400" />
@@ -337,7 +337,7 @@ export const PriorArtDisplay = ({ needName, priorArt, theme }: PriorArtDisplayPr
                   </div>
                 )}
                 
-                {analysis.whiteSpaces && analysis.whiteSpaces.length > 0 && (
+                {Array.isArray(analysis.whiteSpaces) && analysis.whiteSpaces.length > 0 && (
                   <div>
                     <p className="text-xs font-medium mb-2 text-emerald-300">White Space Opportunities</p>
                     <div className="space-y-1.5">
@@ -355,7 +355,7 @@ export const PriorArtDisplay = ({ needName, priorArt, theme }: PriorArtDisplayPr
 
             {analysis.analysisType === 'evolution-pattern' && (
               <div className="space-y-3 mt-3">
-                {analysis.evolutionTimeline && analysis.evolutionTimeline.length > 0 && (
+                {Array.isArray(analysis.evolutionTimeline) && analysis.evolutionTimeline.length > 0 && (
                   <div>
                     <p className="text-xs font-medium mb-2">Evolution Timeline</p>
                     <div className="space-y-2">
@@ -372,7 +372,7 @@ export const PriorArtDisplay = ({ needName, priorArt, theme }: PriorArtDisplayPr
                   </div>
                 )}
                 
-                {analysis.futureStages && analysis.futureStages.length > 0 && (
+                {Array.isArray(analysis.futureStages) && analysis.futureStages.length > 0 && (
                   <div>
                     <p className="text-xs font-medium mb-2 text-gray-300">Future Predictions</p>
                     <div className="space-y-1.5">
@@ -392,7 +392,7 @@ export const PriorArtDisplay = ({ needName, priorArt, theme }: PriorArtDisplayPr
               <div className="space-y-3 mt-3">
                 {analysis.innovationOpportunities && (
                   <div className="grid grid-cols-1 md:grid-cols-3 gap-3">
-                    {analysis.innovationOpportunities.incremental && analysis.innovationOpportunities.incremental.length > 0 && (
+                    {Array.isArray(analysis.innovationOpportunities.incremental) && analysis.innovationOpportunities.incremental.length > 0 && (
                       <div>
                         <p className="text-xs font-medium mb-2 text-gray-300">Incremental</p>
                         <div className="space-y-1.5">
@@ -406,7 +406,7 @@ export const PriorArtDisplay = ({ needName, priorArt, theme }: PriorArtDisplayPr
                       </div>
                     )}
                     
-                    {analysis.innovationOpportunities.adjacent && analysis.innovationOpportunities.adjacent.length > 0 && (
+                    {Array.isArray(analysis.innovationOpportunities.adjacent) && analysis.innovationOpportunities.adjacent.length > 0 && (
                       <div>
                         <p className="text-xs font-medium mb-2 text-amber-300">Adjacent</p>
                         <div className="space-y-1.5">
@@ -420,7 +420,7 @@ export const PriorArtDisplay = ({ needName, priorArt, theme }: PriorArtDisplayPr
                       </div>
                     )}
                     
-                    {analysis.innovationOpportunities.breakthrough && analysis.innovationOpportunities.breakthrough.length > 0 && (
+                    {Array.isArray(analysis.innovationOpportunities.breakthrough) && analysis.innovationOpportunities.breakthrough.length > 0 && (
                       <div>
                         <p className="text-xs font-medium mb-2 text-gray-300">Breakthrough</p>
                         <div className="space-y-1.5">
@@ -440,7 +440,7 @@ export const PriorArtDisplay = ({ needName, priorArt, theme }: PriorArtDisplayPr
 
             {analysis.analysisType === 'strategic-positioning' && (
               <div className="space-y-3 mt-3">
-                {analysis.positioningStrategies && analysis.positioningStrategies.length > 0 && (
+                {Array.isArray(analysis.positioningStrategies) && analysis.positioningStrategies.length > 0 && (
                   <div>
                     <p className="text-xs font-medium mb-2">Recommended Strategies</p>
                     <div className="space-y-2">
@@ -457,7 +457,7 @@ export const PriorArtDisplay = ({ needName, priorArt, theme }: PriorArtDisplayPr
                   </div>
                 )}
                 
-                {analysis.differentiationPillars && analysis.differentiationPillars.length > 0 && (
+                {Array.isArray(analysis.differentiationPillars) && analysis.differentiationPillars.length > 0 && (
                   <div>
                     <p className="text-xs font-medium mb-2">Differentiation Pillars</p>
                     <div className="flex flex-wrap gap-2">
@@ -473,7 +473,7 @@ export const PriorArtDisplay = ({ needName, priorArt, theme }: PriorArtDisplayPr
             )}
 
             {/* Key Insights */}
-            {analysis.keyInsights && analysis.keyInsights.length > 0 && (
+            {Array.isArray(analysis.keyInsights) && analysis.keyInsights.length > 0 && (
               <div className="mt-3 pt-3 border-t border-gray-700/30">
                 <p className="text-xs font-medium mb-2">Key Insights</p>
                 <ul className="space-y-1">

@@ -2,13 +2,13 @@ import { useState } from "react";
 import { motion, AnimatePresence } from "framer-motion";
 import { List, ChevronRight, ChevronDown } from "lucide-react";
 import type { IndustryExpression, Era } from "../types";
+import { isFutureEra } from "../utils/need-model";
 import type { Theme } from "../config/theme";
 
 interface MiniMapProps {
   eras: Era[];
   theme: Theme;
-  scrollContainerRef: React.RefObject<HTMLDivElement>;
-  onNodeClick?: (exprId: string) => void;
+  onNodeClick: (exprId: string) => void;
 }
 
 export const MiniMap = ({ eras, theme, onNodeClick }: MiniMapProps) => {
@@ -38,7 +38,16 @@ export const MiniMap = ({ eras, theme, onNodeClick }: MiniMapProps) => {
           animate={{ opacity: 1, x: 0 }}
           className={`flex items-center gap-1 py-1.5 px-2 ${theme.hover} cursor-pointer group`}
           style={{ paddingLeft: `${indent + 8}px` }}
-          onClick={() => onNodeClick?.(expr.id)}
+          role="button"
+          tabIndex={0}
+          title={`Jump to ${expr.name}`}
+          onClick={() => onNodeClick(expr.id)}
+          onKeyDown={(e) => {
+            if (e.key === "Enter" || e.key === " ") {
+              e.preventDefault();
+              onNodeClick(expr.id);
+            }
+          }}
         >
           {hasChildren && (
             <button
@@ -46,7 +55,10 @@ export const MiniMap = ({ eras, theme, onNodeClick }: MiniMapProps) => {
                 e.stopPropagation();
                 toggleCollapse(expr.id);
               }}
+              onKeyDown={(e) => e.stopPropagation()}
               className="p-0.5 rounded hover:bg-gray-500/20"
+              aria-label={isCollapsed ? `Expand ${expr.name}` : `Collapse ${expr.name}`}
+              aria-expanded={!isCollapsed}
             >
               {isCollapsed ? (
                 <ChevronRight className="w-3 h-3" />
@@ -87,7 +99,7 @@ export const MiniMap = ({ eras, theme, onNodeClick }: MiniMapProps) => {
     );
   };
 
-  const futureEra = eras.find(era => era.name.includes("2025") || era.name.includes("Post-AI"));
+  const futureEra = eras.find(isFutureEra);
   const expressions = futureEra?.expressions as IndustryExpression[] | undefined;
 
   if (!expressions || expressions.length === 0) return null;

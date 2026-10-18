@@ -1,119 +1,147 @@
-import { useState, useEffect } from "react";
+import { useState, useEffect, useCallback, type KeyboardEvent } from "react";
 import { motion } from "framer-motion";
+import toast from "react-hot-toast";
 import { Search, Database, Clock, Layers, TrendingUp, Shuffle, Sparkles, Calendar, X, Trash2 } from "lucide-react";
-import { DBService, type DBNeed, type DBMechanism, type DBDeepDive } from "../services/db.service";
+import { DBService } from "../services/db.service";
+import { ModalWrapper } from "./ModalWrapper";
 import type { Theme } from "../config/theme";
 
 interface LibraryViewProps {
   theme: Theme;
   dark: boolean;
-  onLoadNeed: (need: DBNeed) => void;
+  /** Open a saved need in the workspace. */
+  onOpenNeed: (needId: string) => void;
+  /** Permanently delete a need (also closes its tab). */
+  onDeleteNeed: (needId: string) => Promise<void>;
+  /** Wipe all saved data (also clears the workspace). */
+  onClearAll: () => Promise<void>;
 }
 
-export const LibraryView = ({ theme, onLoadNeed }: LibraryViewProps) => {
+type Stats = Awaited<ReturnType<typeof DBService.getDatabaseStats>>;
+type SearchResults = {
+  needs: Awaited<ReturnType<typeof DBService.searchNeeds>>;
+  expressions: Awaited<ReturnType<typeof DBService.searchExpressions>>;
+  mechanisms: Awaited<ReturnType<typeof DBService.searchMechanisms>>;
+  deepDives: Awaited<ReturnType<typeof DBService.searchDeepDives>>;
+};
+
+const EMPTY_RESULTS: SearchResults = { needs: [], expressions: [], mechanisms: [], deepDives: [] };
+const SEARCH_DEBOUNCE_MS = 200;
+
+/** Mechanism records hold one entry per framework (older ones a single object). */
+const coreMechanismOf = (details: unknown): string => {
+  const first = Array.isArray(details) ? details[0] : details;
+  return (first && typeof first === "object" && typeof (first as { coreMechanism?: unknown }).coreMechanism === "string")
+    ? (first as { coreMechanism: string }).coreMechanism
+    : "";
+};
+
+/** Props that make a non-button element behave like a button for mouse and keyboard. */
+const asButton = (action: () => void) => ({
+  role: "button" as const,
+  tabIndex: 0,
+  onClick: action,
+  onKeyDown: (e: KeyboardEvent) => {
+    if (e.key === "Enter" || e.key === " ") {
+      e.preventDefault();
+      action();
+    }
+  },
+});
+
+export const LibraryView = ({ theme, onOpenNeed, onDeleteNeed, onClearAll }: LibraryViewProps) => {
   const [searchQuery, setSearchQuery] = useState("");
   const [activeFilter, setActiveFilter] = useState<"all" | "needs" | "mechanisms" | "deepDives" | "crossPollinates">("all");
   const [recentActivity, setRecentActivity] = useState<any[]>([]);
-  const [searchResults, setSearchResults] = useState<any>({
-    needs: [],
-    expressions: [],
-    mechanisms: [],
-    deepDives: []
-  });
-  const [stats, setStats] = useState({ needs: 0, mechanisms: 0, deepDives: 0, crossPollinates: 0, total: 0, searchCache: 0 });
+  const [searchResults, setSearchResults] = useState<SearchResults>(EMPTY_RESULTS);
+  const [stats, setStats] = useState<Stats>({ needs: 0, mechanisms: 0, deepDives: 0, crossPollinates: 0, appConcepts: 0, total: 0 });
   const [loading, setLoading] = useState(true);
-  const [confirmDelete, setConfirmDelete] = useState<{ type: string; id: string; name: string } | null>(null);
+  const [confirmDelete, setConfirmDelete] = useState<{ type: "need" | "all"; id: string; name: string } | null>(null);
+  const [dataVersion, setDataVersion] = useState(0);
+  const refresh = useCallback(() => setDataVersion((v) => v + 1), []);
 
   useEffect(() => {
-    loadData();
-  }, []);
-
-  useEffect(() => {
-    if (searchQuery.trim()) {
-      performSearch();
-    } else {
-      setSearchResults({ needs: [], expressions: [], mechanisms: [], deepDives: [] });
-    }
-  }, [searchQuery]);
-
-  const loadData = async () => {
+    let alive = true;
     setLoading(true);
-    try {
-      const [activity, dbStats] = await Promise.all([
-        DBService.getRecentActivity(20),
-        DBService.getDatabaseStats()
-      ]);
-      setRecentActivity(activity);
-      setStats(dbStats);
-    } catch (error) {
-      console.error("Failed to load library data:", error);
-    } finally {
-      setLoading(false);
-    }
-  };
+    Promise.all([DBService.getRecentActivity(20), DBService.getDatabaseStats()])
+      .then(([activity, dbStats]) => {
+        if (!alive) return;
+        setRecentActivity(activity);
+        setStats(dbStats);
+      })
+      .catch((error) => {
+        console.error("Failed to load library data:", error);
+        if (alive) toast.error("Could not load the library.");
+      })
+      .finally(() => alive && setLoading(false));
+    return () => { alive = false; };
+  }, [dataVersion]);
 
-  const performSearch = async () => {
-    if (!searchQuery.trim()) return;
-    
-    try {
-      const [needs, expressions, mechanisms, deepDives] = await Promise.all([
-        DBService.searchNeeds(searchQuery),
-        DBService.searchExpressions(searchQuery),
-        DBService.searchMechanisms(searchQuery),
-        DBService.searchDeepDives(searchQuery)
-      ]);
-      
-      setSearchResults({ needs, expressions, mechanisms, deepDives });
-    } catch (error) {
-      console.error("Search failed:", error);
-    }
-  };
-
-  const handleDeleteNeed = async (needId: string) => {
-    try {
-      await DBService.deleteNeed(needId);
-      await loadData();
-      setConfirmDelete(null);
-    } catch (error) {
-      console.error("Failed to delete need:", error);
-    }
-  };
-
-  const handleLoadNeedById = async (needId: string) => {
-    try {
-      const need = await DBService.getNeed(needId);
-      if (need) {
-        onLoadNeed(need);
-      }
-    } catch (error) {
-      console.error("Failed to load need:", error);
-    }
-  };
-
-  const handleClearAllData = async () => {
-    if (!window.confirm("Are you sure you want to delete ALL saved data? This cannot be undone.")) {
+  // Debounced search; responses for an outdated query are discarded.
+  useEffect(() => {
+    const query = searchQuery.trim();
+    if (!query) {
+      setSearchResults(EMPTY_RESULTS);
       return;
     }
+    let alive = true;
+    const timer = window.setTimeout(async () => {
+      try {
+        const [needs, expressions, mechanisms, deepDives] = await Promise.all([
+          DBService.searchNeeds(query),
+          DBService.searchExpressions(query),
+          DBService.searchMechanisms(query),
+          DBService.searchDeepDives(query),
+        ]);
+        if (alive) setSearchResults({ needs, expressions, mechanisms, deepDives });
+      } catch (error) {
+        console.error("Search failed:", error);
+      }
+    }, SEARCH_DEBOUNCE_MS);
+    return () => {
+      alive = false;
+      window.clearTimeout(timer);
+    };
+  }, [searchQuery, dataVersion]);
+
+  const handleConfirmedDelete = async () => {
+    if (!confirmDelete) return;
+    const target = confirmDelete;
+    setConfirmDelete(null);
     try {
-      await DBService.clearAllData();
-      await loadData();
+      if (target.type === "all") {
+        await onClearAll();
+        toast.success("All saved data deleted");
+      } else {
+        await onDeleteNeed(target.id);
+        toast.success(`Deleted: ${target.name}`);
+      }
+      refresh();
     } catch (error) {
-      console.error("Failed to clear data:", error);
+      console.error("Delete failed:", error);
+      toast.error(`Delete failed: ${(error as Error).message}`);
     }
+  };
+
+  const openNeedOfExpression = async (expressionId: string) => {
+    const needId = await DBService.findNeedIdByExpression(expressionId);
+    if (needId) onOpenNeed(needId);
+    else toast.error("The industry this came from no longer exists.");
   };
 
   const handleCleanupOrphaned = async () => {
     try {
       const removed = await DBService.cleanupOrphanedData();
-      const total = removed.mechanisms + removed.deepDives + removed.crossPollinates;
+      const total = removed.mechanisms + removed.deepDives + removed.crossPollinates + removed.other;
       if (total > 0) {
-        alert(`Cleaned up ${total} orphaned items:\n- ${removed.mechanisms} mechanisms\n- ${removed.deepDives} deep dives\n- ${removed.crossPollinates} cross-pollinations`);
-        await loadData();
+        toast.success(`Removed ${total} orphaned item${total === 1 ? "" : "s"} (${removed.mechanisms} mechanisms, ${removed.deepDives} deep dives, ${removed.crossPollinates} cross-pollinations, ${removed.other} other)`);
+        refresh();
       } else {
-        alert("No orphaned data found. Database is clean!");
+        toast.success("No orphaned data found.");
       }
     } catch (error) {
       console.error("Failed to cleanup orphaned data:", error);
+      toast.error("Cleanup failed.");
     }
   };
 
@@ -154,9 +182,9 @@ export const LibraryView = ({ theme, onLoadNeed }: LibraryViewProps) => {
   const getActivityDescription = (activity: any) => {
     switch (activity.type) {
       case "need": return activity.data.description;
-      case "mechanism": return activity.data.details.coreMechanism || "Mechanism analysis";
-      case "deepDive": return activity.data.details.marketOpportunity || "Deep dive analysis";
-      case "crossPollinate": return `${activity.data.result.length} recombinations generated`;
+      case "mechanism": return coreMechanismOf(activity.data.details) || "Mechanism analysis";
+      case "deepDive": return activity.data.details?.marketOpportunity || "Deep dive analysis";
+      case "crossPollinate": return `${activity.data.result?.length ?? 0} recombinations generated`;
       default: return "";
     }
   };
@@ -193,7 +221,7 @@ export const LibraryView = ({ theme, onLoadNeed }: LibraryViewProps) => {
               Cleanup
             </button>
             <button
-              onClick={handleClearAllData}
+              onClick={() => setConfirmDelete({ type: "all", id: "", name: "all saved data" })}
               className={`px-3 py-1.5 rounded-lg border border-red-500/30 text-red-400 hover:bg-red-500/10 text-sm flex items-center gap-2 transition-colors`}
             >
               <Trash2 className="w-4 h-4" />
@@ -258,7 +286,7 @@ export const LibraryView = ({ theme, onLoadNeed }: LibraryViewProps) => {
             <div>
               <h3 className={`text-sm font-medium ${theme.muted} mb-2`}>Needs ({searchResults.needs.length})</h3>
               <div className="space-y-2">
-                {searchResults.needs.map((need: DBNeed) => (
+                {searchResults.needs.map((need) => (
                   <motion.div
                     key={need.id}
                     initial={{ opacity: 0 }}
@@ -267,7 +295,7 @@ export const LibraryView = ({ theme, onLoadNeed }: LibraryViewProps) => {
                   >
                     <div 
                       className="flex-1 cursor-pointer"
-                      onClick={() => onLoadNeed(need)}
+                      {...asButton(() => onOpenNeed(need.id))}
                     >
                       <div className="font-medium">{need.name}</div>
                       <div className={`text-xs ${theme.muted} mt-1`}>{need.description}</div>
@@ -279,7 +307,9 @@ export const LibraryView = ({ theme, onLoadNeed }: LibraryViewProps) => {
                           e.stopPropagation();
                           setConfirmDelete({ type: 'need', id: need.id, name: need.name });
                         }}
-                        className={`opacity-0 group-hover:opacity-100 p-1 rounded hover:bg-red-500/20 text-red-400 transition-opacity`}
+                        className={`opacity-60 md:opacity-0 group-hover:opacity-100 focus:opacity-100 p-1 rounded hover:bg-red-500/20 text-red-400 transition-opacity`}
+                        aria-label={`Delete ${need.name}`}
+                        title="Delete permanently"
                       >
                         <Trash2 className="w-4 h-4" />
                       </button>
@@ -294,13 +324,13 @@ export const LibraryView = ({ theme, onLoadNeed }: LibraryViewProps) => {
             <div>
               <h3 className={`text-sm font-medium ${theme.muted} mb-2`}>Expressions ({searchResults.expressions.length})</h3>
               <div className="space-y-2">
-                {searchResults.expressions.map((result: any, i: number) => (
+                {searchResults.expressions.map((result) => (
                   <motion.div
-                    key={i}
+                    key={`${result.need.id}:${result.expression.id}`}
                     initial={{ opacity: 0 }}
                     animate={{ opacity: 1 }}
                     className={`p-3 rounded-lg ${theme.card} border ${theme.border} ${theme.hover} cursor-pointer`}
-                    onClick={() => onLoadNeed(result.need)}
+                    {...asButton(() => onOpenNeed(result.need.id))}
                   >
                     <div className="font-medium flex items-center gap-2">
                       <Sparkles className={`w-3 h-3 ${theme.accent}`} />
@@ -320,19 +350,19 @@ export const LibraryView = ({ theme, onLoadNeed }: LibraryViewProps) => {
             <div>
               <h3 className={`text-sm font-medium ${theme.muted} mb-2`}>Mechanisms ({searchResults.mechanisms.length})</h3>
               <div className="space-y-2">
-                {searchResults.mechanisms.map((mech: DBMechanism) => (
+                {searchResults.mechanisms.map((mech) => (
                   <motion.div
                     key={mech.id}
                     initial={{ opacity: 0 }}
                     animate={{ opacity: 1 }}
                     className={`p-3 rounded-lg ${theme.card} border ${theme.border} ${theme.hover} cursor-pointer`}
-                    onClick={() => handleLoadNeedById(mech.needId)}
+                    {...asButton(() => void openNeedOfExpression(mech.id))}
                   >
                     <div className="font-medium flex items-center gap-2">
                       <Layers className={`w-3 h-3 ${theme.accent}`} />
                       {mech.expressionName}
                     </div>
-                    <div className={`text-xs ${theme.muted} mt-1`}>{mech.details.coreMechanism}</div>
+                    <div className={`text-xs ${theme.muted} mt-1`}>{coreMechanismOf(mech.details)}</div>
                   </motion.div>
                 ))}
               </div>
@@ -343,19 +373,19 @@ export const LibraryView = ({ theme, onLoadNeed }: LibraryViewProps) => {
             <div>
               <h3 className={`text-sm font-medium ${theme.muted} mb-2`}>Deep Dives ({searchResults.deepDives.length})</h3>
               <div className="space-y-2">
-                {searchResults.deepDives.map((dive: DBDeepDive) => (
+                {searchResults.deepDives.map((dive) => (
                   <motion.div
                     key={dive.id}
                     initial={{ opacity: 0 }}
                     animate={{ opacity: 1 }}
                     className={`p-3 rounded-lg ${theme.card} border ${theme.border} ${theme.hover} cursor-pointer`}
-                    onClick={() => handleLoadNeedById(dive.needId)}
+                    {...asButton(() => void openNeedOfExpression(dive.id))}
                   >
                     <div className="font-medium flex items-center gap-2">
                       <TrendingUp className={`w-3 h-3 ${theme.accent}`} />
                       {dive.expressionName}
                     </div>
-                    <div className={`text-xs ${theme.muted} mt-1`}>{dive.details.marketOpportunity}</div>
+                    <div className={`text-xs ${theme.muted} mt-1`}>{dive.details?.marketOpportunity}</div>
                   </motion.div>
                 ))}
               </div>
@@ -394,7 +424,7 @@ export const LibraryView = ({ theme, onLoadNeed }: LibraryViewProps) => {
             ) : (
               filteredActivity.map((activity, i) => (
                 <motion.div
-                  key={i}
+                  key={`${activity.type}:${activity.data.id ?? activity.data.key}`}
                   initial={{ opacity: 0, x: -10 }}
                   animate={{ opacity: 1, x: 0 }}
                   transition={{ delay: i * 0.05 }}
@@ -403,18 +433,13 @@ export const LibraryView = ({ theme, onLoadNeed }: LibraryViewProps) => {
                   <div className={`p-2 rounded-lg ${theme.itemBg} ${theme.accent}`}>
                     {getActivityIcon(activity.type)}
                   </div>
-                  <div 
+                  <div
                     className="flex-1 min-w-0 cursor-pointer hover:opacity-80 transition-opacity"
-                    onClick={() => {
-                      if (activity.type === "need") {
-                        onLoadNeed(activity.data);
-                      } else if (activity.type === "mechanism" || activity.type === "deepDive") {
-                        handleLoadNeedById(activity.data.needId);
-                      } else if (activity.type === "crossPollinate") {
-                        // Load first expression's need (could enhance to show both)
-                        handleLoadNeedById(activity.data.expression1Id.split('-')[0]);
-                      }
-                    }}
+                    {...asButton(() => {
+                      if (activity.type === "need") onOpenNeed(activity.data.id);
+                      else if (activity.type === "mechanism" || activity.type === "deepDive") void openNeedOfExpression(activity.data.id);
+                      else if (activity.type === "crossPollinate") void openNeedOfExpression(activity.data.expression1Id);
+                    })}
                   >
                     <div className="font-medium truncate">{getActivityTitle(activity)}</div>
                     <div className={`text-xs ${theme.muted} mt-1 line-clamp-2`}>
@@ -432,7 +457,9 @@ export const LibraryView = ({ theme, onLoadNeed }: LibraryViewProps) => {
                           e.stopPropagation();
                           setConfirmDelete({ type: 'need', id: activity.data.id, name: activity.data.name });
                         }}
-                        className={`opacity-0 group-hover:opacity-100 p-1 rounded hover:bg-red-500/20 text-red-400 transition-opacity`}
+                        className={`opacity-60 md:opacity-0 group-hover:opacity-100 focus:opacity-100 p-1 rounded hover:bg-red-500/20 text-red-400 transition-opacity`}
+                        aria-label={`Delete ${activity.data.name}`}
+                        title="Delete permanently"
                       >
                         <Trash2 className="w-4 h-4" />
                       </button>
@@ -445,39 +472,40 @@ export const LibraryView = ({ theme, onLoadNeed }: LibraryViewProps) => {
         </>
       )}
 
-      {/* Delete Confirmation Modal */}
-      {confirmDelete && (
-        <div className="fixed inset-0 bg-black/50 flex items-center justify-center z-50" onClick={() => setConfirmDelete(null)}>
-          <motion.div 
-            initial={{ opacity: 0, scale: 0.95 }}
-            animate={{ opacity: 1, scale: 1 }}
-            className={`${theme.card} border ${theme.border} rounded-xl p-6 max-w-md mx-4`}
-            onClick={(e) => e.stopPropagation()}
-          >
-            <h3 className="text-lg font-bold mb-2">Delete {confirmDelete.type === 'need' ? 'Need' : 'Item'}?</h3>
+      <ModalWrapper
+        isOpen={!!confirmDelete}
+        onClose={() => setConfirmDelete(null)}
+        title={confirmDelete?.type === "all" ? "Delete all saved data?" : "Delete need?"}
+        theme={theme}
+        maxWidth="max-w-md"
+      >
+        {confirmDelete && (
+          <>
             <p className={`text-sm ${theme.muted} mb-4`}>
-              Are you sure you want to delete "<span className="text-white">{confirmDelete.name}</span>"? 
-              {confirmDelete.type === 'need' && " This will also delete all associated mechanisms, deep dives, and analyses."}
+              {confirmDelete.type === "all"
+                ? "Every need, analysis and cache stored in this browser will be removed."
+                : <>"<span className={theme.text}>{confirmDelete.name}</span>" and all of its mechanisms, deep dives and analyses will be removed.</>}
               <br /><br />
-              <span className="text-red-400">This action cannot be undone.</span>
+              <span className="text-red-400">This cannot be undone.</span>
             </p>
             <div className="flex gap-3">
               <button
                 onClick={() => setConfirmDelete(null)}
                 className={`flex-1 px-4 py-2 rounded-lg border ${theme.border} ${theme.muted} hover:bg-gray-700/50`}
+                data-autofocus
               >
                 Cancel
               </button>
               <button
-                onClick={() => handleDeleteNeed(confirmDelete.id)}
+                onClick={handleConfirmedDelete}
                 className="flex-1 px-4 py-2 rounded-lg bg-red-500 text-white hover:bg-red-600"
               >
                 Delete
               </button>
             </div>
-          </motion.div>
-        </div>
-      )}
+          </>
+        )}
+      </ModalWrapper>
     </div>
   );
 };
