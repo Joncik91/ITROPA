@@ -1,7 +1,7 @@
 import { motion, AnimatePresence } from "framer-motion";
 import { useState } from "react";
 import {
-  Sparkles,
+  Check,
   ChevronDown,
   ChevronRight,
   GitBranch,
@@ -18,13 +18,15 @@ import {
   GripVertical,
   Target,
   Rocket,
+  MoreHorizontal,
+  Trash2,
 } from "lucide-react";
 import type { IndustryExpression } from "../types";
-import type { Theme } from "../config/theme";
 import { ContextMenu } from "./ContextMenu";
 import type { MatchScoreResult } from "../utils/match-score";
-import { getMatchScoreColor, getMatchScoreLabel } from "../utils/match-score";
-
+import { getMatchScoreTone, getMatchScoreLabel } from "../utils/match-score";
+import { INDUSTRY_ACTIONS, type IndustryActionId } from "../config/actions";
+import { ActionSheet, Badge, IconButton, cx, type ActionItem } from "./ui";
 const DRAG_MIME = "application/x-itropa-expression";
 
 interface IndustryBranchProps {
@@ -36,7 +38,6 @@ interface IndustryBranchProps {
   isCrossSelected: boolean;
   /** Rendered faded: scored below the profile filter but kept for its children. */
   dimmed?: boolean;
-  theme: Theme;
   mechanismLoading: boolean;
   deepDiveLoading: boolean;
   appConceptsLoading?: boolean;
@@ -66,7 +67,6 @@ export const IndustryBranch = ({
   isBranching,
   isCrossSelected,
   dimmed,
-  theme,
   mechanismLoading,
   deepDiveLoading,
   appConceptsLoading,
@@ -90,6 +90,7 @@ export const IndustryBranch = ({
   const [contextMenu, setContextMenu] = useState<{ x: number; y: number } | null>(null);
   const [isDragging, setIsDragging] = useState(false);
   const [isDropTarget, setIsDropTarget] = useState(false);
+  const [sheetOpen, setSheetOpen] = useState(false);
   
   // Calculate tree depth recursively
   const calculateDepth = (children: IndustryExpression[] = []): number => {
@@ -143,14 +144,32 @@ export const IndustryBranch = ({
     }
   };
 
-  const densityClasses = viewDensity === "compact" 
-    ? { padding: "p-2", textSize: "text-xs", iconSize: "w-3 h-3", spacing: "space-y-1", gap: "gap-1" }
-    : { padding: "p-3", textSize: "text-sm", iconSize: "w-3.5 h-3.5", spacing: "space-y-2", gap: "gap-2" };
+  const compact = viewDensity === "compact";
+
+  type Action = Omit<ActionItem, "label" | "description"> & { id: IndustryActionId };
+  const baseActions: Action[] = [
+    { id: "branch", icon: <GitBranch className="w-4 h-4" />, onSelect: onBranch, loading: isBranching, ai: true, saved: hasChildren },
+    { id: "mechanism", icon: <Layers className="w-4 h-4" />, onSelect: onFetchMechanism, loading: mechanismLoading, ai: true, saved: hasMechanism },
+    { id: "deepDive", icon: <TrendingUp className="w-4 h-4" />, onSelect: onFetchDeepDive, loading: deepDiveLoading, ai: true, saved: hasDeepDive },
+    { id: "apps", icon: <Rocket className="w-4 h-4" />, onSelect: onFetchAppConcepts, loading: appConceptsLoading, ai: true, saved: hasAppConcepts },
+    { id: "cross", icon: <Shuffle className="w-4 h-4" />, onSelect: onToggleCross, selected: isCrossSelected },
+    { id: "addChild", icon: <Plus className="w-4 h-4" />, onSelect: onAddSubIndustry },
+    ...(onDelete ? [{ id: "delete" as const, icon: <Trash2 className="w-4 h-4" />, onSelect: onDelete, danger: true }] : []),
+  ];
+  const actions: Array<ActionItem & { id: IndustryActionId }> = baseActions.map((a) => ({
+    ...a,
+    label: INDUSTRY_ACTIONS[a.id].label,
+    description: INDUSTRY_ACTIONS[a.id].description,
+  }));
+  // Branching again adds more children, so "saved" doesn't apply to it in the status line.
+  const sheetActions = actions.map((a) => (a.id === "branch" ? { ...a, saved: false } : a));
+
+  const inline = actions.filter((a) => a.id !== "delete");
 
   return (
     <>
     <div
-      className="relative scroll-mt-4"
+      className="relative scroll-mt-24"
       data-expr-id={expr.id}
       draggable
       onDragStart={handleDragStart}
@@ -162,180 +181,157 @@ export const IndustryBranch = ({
       <motion.div
         layout
         onContextMenu={handleContextMenu}
-        className={`${densityClasses.padding} rounded-lg border transition-all cursor-move touch-manipulation ${
+        className={cx(
+          "rounded-card border bg-sheet transition-[border-color,background-color,opacity,transform] touch-manipulation",
+          compact ? "p-2.5" : "p-3 md:p-4",
           isDragging
-            ? "opacity-50 scale-95"
+            ? "opacity-50 scale-[0.98] border-line"
             : isDropTarget
-            ? "ring-2 ring-amber-500 bg-amber-500/10 border-amber-500 scale-105"
+            ? "ring-2 ring-pollen border-pollen bg-pollen/10"
             : isCrossSelected
-            ? "bg-amber-500/15 border-amber-500"
-            : theme.cardHover
-        } ${expr.userAdded ? "ring-1 ring-emerald-500/30" : ""} ${dimmed ? "opacity-50" : ""}`}
+            ? "border-pollen bg-pollen/5"
+            : "border-line hover:border-accent/50",
+          dimmed && "opacity-50",
+        )}
       >
-        <div className={`flex items-start justify-between ${densityClasses.gap} ${viewDensity === "compact" ? "mb-1" : "mb-2"}`}>
-            <div className={`flex items-center ${densityClasses.gap} flex-1`}>
-              <span title="Drag to cross-pollinate">
-                <GripVertical className={`${densityClasses.iconSize} ${theme.muted} flex-shrink-0 cursor-grab active:cursor-grabbing`} />
-              </span>
-              <Sparkles className={`${densityClasses.iconSize} ${theme.accent} flex-shrink-0`} />
-              <span className={`font-medium ${densityClasses.textSize}`}>{expr.name}</span>
-              
-              {/* Status Badges */}
-              <div className="flex items-center gap-1 ml-2">
-                {/* Match Score badge - only show if we have a score */}
+        <div className="flex items-start gap-2">
+          <span title="Drag onto another industry to cross-pollinate" className="hidden md:inline-flex mt-1 text-ink-2 cursor-grab active:cursor-grabbing shrink-0">
+            <GripVertical className="w-4 h-4" aria-hidden />
+          </span>
+          <div className="flex-1 min-w-0">
+            <h4 className={cx("font-semibold break-words", compact ? "text-sm" : "text-base")}>{expr.name}</h4>
+            {expr.mutation && (
+              <p className={cx("text-ink-2 mt-0.5", compact ? "text-xs" : "text-sm")}>{expr.mutation}</p>
+            )}
+            {(matchScore || expr.userAdded || treeDepth > 0 || hasMechanism || hasDeepDive || hasAppConcepts) && (
+              <div className="flex flex-wrap items-center gap-1.5 mt-2">
                 {matchScore && (
-                  <span
-                    className={`inline-flex items-center gap-0.5 px-1.5 py-0.5 rounded text-[10px] border ${getMatchScoreColor(matchScore.score)}`}
-                    title={`${getMatchScoreLabel(matchScore.score)}: ${matchScore.reasons.join(', ')}`}
+                  <Badge
+                    tone={getMatchScoreTone(matchScore.score)}
+                    title={`${getMatchScoreLabel(matchScore.score)} with your builder profile: ${matchScore.reasons.join("; ")}`}
                   >
-                    <Target className="w-2.5 h-2.5" />
-                    {matchScore.score}%
-                  </span>
+                    <Target className="w-3 h-3" aria-hidden />
+                    {matchScore.score}% fit
+                  </Badge>
                 )}
-
-                {/* User-added badge */}
                 {expr.userAdded && (
-                  <span className="inline-flex items-center gap-0.5 px-1.5 py-0.5 rounded text-[10px] bg-emerald-500/20 text-emerald-300 border border-emerald-500/30">
-                    <UserPlus className="w-2.5 h-2.5" />
-                    User
-                  </span>
+                  <Badge tone="ok" title="You added this industry">
+                    <UserPlus className="w-3 h-3" aria-hidden />Yours
+                  </Badge>
                 )}
-
-                {/* Branch depth badge */}
                 {treeDepth > 0 && (
-                  <span className="inline-flex items-center gap-0.5 px-1.5 py-0.5 rounded text-[10px] bg-gray-500/20 text-gray-300 border border-gray-500/30">
-                    <TreeDeciduous className="w-2.5 h-2.5" />
-                    {treeDepth}
-                  </span>
+                  <Badge title={`${treeDepth} level${treeDepth === 1 ? "" : "s"} of branches below`}>
+                    <TreeDeciduous className="w-3 h-3" aria-hidden />{treeDepth} deep
+                  </Badge>
                 )}
-
-                {/* Mechanism analyzed badge */}
-                {hasMechanism && (
-                  <span className="inline-flex items-center gap-0.5 px-1.5 py-0.5 rounded text-[10px] bg-gray-500/20 text-gray-300 border border-gray-500/30" title="Mechanism analyzed">
-                    <Microscope className="w-2.5 h-2.5" />
-                  </span>
-                )}
-
-                {/* Deep dive analyzed badge */}
-                {hasDeepDive && (
-                  <span className="inline-flex items-center gap-0.5 px-1.5 py-0.5 rounded text-[10px] bg-gray-600/20 text-gray-300 border border-gray-600/30" title="Deep dive available">
-                    <Briefcase className="w-2.5 h-2.5" />
-                  </span>
-                )}
-
-                {hasAppConcepts && (
-                  <span className="inline-flex items-center gap-0.5 px-1.5 py-0.5 rounded text-[10px] bg-gray-600/20 text-gray-300 border border-gray-600/30" title="App concepts available">
-                    <Rocket className="w-2.5 h-2.5" />
-                  </span>
-                )}
+                {hasMechanism && <Badge title="Mechanism analysis saved"><Microscope className="w-3 h-3" aria-hidden /><span className="sr-only">Mechanism saved</span></Badge>}
+                {hasDeepDive && <Badge title="Deep dive saved"><Briefcase className="w-3 h-3" aria-hidden /><span className="sr-only">Deep dive saved</span></Badge>}
+                {hasAppConcepts && <Badge title="App ideas saved"><Rocket className="w-3 h-3" aria-hidden /><span className="sr-only">App ideas saved</span></Badge>}
               </div>
-            </div>
-            {hasChildren && (
-              <button
-                onClick={onToggleExpand}
-                className={`p-1 rounded ${theme.muted} ${theme.hover}`}
-                aria-label={isExpanded ? `Collapse ${expr.name}` : `Expand ${expr.name}`}
-                aria-expanded={isExpanded}
-              >
-                {isExpanded ? (
-                  <ChevronDown className="w-3.5 h-3.5" />
-                ) : (
-                  <ChevronRight className="w-3.5 h-3.5" />
-                )}
-              </button>
             )}
           </div>
-          <p className={`${viewDensity === "compact" ? "text-[11px]" : "text-xs"} ${theme.muted} ${viewDensity === "compact" ? "mb-1" : "mb-2"}`}>{expr.mutation}</p>
-
-          {(expr.inspirations?.length ?? 0) > 0 && (
-            <div className={`mb-2 p-2 rounded ${theme.itemBg}`}>
-              <p className={`text-xs font-medium ${theme.muted} mb-1 flex items-center gap-1`}>
-                <BookOpen className="w-3 h-3" />
-                Prior Art:
-              </p>
-              <div className="space-y-1">
-                {expr.inspirations.map((ins, i) => (
-                  <div key={i} className="text-xs">
-                    <span className={theme.accent}>{ins.source}</span>
-                    <span className={theme.muted}> → {ins.mechanism}</span>
-                    {ins.twist && <span className="text-emerald-400"> → {ins.twist}</span>}
-                  </div>
-                ))}
-              </div>
-            </div>
+          {hasChildren && (
+            <IconButton
+              label={isExpanded ? `Collapse ${expr.name}` : `Expand ${expr.name}`}
+              aria-expanded={isExpanded}
+              onClick={onToggleExpand}
+              className="-mr-1 -mt-1"
+            >
+              {isExpanded ? <ChevronDown className="w-4 h-4" /> : <ChevronRight className="w-4 h-4" />}
+            </IconButton>
           )}
+        </div>
 
-          <div className={`flex flex-wrap gap-1.5 ${viewDensity === "compact" ? "mt-1.5" : "mt-2"}`}>
-            <button
-              onClick={onBranch}
-              disabled={isBranching}
-              className={`text-xs px-2 py-1 rounded flex items-center gap-1 ${theme.btn} transition-colors disabled:opacity-50 touch-manipulation min-h-[32px] md:min-h-0`}
-            >
-              {isBranching ? (
-                <Loader2 className="w-3 h-3 animate-spin" />
-              ) : (
-                <GitBranch className="w-3 h-3" />
-              )}
-              Branch
-            </button>
-            <button
-              onClick={onFetchMechanism}
-              disabled={mechanismLoading}
-              className={`text-xs px-2 py-1 rounded flex items-center gap-1 ${theme.btn} transition-colors disabled:opacity-50 touch-manipulation min-h-[32px] md:min-h-0`}
-            >
-              {mechanismLoading ? <Loader2 className="w-3 h-3 animate-spin" /> : <Layers className="w-3 h-3" />}
-              Mechanism
-            </button>
-            <button
-              onClick={onFetchDeepDive}
-              disabled={deepDiveLoading}
-              className={`text-xs px-2 py-1 rounded flex items-center gap-1 ${theme.btn} transition-colors disabled:opacity-50 touch-manipulation min-h-[32px] md:min-h-0`}
-            >
-              {deepDiveLoading ? <Loader2 className="w-3 h-3 animate-spin" /> : <TrendingUp className="w-3 h-3" />}
-              Dive
-            </button>
-            <button
-              onClick={onToggleCross}
-              className={`text-xs px-2 py-1 rounded flex items-center gap-1 ${
-                isCrossSelected ? "bg-amber-500/20 text-amber-300" : theme.btn
-              } transition-colors touch-manipulation min-h-[32px] md:min-h-0`}
-              title="Click to select, or drag-and-drop predictions to cross-pollinate"
-            >
-              <Shuffle className="w-3 h-3" />
-              {isCrossSelected ? "Selected" : "Cross"}
-            </button>
-            <button
-              onClick={onFetchAppConcepts}
-              disabled={appConceptsLoading}
-              className={`text-xs px-2 py-1 rounded flex items-center gap-1 ${theme.btn} transition-colors disabled:opacity-50 touch-manipulation min-h-[32px] md:min-h-0`}
-              title="Generate buildable app concepts for this industry"
-            >
-              {appConceptsLoading ? <Loader2 className="w-3 h-3 animate-spin" /> : <Rocket className="w-3 h-3" />}
-              Apps
-            </button>
-            <button
-              onClick={onAddSubIndustry}
-              className={`text-xs px-2 py-1 rounded flex items-center gap-1 ${theme.btn} transition-colors touch-manipulation min-h-[32px] md:min-h-0`}
-              aria-label={`Add sub-industry to ${expr.name}`}
-              title="Add sub-industry"
-            >
-              <Plus className="w-3 h-3" />
-            </button>
+        {!compact && (expr.inspirations?.length ?? 0) > 0 && (
+          <div className="mt-3 p-2.5 rounded-control bg-well">
+            <p className="text-xs font-medium text-ink-2 mb-1 flex items-center gap-1">
+              <BookOpen className="w-3 h-3" aria-hidden />
+              Built from prior art
+            </p>
+            <ul className="space-y-1">
+              {expr.inspirations.map((ins, i) => (
+                <li key={i} className="text-sm">
+                  <span className="text-accent font-medium">{ins.source}</span>
+                  <span className="text-ink-2">: {ins.mechanism}</span>
+                  {ins.twist && <span className="text-ink"> → {ins.twist}</span>}
+                </li>
+              ))}
+            </ul>
           </div>
-        </motion.div>
-      </div>
-      <AnimatePresence>
+        )}
+
+        {/* Phones: one button opens a sheet that explains every action. */}
+        <div className="md:hidden mt-3 flex items-center gap-2">
+          <button
+            type="button"
+            onClick={() => setSheetOpen(true)}
+            className="flex-1 min-h-[44px] rounded-control border border-line text-sm font-medium inline-flex items-center justify-center gap-2 hover:bg-ink/5 touch-manipulation"
+            aria-haspopup="dialog"
+          >
+            {(isBranching || mechanismLoading || deepDiveLoading || appConceptsLoading)
+              ? <Loader2 className="w-4 h-4 animate-spin" aria-hidden />
+              : <MoreHorizontal className="w-4 h-4" aria-hidden />}
+            Actions
+          </button>
+          {isCrossSelected && (
+            <Badge tone="pollen"><Shuffle className="w-3 h-3" aria-hidden />Selected</Badge>
+          )}
+        </div>
+
+        {/* Pointer layouts: inline buttons; tooltips carry the same explanations. */}
+        <div className={cx("hidden md:flex flex-wrap gap-1.5", compact ? "mt-2" : "mt-3")}>
+          {inline.map((a) => {
+            const info = INDUSTRY_ACTIONS[a.id];
+            const isCross = a.id === "cross";
+            const status = a.loading ? "Working…" : a.saved && a.id !== "branch" ? "Saved: opens instantly." : info.ai ? "Uses AI." : "";
+            return (
+              <button
+                key={a.id}
+                type="button"
+                onClick={a.onSelect}
+                disabled={a.loading}
+                title={`${info.description} ${status}`.trim()}
+                aria-description={`${info.description} ${status}`.trim()}
+                aria-label={a.id === "addChild" ? `${info.label} under ${expr.name}` : undefined}
+                aria-pressed={isCross ? isCrossSelected : undefined}
+                className={cx(
+                  "inline-flex items-center gap-1.5 px-2.5 min-h-[32px] rounded-control border text-sm transition-colors disabled:opacity-60",
+                  isCross && isCrossSelected
+                    ? "border-pollen/60 bg-pollen/15 text-pollen"
+                    : "border-line text-ink hover:border-accent/60 hover:bg-accent/5",
+                )}
+              >
+                {a.loading ? <Loader2 className="w-3.5 h-3.5 animate-spin" aria-hidden /> : <span className={cx(isCross ? "text-pollen" : "text-accent")}>{a.icon}</span>}
+                {a.id !== "addChild" && (isCross && isCrossSelected ? "Selected" : info.label)}
+                {a.saved && a.id !== "branch" && !a.loading && <Check className="w-3.5 h-3.5 text-ok" aria-hidden />}
+              </button>
+            );
+          })}
+        </div>
+      </motion.div>
+    </div>
+      <AnimatePresence initial={false}>
         {isExpanded && hasChildren && (
           <motion.div
             initial={{ opacity: 0, height: 0 }}
             animate={{ opacity: 1, height: "auto" }}
             exit={{ opacity: 0, height: 0 }}
-            className={`${viewDensity === "compact" ? "mt-1 ml-4 pl-2" : "mt-2 ml-6 pl-3"} border-l-2 border-gray-500/20 ${densityClasses.spacing}`}
+            className={cx(
+              "border-l-2 border-line overflow-hidden",
+              compact ? "mt-1.5 ml-3 pl-2 space-y-1.5" : "mt-2.5 ml-3 md:ml-5 pl-3 space-y-2.5",
+            )}
           >
             {(expr.children ?? []).map((child) => renderBranch(child, depth + 1, needId))}
           </motion.div>
         )}
       </AnimatePresence>
+      <ActionSheet
+        isOpen={sheetOpen}
+        onClose={() => setSheetOpen(false)}
+        title={expr.name}
+        description="Each action explains what it does before it runs."
+        actions={sheetActions}
+      />
       {contextMenu && (
         <ContextMenu
           x={contextMenu.x}
@@ -348,7 +344,6 @@ export const IndustryBranch = ({
           onCrossPollinate={onToggleCross}
           onAddChild={onAddSubIndustry}
           onDelete={onDelete}
-          theme={theme}
         />
       )}
     </>

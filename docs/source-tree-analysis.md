@@ -25,8 +25,12 @@ industry-family-tree/
 │   │   ├── ContextMenu.tsx                  # Right-click context menu
 │   │   ├── MiniMap.tsx                      # Map overview
 │   │   │
-│   │   ├── ModalWrapper.tsx                 # Modal container wrapper
-│   │   ├── ModalContent.tsx                 # Base modal content
+│   │   ├── ModalContent.tsx                 # Re-exports dialog contents
+│   │   │
+│   │   ├── ui/                              # Design-system primitives (docs/ui-design.md)
+│   │   │   ├── Button.tsx, Chip.tsx, Field.tsx, inputs.tsx, Section.tsx
+│   │   │   ├── Sheet.tsx                    # Bottom sheet on phones, dialog from md
+│   │   │   └── ActionSheet.tsx              # Action list with per-action descriptions
 │   │   │
 │   │   ├── modals/                          # Modal dialog components
 │   │   │   ├── AddPredictionModalContent.tsx
@@ -36,11 +40,13 @@ industry-family-tree/
 │   │   │   ├── KeyboardShortcutsModalContent.tsx
 │   │   │   └── index.ts                     # Modal exports
 │   │   │
-│   │   └── sidebars/                        # Sidebar panels
-│   │       ├── LeftSidebar.tsx              # Navigation and controls
-│   │       ├── RightSidebar.tsx             # Details and information
-│   │       ├── CenterPanel.tsx              # Main content area
-│   │       └── index.ts                     # Sidebar exports
+│   │   └── sidebars/                        # Workspace panels (columns on lg, sheets below)
+│   │       ├── ResearchForm.tsx             # Start research on a need
+│   │       ├── OpenNeeds.tsx                # Open needs: list (desktop) / strip (phone)
+│   │       ├── NeedTools.tsx                # View settings, export, prior art, tree map
+│   │       ├── AssistantPanel.tsx           # Next-step suggestions and history
+│   │       ├── CenterPanel.tsx              # The canvas
+│   │       └── index.ts
 │   │
 │   ├── hooks/                    # Custom React hooks
 │   │   ├── useHistory.ts                    # History management
@@ -110,12 +116,12 @@ industry-family-tree/
 │   ├── config/                   # Configuration files
 │   │   ├── constants.ts          # App-wide constants
 │   │   ├── analysis-frameworks.ts # AI analysis framework definitions
-│   │   └── theme.ts              # Theme configuration
+│   │   └── actions.ts            # What each industry action does (shown before acting)
 │   │
 │   ├── utils/                    # Utility functions
 │   │   ├── index.ts              # Utility exports
 │   │   ├── async-handler.ts      # Error handling for async operations
-│   │   ├── badge-styles.ts       # Badge styling utilities
+│   │   ├── badge-styles.ts       # Rating → badge tone
 │   │   ├── export.ts             # Data export functionality
 │   │   ├── framework-analyzer.ts # Analysis framework utilities
 │   │   ├── json-parser.ts        # JSON parsing utilities
@@ -174,8 +180,9 @@ The React application source code. Contains all UI components, business logic, a
 24 React components organized by function:
 
 - **View Components**: HomePage, LibraryView, NeedView, PatternsView, ChainAnalyticsView
-- **Modal Components**: ModalWrapper, AddPredictionModalContent, CrossPollinateModalContent, etc.
-- **Sidebar Components**: LeftSidebar, RightSidebar, CenterPanel
+- **Primitives** (`ui/`): Button, Field, Select, Segmented, Toggle, Chip, Badge, Sheet, ActionSheet
+- **Dialog contents**: AddPredictionModalContent, CrossPollinateModalContent, etc., shown in `Sheet`
+- **Workspace panels**: ResearchForm, OpenNeeds, NeedTools, AssistantPanel, CenterPanel
 - **Display Components**: PriorArtDisplay, TimelineView, IndustryBranch, HistoryPanel
 - **UI Components**: ContextMenu, MiniMap, AIAssistant
 

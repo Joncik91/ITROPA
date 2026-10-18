@@ -23,8 +23,9 @@ export const useTheme = () => {
       /* storage unavailable */
     }
     document.documentElement.style.colorScheme = dark ? "dark" : "light";
-    // Drives the light-mode contrast overrides in index.css.
+    // Switches the color tokens in index.css.
     document.documentElement.dataset.theme = dark ? "dark" : "light";
+    document.querySelector('meta[name="theme-color"]')?.setAttribute("content", dark ? "#0E1C2B" : "#F2F5F7");
   }, [dark]);
 
   const toggleTheme = () => setDark(prev => !prev);

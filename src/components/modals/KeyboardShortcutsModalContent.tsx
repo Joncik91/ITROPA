@@ -1,21 +1,20 @@
 /**
- * Modal content for displaying keyboard shortcuts reference.
+ * Keyboard shortcuts reference.
  */
 
 import { KEYBOARD_SHORTCUTS } from "../../config/constants";
-import type { Theme } from "../../config/theme";
 
-export interface KeyboardShortcutsModalContentProps {
-  theme: Theme;
-}
+export type KeyboardShortcutsModalContentProps = Record<string, never>;
 
-export const KeyboardShortcutsModalContent = ({ theme }: KeyboardShortcutsModalContentProps) => (
-  <div className="space-y-2 text-sm">
+export const KeyboardShortcutsModalContent = () => (
+  <dl className="divide-y divide-line">
     {KEYBOARD_SHORTCUTS.map(([k, d]) => (
-      <div key={k} className="flex justify-between">
-        <kbd className={`px-2 py-0.5 rounded ${theme.itemBg} text-xs`}>{k}</kbd>
-        <span className={theme.muted}>{d}</span>
+      <div key={k} className="flex items-center justify-between gap-4 py-2.5">
+        <dt>
+          <kbd className="px-2 py-1 rounded-control bg-well border border-line text-sm font-medium whitespace-nowrap">{k}</kbd>
+        </dt>
+        <dd className="text-sm text-ink-2 text-right">{d}</dd>
       </div>
     ))}
-  </div>
+  </dl>
 );
