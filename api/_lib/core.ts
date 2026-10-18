@@ -66,7 +66,12 @@ export function readCookie(headers: CoreRequest['headers'], name: string): strin
   for (const part of raw.split(';')) {
     const idx = part.indexOf('=');
     if (idx === -1) continue;
-    if (part.slice(0, idx).trim() === name) return decodeURIComponent(part.slice(idx + 1).trim());
+    if (part.slice(0, idx).trim() !== name) continue;
+    try {
+      return decodeURIComponent(part.slice(idx + 1).trim());
+    } catch {
+      return undefined; // malformed cookie: treat as absent rather than failing every request
+    }
   }
   return undefined;
 }
@@ -92,7 +97,10 @@ export function isAuthorized(req: CoreRequest): boolean {
   return verifySessionToken(readCookie(req.headers, SESSION_COOKIE), password);
 }
 
-export function handleAuth(req: CoreRequest): CoreResponse {
+/** Slows online guessing; per instance only, so a strong password is still required. */
+const FAILED_LOGIN_DELAY_MS = 750;
+
+export async function handleAuth(req: CoreRequest): Promise<CoreResponse> {
   const password = appPassword();
 
   if (req.method === 'GET') {
@@ -111,6 +119,7 @@ export function handleAuth(req: CoreRequest): CoreResponse {
     ? ((req.body as { password: string }).password).trim()
     : '';
   if (!submitted || !safeEqual(submitted, password)) {
+    await new Promise((r) => setTimeout(r, FAILED_LOGIN_DELAY_MS));
     return json(401, { error: 'Invalid password' });
   }
 

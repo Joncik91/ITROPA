@@ -24,7 +24,6 @@ function primaryKeyOf(table: DBCoreTable, value: any, fallback: unknown): string
 }
 
 function mirror(table: DBCoreTable, req: DBCoreMutateRequest, resultKeys: unknown[] | undefined): void {
-  if (suppressed) return;
   const name = table.name;
   switch (req.type) {
     case 'add':
@@ -56,7 +55,11 @@ export const mirrorMiddleware: Middleware<DBCore> = {
           ...table,
           async mutate(req) {
             const res = await table.mutate(req);
-            mirror(table, req, res.results);
+            if (!suppressed) {
+              // Mirror only once the IndexedDB transaction commits; aborted writes never leak.
+              const trans = req.trans as unknown as IDBTransaction;
+              trans.addEventListener('complete', () => mirror(table, req, res.results), { once: true });
+            }
             return res;
           },
         };

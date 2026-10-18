@@ -21,7 +21,7 @@ export const RightSidebar = ({ theme, manager, isOpen, onClose }: RightSidebarPr
   if (!need) return null;
 
   const suggestions = manager.needAISuggestions;
-  const loading = manager.aiLoadingScope === "need";
+  const loading = manager.isAILoading("need");
 
   return (
     <aside
@@ -58,7 +58,7 @@ export const RightSidebar = ({ theme, manager, isOpen, onClose }: RightSidebarPr
             {suggestions && (
               <button
                 onClick={() => manager.requestNeedAIAssist(need.id)}
-                disabled={manager.aiLoading}
+                disabled={loading}
                 className={`p-1.5 rounded ${theme.hover} disabled:opacity-40`}
                 title="Refresh suggestions"
                 aria-label="Refresh suggestions"
@@ -83,7 +83,7 @@ export const RightSidebar = ({ theme, manager, isOpen, onClose }: RightSidebarPr
           ) : (
             <button
               onClick={() => manager.requestNeedAIAssist(need.id)}
-              disabled={manager.aiLoading}
+              disabled={loading}
               className={`w-full px-3 py-2 rounded-lg text-xs ${theme.btn} hover:bg-gray-500/20 transition-colors flex items-center justify-center gap-2 disabled:opacity-50`}
             >
               {loading ? (

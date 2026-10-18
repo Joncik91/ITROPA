@@ -1,4 +1,4 @@
-import { useCallback } from 'react';
+import { useCallback, useRef } from 'react';
 import toast from 'react-hot-toast';
 import { useHistory } from '../useHistory';
 import { useNeedState } from './useNeedState';
@@ -9,6 +9,7 @@ import { useCrossPollination } from './useCrossPollination';
 import { useAIAssistant } from './useAIAssistant';
 import { DBService } from '../../services/db.service';
 import {
+  collectExpressionIds,
   getFutureExpressions,
   insertIntoExpressionTree,
   removeFromExpressionTree,
@@ -55,27 +56,39 @@ export function useNeedManager() {
     const insert = adds === (direction === 'redo');
     const result = updateNeed(needId, (need) => {
       const list = getFutureExpressions(need);
+      const existing = insert ? collectExpressionIds(need) : null;
+      const toInsert = existing ? nodes.filter((n) => !existing.has(n.id)) : nodes;
+      if (insert && toInsert.length === 0) return need;
       const next = insert
-        ? insertIntoExpressionTree(list, parentId, nodes, adds ? undefined : index)
+        ? insertIntoExpressionTree(list, parentId, toInsert, adds ? undefined : index)
         : nodes.reduce((acc, node) => removeFromExpressionTree(acc, node.id), list);
       return next === list ? need : withFutureExpressions(need, () => next);
     });
     return result !== null;
   }, [updateNeed, openInWorkspace, removeFromWorkspace]);
 
-  const undo = useCallback(async () => {
-    const action = history.popUndo();
-    if (!action) return;
-    if (await apply(action, 'undo')) toast.success(`Undid: ${action.description}`, { id: 'history' });
-    else toast.error(`Cannot undo "${action.description}" — its need is no longer open.`, { id: 'history' });
+  // Undo/redo steps run strictly one after another: some are async (reopening a need),
+  // and a later step may depend on an earlier one having landed.
+  const queue = useRef<Promise<void>>(Promise.resolve());
+  const step = useCallback((direction: 'undo' | 'redo') => {
+    queue.current = queue.current.then(async () => {
+      const action = direction === 'undo' ? history.popUndo() : history.popRedo();
+      if (!action) return;
+      const ok = await apply(action, direction).catch(() => false);
+      const verb = direction === 'undo' ? 'Undid' : 'Redid';
+      if (ok) {
+        toast.success(`${verb}: ${action.description}`, { id: 'history' });
+      } else {
+        // Keep the stacks truthful: the action did not happen, so it stays where it was.
+        if (direction === 'undo') history.revertUndo();
+        else history.revertRedo();
+        toast.error(`Cannot ${direction} "${action.description}" — open its need and try again.`, { id: 'history' });
+      }
+    });
   }, [history, apply]);
 
-  const redo = useCallback(async () => {
-    const action = history.popRedo();
-    if (!action) return;
-    if (await apply(action, 'redo')) toast.success(`Redid: ${action.description}`, { id: 'history' });
-    else toast.error(`Cannot redo "${action.description}" — its need is no longer open.`, { id: 'history' });
-  }, [history, apply]);
+  const undo = useCallback(() => step('undo'), [step]);
+  const redo = useCallback(() => step('redo'), [step]);
 
   const closeAllModals = useCallback(() => {
     analysis.setMechanism(null);

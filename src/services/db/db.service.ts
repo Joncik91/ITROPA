@@ -40,14 +40,15 @@ export class DBService {
     if (!Object.values(data).some((rows) => rows?.length)) return;
 
     await mirrorService.withoutMirroring(() =>
-      db.transaction('rw', allTables(), async (tx) => {
+      db.transaction('rw', allTables(), async () => {
         for (const table of ALL_TABLES) {
           const rows = data[table];
           if (rows?.length) await db.table(table).bulkPut(rows);
         }
-        await migrateToV6(tx);
       }),
     );
+    // Separate transaction so its re-keys (and deletion of old-ID rows) reach the mirror too.
+    await db.transaction('rw', allTables(), (tx) => migrateToV6(tx));
     console.info('🔄 Restored from SQLite mirror');
   }
 
@@ -179,6 +180,10 @@ export class DBService {
 
   static async getAppConcepts(industryId: string) {
     return this.appConceptRepo.getAppConcepts(industryId);
+  }
+
+  static async getAppConceptsByNeed(needId: string) {
+    return this.appConceptRepo.getAppConceptsByNeed(needId);
   }
 
   // ============ SEARCH & LOOKUP ============

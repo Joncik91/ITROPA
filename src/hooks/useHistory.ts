@@ -19,6 +19,9 @@ export interface UseHistoryReturn {
   addToHistory: (action: Omit<HistoryAction, 'id' | 'timestamp'>) => void;
   popUndo: () => HistoryAction | null;
   popRedo: () => HistoryAction | null;
+  /** Undo the last pop (the action could not be applied), restoring both stacks. */
+  revertUndo: () => void;
+  revertRedo: () => void;
   clearHistory: () => void;
 }
 
@@ -60,7 +63,17 @@ export function useHistory(options: UseHistoryOptions = {}): UseHistoryReturn {
     return action;
   }, [commit]);
 
+  const revertUndo = useCallback(() => {
+    const { past, future } = stateRef.current;
+    if (future.length) commit([...past, future[0]], future.slice(1));
+  }, [commit]);
+
+  const revertRedo = useCallback(() => {
+    const { past, future } = stateRef.current;
+    if (past.length) commit(past.slice(0, -1), [past[past.length - 1], ...future]);
+  }, [commit]);
+
   const clearHistory = useCallback(() => commit([], []), [commit]);
 
-  return { history, addToHistory, popUndo, popRedo, clearHistory };
+  return { history, addToHistory, popUndo, popRedo, revertUndo, revertRedo, clearHistory };
 }

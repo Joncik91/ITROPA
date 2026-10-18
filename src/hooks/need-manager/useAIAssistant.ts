@@ -28,7 +28,7 @@ export function useAIAssistant(
 ) {
   const { needsRef, activeTabRef, activeNeed } = state;
   const [suggestions, setSuggestions] = useState<Partial<Record<Scope, ScopedSuggestions>>>({});
-  const [loadingScope, setLoadingScope] = useState<Scope | null>(null);
+  const [loading, setLoading] = useState<Partial<Record<Scope, boolean>>>({});
 
   // Need-level suggestions belong to one need; drop them when the user switches.
   const activeNeedId = activeNeed?.id;
@@ -38,7 +38,7 @@ export function useAIAssistant(
 
   const request = useCallback(async (scope: Scope, targetId: string | undefined) => {
     if (!targetId) return;
-    setLoadingScope(scope);
+    setLoading((p) => ({ ...p, [scope]: true }));
     try {
       const assistant = getAIAssistant();
       const response =
@@ -50,7 +50,7 @@ export function useAIAssistant(
     } catch (e) {
       toast.error(`AI assist failed: ${(e as Error).message}`);
     } finally {
-      setLoadingScope(null);
+      setLoading((p) => ({ ...p, [scope]: false }));
     }
   }, []);
 
@@ -106,8 +106,8 @@ export function useAIAssistant(
     needAISuggestions: suggestions.need && suggestions.need.targetId === activeNeedId ? suggestions.need.response : null,
     mechanismSuggestions: suggestions.mechanism ?? null,
     deepDiveSuggestions: suggestions.deepDive ?? null,
-    aiLoading: loadingScope !== null,
-    aiLoadingScope: loadingScope,
+    aiLoading: Object.values(loading).some(Boolean),
+    isAILoading: (scope: Scope) => !!loading[scope],
     requestNeedAIAssist,
     requestMechanismAIAssist,
     requestDeepDiveAIAssist,

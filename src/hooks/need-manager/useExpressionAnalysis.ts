@@ -48,9 +48,17 @@ export function useExpressionAnalysis(state: NeedStateApi) {
       return;
     }
     try {
-      const [mechs, dives] = await Promise.all([DBService.getMechanismsByNeed(needId), DBService.getDeepDivesByNeed(needId)]);
+      const [mechs, dives, concepts] = await Promise.all([
+        DBService.getMechanismsByNeed(needId),
+        DBService.getDeepDivesByNeed(needId),
+        DBService.getAppConceptsByNeed(needId),
+      ]);
       if (!isCurrent()) return;
-      setAnalyzed((prev) => ({ ...prev, mechanisms: new Set(mechs.map((m) => m.id)), deepDives: new Set(dives.map((d) => d.id)) }));
+      setAnalyzed({
+        mechanisms: new Set(mechs.map((m) => m.id)),
+        deepDives: new Set(dives.map((d) => d.id)),
+        appConcepts: new Set(concepts.map((c) => c.id)),
+      });
     } catch (e) {
       console.error('Failed to load analysis index:', e);
     }
@@ -98,7 +106,7 @@ export function useExpressionAnalysis(state: NeedStateApi) {
       await opts.save(needId, value);
       opts.show({ expressionId: expr.id, expressionName: expr.name, needId, details: value });
       toast.success(opts.done(value), { id: toastId });
-      if (needId === state.activeTabRef.current) void refreshIndex(needId);
+      if (needId === state.activeTabRef.current) void refreshIndex(needId, () => state.activeTabRef.current === needId);
     } catch (e) {
       toast.error((e as Error).message, { id: toastId });
     } finally {

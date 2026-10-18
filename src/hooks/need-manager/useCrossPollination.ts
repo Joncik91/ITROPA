@@ -23,6 +23,8 @@ export function useCrossPollination() {
 
   /** Toggle an industry in/out of the pair (max 2). Changing the pair discards stale results. */
   const toggleCrossItem = useCallback((item: IndustryExpression) => {
+    requestRef.current++;
+    setCrossLoading(false);
     setCross((prev) => {
       if (prev.items.some((i) => i.id === item.id)) {
         return { ...prev, items: prev.items.filter((i) => i.id !== item.id), result: null };
@@ -38,6 +40,8 @@ export function useCrossPollination() {
   /** Drag-and-drop: select exactly this pair and open the dialog. */
   const selectCrossPair = useCallback((a: IndustryExpression, b: IndustryExpression) => {
     if (a.id === b.id) return;
+    requestRef.current++;
+    setCrossLoading(false);
     setCross({ open: true, items: [a, b], result: null });
   }, [setCross]);
 
@@ -61,15 +65,17 @@ export function useCrossPollination() {
     const toastId = toast.loading(`Cross-pollinating: ${a.name} + ${b.name}...`);
     try {
       const cached = opts.regenerate ? undefined : await DBService.getCrossPollinate(a.id, b.id);
-      const result = cached?.result?.length ? cached.result : await getGeminiService().crossPollinate(a, b);
-      if (!cached) await DBService.saveCrossPollinate(a, b, result);
-      // Ignore results for a pair the user has since changed.
-      if (request !== requestRef.current) {
+      const fromCache = !!cached?.result?.length;
+      const result = fromCache ? cached!.result : await getGeminiService().crossPollinate(a, b);
+      if (!fromCache) await DBService.saveCrossPollinate(a, b, result);
+      // Ignore results for a pair the user has since changed (still saved for next time).
+      const current = stateRef.current.items.map((i) => i.id).sort().join('|');
+      if (request !== requestRef.current || current !== [a.id, b.id].sort().join('|')) {
         toast.dismiss(toastId);
         return;
       }
       setCross((prev) => ({ ...prev, result }));
-      toast.success(cached ? 'Loaded saved recombinations' : `Generated ${result.length} hybrid industries`, { id: toastId });
+      toast.success(fromCache ? 'Loaded saved recombinations' : `Generated ${result.length} hybrid industries`, { id: toastId });
     } catch (e) {
       toast.error(`Cross-pollination failed: ${(e as Error).message}`, { id: toastId });
     } finally {

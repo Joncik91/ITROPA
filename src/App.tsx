@@ -180,7 +180,7 @@ export default function App() {
               dark={dark}
               aiSuggestions={manager.mechanismSuggestions?.targetId === mechanism.expressionId ? manager.mechanismSuggestions.response : null}
               onAIAssist={() => manager.requestMechanismAIAssist(mechanism.expressionId)}
-              aiLoading={manager.aiLoadingScope === "mechanism"}
+              aiLoading={manager.isAILoading("mechanism")}
               onExecuteAction={manager.executeAIAction}
             />
           )}
@@ -199,7 +199,7 @@ export default function App() {
               theme={theme}
               aiSuggestions={manager.deepDiveSuggestions?.targetId === deepDive.expressionId ? manager.deepDiveSuggestions.response : null}
               onAIAssist={() => manager.requestDeepDiveAIAssist(deepDive.expressionId)}
-              aiLoading={manager.aiLoadingScope === "deepDive"}
+              aiLoading={manager.isAILoading("deepDive")}
               onExecuteAction={manager.executeAIAction}
             />
           )}

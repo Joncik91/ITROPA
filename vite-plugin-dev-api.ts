@@ -65,7 +65,10 @@ export function devApiPlugin(): Plugin {
           const result = await route(core, { method: req.method ?? 'GET', headers: req.headers, body });
           send(res, result.status, result.body, result.headers);
         } catch (error) {
-          send(res, 400, { error: error instanceof Error ? error.message : 'Bad request' });
+          const message = error instanceof Error ? error.message : 'Internal error';
+          const isClientError = /Invalid JSON body|too large/.test(message);
+          if (!isClientError) console.error('[dev-api]', error);
+          send(res, isClientError ? 400 : 500, { error: isClientError ? message : 'Internal server error' });
         }
       });
     },

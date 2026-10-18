@@ -36,13 +36,19 @@ let active = 0;
 const waiting: Array<() => void> = [];
 
 async function withSlot<T>(task: () => Promise<T>): Promise<T> {
-  if (active >= MAX_CONCURRENT) await new Promise<void>((resolve) => waiting.push(resolve));
-  active++;
+  if (active >= MAX_CONCURRENT) {
+    // The releasing task hands its slot over directly, so `active` never dips below
+    // the cap in between and a newcomer cannot jump the queue.
+    await new Promise<void>((resolve) => waiting.push(resolve));
+  } else {
+    active++;
+  }
   try {
     return await task();
   } finally {
-    active--;
-    waiting.shift()?.();
+    const next = waiting.shift();
+    if (next) next();
+    else active--;
   }
 }
 
@@ -57,7 +63,9 @@ async function postOnce(endpoint: string, body: object): Promise<string> {
   const controller = new AbortController();
   const timer = setTimeout(() => controller.abort(), REQUEST_TIMEOUT_MS);
 
+  // The timeout covers the whole exchange, including a body that stalls mid-stream.
   let response: Response;
+  let payload: { text?: unknown; error?: unknown; code?: unknown } = {};
   try {
     response = await fetch(`/api/${endpoint}`, {
       method: 'POST',
@@ -66,19 +74,17 @@ async function postOnce(endpoint: string, body: object): Promise<string> {
       body: JSON.stringify(body),
       signal: controller.signal,
     });
-  } catch (e) {
+    const raw = await response.text();
+    try {
+      payload = raw ? JSON.parse(raw) : {};
+    } catch {
+      /* Error pages from proxies/CDNs may not be JSON; the status below still applies. */
+    }
+  } catch {
     if (controller.signal.aborted) throw new ApiError('The request timed out.', 'timeout');
     throw new ApiError('Network error — check your connection.', 'network');
   } finally {
     clearTimeout(timer);
-  }
-
-  // Error pages from proxies/CDNs may not be JSON; never let that mask the real status.
-  let payload: { text?: unknown; error?: unknown; code?: unknown } = {};
-  try {
-    payload = await response.json();
-  } catch {
-    /* non-JSON body */
   }
 
   if (!response.ok) {
