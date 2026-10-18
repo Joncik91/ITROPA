@@ -4,7 +4,6 @@
  *
  * Files under api/_lib are not exposed as routes by Vercel (underscore prefix).
  */
-import { createHash, createHmac, timingSafeEqual } from 'node:crypto';
 import { GoogleGenerativeAI, type GenerationConfig } from '@google/generative-ai';
 
 export interface CoreRequest {
@@ -20,112 +19,6 @@ export interface CoreResponse {
 }
 
 const json = (status: number, body: unknown, headers?: CoreResponse['headers']): CoreResponse => ({ status, body, headers });
-
-// ============ AUTH ============
-
-export const SESSION_COOKIE = 'itropa_session';
-const SESSION_TTL_SECONDS = 60 * 60 * 24 * 30;
-
-function appPassword(): string | undefined {
-  const pw = process.env.APP_PASSWORD?.trim();
-  return pw ? pw : undefined;
-}
-
-/** Signing key is derived from the password, so changing the password revokes every session. */
-function sign(payload: string, password: string): string {
-  return createHmac('sha256', `itropa-session:${password}`).update(payload).digest('base64url');
-}
-
-/** Constant-time string comparison; hashing first equalises lengths so length is not leaked. */
-function safeEqual(a: string, b: string): boolean {
-  const digest = (s: string) => createHash('sha256').update(s).digest();
-  return timingSafeEqual(digest(a), digest(b));
-}
-
-export function createSessionToken(password: string, now = Date.now()): string {
-  const exp = String(Math.floor(now / 1000) + SESSION_TTL_SECONDS);
-  return `${exp}.${sign(exp, password)}`;
-}
-
-export function verifySessionToken(token: string | undefined, password: string, now = Date.now()): boolean {
-  if (!token) return false;
-  const [exp, sig] = token.split('.');
-  if (!exp || !sig || !/^\d+$/.test(exp)) return false;
-  if (Number(exp) * 1000 < now) return false;
-  return safeEqual(sig, sign(exp, password));
-}
-
-function headerValue(headers: CoreRequest['headers'], name: string): string | undefined {
-  const v = headers[name] ?? headers[name.toLowerCase()];
-  return Array.isArray(v) ? v[0] : v;
-}
-
-export function readCookie(headers: CoreRequest['headers'], name: string): string | undefined {
-  const raw = headerValue(headers, 'cookie');
-  if (!raw) return undefined;
-  for (const part of raw.split(';')) {
-    const idx = part.indexOf('=');
-    if (idx === -1) continue;
-    if (part.slice(0, idx).trim() !== name) continue;
-    try {
-      return decodeURIComponent(part.slice(idx + 1).trim());
-    } catch {
-      return undefined; // malformed cookie: treat as absent rather than failing every request
-    }
-  }
-  return undefined;
-}
-
-function isSecureRequest(headers: CoreRequest['headers']): boolean {
-  return headerValue(headers, 'x-forwarded-proto') === 'https';
-}
-
-function sessionCookie(value: string, maxAge: number, secure: boolean): string {
-  return [
-    `${SESSION_COOKIE}=${encodeURIComponent(value)}`,
-    'Path=/',
-    'HttpOnly',
-    'SameSite=Strict',
-    `Max-Age=${maxAge}`,
-    secure ? 'Secure' : '',
-  ].filter(Boolean).join('; ');
-}
-
-export function isAuthorized(req: CoreRequest): boolean {
-  const password = appPassword();
-  if (!password) return true;
-  return verifySessionToken(readCookie(req.headers, SESSION_COOKIE), password);
-}
-
-/** Slows online guessing; per instance only, so a strong password is still required. */
-const FAILED_LOGIN_DELAY_MS = 750;
-
-export async function handleAuth(req: CoreRequest): Promise<CoreResponse> {
-  const password = appPassword();
-
-  if (req.method === 'GET') {
-    return json(200, { required: !!password, authenticated: isAuthorized(req) });
-  }
-
-  if (req.method === 'DELETE') {
-    return json(200, { ok: true }, { 'Set-Cookie': sessionCookie('', 0, isSecureRequest(req.headers)) });
-  }
-
-  if (req.method !== 'POST') return json(405, { error: 'Method not allowed' }, { Allow: 'GET, POST, DELETE' });
-
-  if (!password) return json(200, { ok: true });
-
-  const submitted = typeof (req.body as { password?: unknown } | null)?.password === 'string'
-    ? ((req.body as { password: string }).password).trim()
-    : '';
-  if (!submitted || !safeEqual(submitted, password)) {
-    await new Promise((r) => setTimeout(r, FAILED_LOGIN_DELAY_MS));
-    return json(401, { error: 'Invalid password' });
-  }
-
-  const token = createSessionToken(password);
-  return json(200, { ok: true }, { 'Set-Cookie': sessionCookie(token, SESSION_TTL_SECONDS, isSecureRequest(req.headers)) });
-}
 
 // ============ GENERATION ============
 
@@ -213,7 +106,6 @@ function classifyUpstreamError(error: unknown): CoreResponse {
 
 export async function handleGenerate(req: CoreRequest, defaultTemperature: number): Promise<CoreResponse> {
   if (req.method !== 'POST') return json(405, { error: 'Method not allowed' }, { Allow: 'POST' });
-  if (!isAuthorized(req)) return json(401, { error: 'Authentication required', code: 'auth' });
 
   const apiKey = process.env.GEMINI_API_KEY?.trim();
   if (!apiKey) return json(500, { error: 'GEMINI_API_KEY is not configured on the server', code: 'config' });

@@ -4,12 +4,8 @@ const respond = (status: number, body: unknown) =>
   Promise.resolve(new Response(typeof body === 'string' ? body : JSON.stringify(body), { status }));
 
 describe('apiClient', () => {
-  let events: string[];
-
   beforeEach(() => {
     vi.useFakeTimers();
-    events = [];
-    vi.stubGlobal('window', { dispatchEvent: (e: Event) => events.push(e.type) });
   });
 
   afterEach(() => {
@@ -46,13 +42,6 @@ describe('apiClient', () => {
     await vi.runAllTimersAsync();
     await expect(promise).resolves.toEqual([1]);
     expect(fetchMock).toHaveBeenCalledTimes(2);
-  });
-
-  it('signals the app when the session is missing', async () => {
-    vi.stubGlobal('fetch', vi.fn(() => respond(401, { error: 'Authentication required', code: 'auth' })));
-    const { apiClient, AUTH_REQUIRED_EVENT } = await load();
-    await expect(apiClient.callGemini('p')).rejects.toMatchObject({ code: 'auth' });
-    expect(events).toEqual([AUTH_REQUIRED_EVENT]);
   });
 
   it('caps concurrent requests', async () => {

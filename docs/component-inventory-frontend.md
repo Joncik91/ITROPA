@@ -284,18 +284,6 @@ Components for user interactions and system feedback.
 - **Props**: Items, onSelect, position
 - **Interaction**: Right-click trigger
 
-#### 23. **PasswordPrompt**
-- **Location**: `src/components/PasswordPrompt.tsx`
-- **Purpose**: Authentication in production
-- **Features**:
-  - Password input field
-  - Submit button
-  - Error messages
-  - Submission handler
-- **Props**: onSubmit, error
-- **Security**: Client-side submission only
-- **Used in**: App wrapper (production only)
-
 #### 24. **ModalContent**
 - **Location**: `src/components/ModalContent.tsx`
 - **Purpose**: Base modal content wrapper

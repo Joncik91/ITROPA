@@ -51,7 +51,6 @@ User Browser → React Frontend (no secrets)
    - Vercel Serverless Functions
    - Protects Google Gemini API key
    - Handles all AI requests
-   - Includes password protection for production
 
 3. **Data Storage**
    - IndexedDB for local browser storage
@@ -120,8 +119,7 @@ Explore the other documentation files for more details:
 
 - **API Keys**: Never exposed in browser code
 - **Serverless Functions**: Handles all sensitive operations
-- **Environment Variables**: Gemini API key and password stored securely in Vercel
-- **Production Access**: Optional password protection via APP_PASSWORD
+- **Environment Variables**: Gemini API key stored securely in Vercel
 - **CORS Configuration**: Configured for safe cross-origin requests
 
 ---

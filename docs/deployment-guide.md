@@ -141,22 +141,11 @@ git push origin main
    - **Environments**: Select all (Production, Preview, Development)
 4. Click "Save"
 
-### 3.2 Add Password Protection (Optional)
-
-For production security, add password authentication:
-
-1. In Environment Variables, add:
-   - **Name**: `APP_PASSWORD`
-   - **Value**: Your chosen password (strong recommended)
-   - **Environments**: Production only
-2. Click "Save"
-
 ### 3.3 Environment Variables Summary
 
 | Variable | Value | Required | Environment |
 |----------|-------|----------|-------------|
 | `GEMINI_API_KEY` | Your API key | Yes | All |
-| `APP_PASSWORD` | Strong password | No | Production |
 
 ---
 
@@ -308,33 +297,15 @@ Handles AI assistant operations, similar to gemini.ts with different temperature
 - Rotate keys periodically
 - Monitor usage in Google AI Studio
 
-### 2. Password Protection
+### 2. Access
 
-Enable in production for additional security:
+There is no login and no CORS: the app calls same-origin `/api/*` endpoints, and anyone who
+can reach the deployment can use them (and your Gemini quota). Use Vercel Deployment
+Protection if the deployment must be private.
 
-```bash
-# Set APP_PASSWORD in Vercel environment
-vercel env add APP_PASSWORD
-# Enter your password when prompted
-```
+### 3. Serverless Function Limits
 
-The frontend will prompt for password before allowing access.
-
-### 3. CORS Configuration
-
-CORS headers in `vercel.json` allow:
-- Origin: `*` (any domain can call API)
-- Methods: `GET`, `POST`, `OPTIONS`
-- Headers: `Content-Type`
-
-**Note**: For stricter security, limit origin to specific domains:
-```json
-"value": "https://yourdomain.com"
-```
-
-### 4. Serverless Function Limits
-
-- **Max Duration**: 30 seconds (timeout)
+- **Max Duration**: 60 seconds (`vercel.json`)
 - **Memory**: 512 MB default
 - **Environment**: Node.js 18+
 
@@ -395,16 +366,6 @@ Access to XMLHttpRequest blocked by CORS policy
 3. Check index.html exists in dist/
 4. Rebuild: `npm run build`
 
-### Password Protection Not Working
-
-**Solution**:
-1. Verify `APP_PASSWORD` environment variable is set (Production only)
-2. Redeploy: `vercel --prod`
-3. Clear browser localStorage
-4. Test in incognito/private window
-
----
-
 ## Production Checklist
 
 Before going live with production URL:
@@ -415,7 +376,6 @@ Before going live with production URL:
 - [ ] Frontend loads without errors
 - [ ] API endpoints respond correctly
 - [ ] CORS headers configured
-- [ ] Password protection enabled (if needed)
 - [ ] Environment variables set for Production
 - [ ] Domain custom domain configured (if applicable)
 - [ ] SSL certificate active (automatic with Vercel)
@@ -501,7 +461,6 @@ npm run dev
 
 ```bash
 # Main branch deployments
-# Password protection enabled (if APP_PASSWORD set)
 # Full security measures active
 ```
 

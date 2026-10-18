@@ -20,7 +20,6 @@ also mirrored to `local-mirror.db` (SQLite) so it survives browser storage reset
 |----------|----------|---------|
 | `GEMINI_API_KEY` | yes | Google AI Studio key (server-side only) |
 | `GEMINI_MODEL` | no | Model id, default `gemini-2.5-flash` |
-| `APP_PASSWORD` | no | Require a password; enforced server-side on every AI call |
 
 Never prefix these with `VITE_`: Vite inlines `VITE_*` variables into the browser bundle.
 
@@ -36,14 +35,13 @@ npm run check       # typecheck + test + production build
 
 1. `npm install -g vercel && vercel`
 2. In Project Settings → Environment Variables, add `GEMINI_API_KEY` (and optionally
-   `APP_PASSWORD`, `GEMINI_MODEL`) for all environments.
+   `GEMINI_MODEL`) for all environments.
 3. `vercel --prod`
 
 **Security model**
 - The Gemini key exists only in the serverless functions.
-- With `APP_PASSWORD` set, `/api/gemini` and `/api/ai-assistant` reject requests that don't carry a valid
-  `HttpOnly; SameSite=Strict` session cookie. The cookie is issued by `POST /api/auth` and lasts 30 days.
-  Changing the password revokes all sessions.
+- There is no login: anyone who can reach the deployment can use the AI endpoints (and your Gemini
+  quota). Keep the URL private, or put Vercel Deployment Protection in front if that matters.
 - Request bodies are validated and bounded: prompt size, token and temperature ranges.
 - No wildcard CORS. The API is same-origin only.
 
@@ -104,8 +102,8 @@ npm run check       # typecheck + test + production build
 Browser (React SPA, IndexedDB)
    │  same-origin fetch, ≤4 concurrent, retries transient errors only
    ▼
-/api/gemini · /api/ai-assistant · /api/auth      ← Vercel functions (prod) / Vite middleware (dev)
-   │  api/_lib/core.ts: auth, validation, Gemini call, error mapping
+/api/gemini · /api/ai-assistant      ← Vercel functions (prod) / Vite middleware (dev)
+   │  api/_lib/core.ts: validation, Gemini call, error mapping
    ▼
 Google Gemini (JSON mode)
 ```

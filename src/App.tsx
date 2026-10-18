@@ -1,4 +1,4 @@
-import { useState, useEffect, useCallback, lazy, Suspense } from "react";
+import { useState, useCallback, lazy, Suspense } from "react";
 import { Sun, Moon, Keyboard, BookOpen, Shapes, Home, FileText, Layers, TrendingUp, Rocket, Loader2 } from "lucide-react";
 import { Toaster } from 'react-hot-toast';
 import { getTheme } from "./config/theme";
@@ -8,8 +8,6 @@ import { useNeedManager } from "./hooks/useNeedManager";
 import { ModalWrapper } from "./components/ModalWrapper";
 import { ErrorBoundary } from "./components/ErrorBoundary";
 import { HomePage } from "./components/HomePage";
-import { PasswordPrompt } from "./components/PasswordPrompt";
-import { AUTH_REQUIRED_EVENT } from "./services/api-client.service";
 import {
   MechanismModalContent,
   DeepDiveModalContent,
@@ -26,37 +24,14 @@ const PatternsView = lazy(() => import("./components/PatternsView").then(m => ({
 const DOCS_URL = "https://github.com/Joncik91/ITROPA/tree/main/docs";
 
 type Page = "home" | "library" | "patterns";
-type AuthState = "checking" | "required" | "ok";
 
 export default function App() {
   const [showKeys, setShowKeys] = useState(false);
   const [page, setPage] = useState<Page>("home");
-  const [auth, setAuth] = useState<AuthState>("checking");
 
   const { dark, toggleTheme } = useTheme();
   const theme = getTheme(dark);
   const manager = useNeedManager();
-
-  useEffect(() => {
-    let cancelled = false;
-    (async () => {
-      try {
-        const response = await fetch('/api/auth', { credentials: 'same-origin' });
-        const data = await response.json() as { required?: boolean; authenticated?: boolean };
-        if (!cancelled) setAuth(data.required && !data.authenticated ? "required" : "ok");
-      } catch {
-        // Auth endpoint unreachable: let the UI load. Every AI call is still checked
-        // server-side and will bring the prompt back if a session is required.
-        if (!cancelled) setAuth("ok");
-      }
-    })();
-    const onAuthRequired = () => setAuth("required");
-    window.addEventListener(AUTH_REQUIRED_EVENT, onAuthRequired);
-    return () => {
-      cancelled = true;
-      window.removeEventListener(AUTH_REQUIRED_EVENT, onAuthRequired);
-    };
-  }, []);
 
   const closeAll = useCallback(() => {
     manager.closeAllModals();
@@ -96,20 +71,11 @@ export default function App() {
     />
   );
 
-  if (auth === "checking" || !manager.ready) {
+  if (!manager.ready) {
     return (
       <div className={`min-h-screen flex items-center justify-center ${theme.bg} ${theme.text}`} aria-busy="true">
         <Loader2 className={`w-8 h-8 animate-spin ${theme.accent}`} aria-label="Loading" />
       </div>
-    );
-  }
-
-  if (auth === "required") {
-    return (
-      <>
-        <PasswordPrompt onAuthenticated={() => setAuth("ok")} theme={theme} />
-        {toaster}
-      </>
     );
   }
 

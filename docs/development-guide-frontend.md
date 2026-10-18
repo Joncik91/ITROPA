@@ -453,7 +453,7 @@ GEMINI_API_KEY=your_api_key  # For local development
 
 ### Using Environment Variables
 
-Secrets are server-side only: `GEMINI_API_KEY`, `GEMINI_MODEL` and `APP_PASSWORD` are read
+Secrets are server-side only: `GEMINI_API_KEY` and `GEMINI_MODEL` are read
 by `api/_lib/core.ts` (Vercel functions in production, Vite dev middleware locally). Never
 prefix them with `VITE_`, because Vite inlines `VITE_*` variables into the client bundle.
 

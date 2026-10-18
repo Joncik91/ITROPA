@@ -10,7 +10,7 @@
 import { extractJSON } from '../utils/json-parser';
 
 export type ApiErrorCode =
-  | 'auth' | 'quota' | 'timeout' | 'network' | 'invalid' | 'config'
+  | 'quota' | 'timeout' | 'network' | 'invalid' | 'config'
   | 'model' | 'blocked' | 'empty' | 'parse' | 'upstream' | 'unknown';
 
 export class ApiError extends Error {
@@ -23,9 +23,6 @@ export class ApiError extends Error {
     return ['quota', 'timeout', 'network', 'upstream', 'empty', 'parse'].includes(this.code);
   }
 }
-
-/** Fired on window whenever the server rejects a call for lack of a session. */
-export const AUTH_REQUIRED_EVENT = 'itropa:auth-required';
 
 const REQUEST_TIMEOUT_MS = 70_000;
 const MAX_CONCURRENT = 4;
@@ -70,7 +67,6 @@ async function postOnce(endpoint: string, body: object): Promise<string> {
     response = await fetch(`/api/${endpoint}`, {
       method: 'POST',
       headers: { 'Content-Type': 'application/json' },
-      credentials: 'same-origin',
       body: JSON.stringify(body),
       signal: controller.signal,
     });
@@ -91,12 +87,10 @@ async function postOnce(endpoint: string, body: object): Promise<string> {
     const message = typeof payload.error === 'string' ? payload.error : `Request failed (HTTP ${response.status})`;
     const code: ApiErrorCode =
       typeof payload.code === 'string' ? (payload.code as ApiErrorCode)
-      : response.status === 401 ? 'auth'
       : response.status === 429 ? 'quota'
       : response.status === 504 ? 'timeout'
       : response.status >= 500 ? 'upstream'
       : 'unknown';
-    if (code === 'auth') window.dispatchEvent(new Event(AUTH_REQUIRED_EVENT));
     throw new ApiError(message, code, response.status);
   }
 

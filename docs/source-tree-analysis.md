@@ -24,7 +24,6 @@ industry-family-tree/
 │   │   ├── Breadcrumb.tsx                   # Navigation breadcrumbs
 │   │   ├── ContextMenu.tsx                  # Right-click context menu
 │   │   ├── MiniMap.tsx                      # Map overview
-│   │   ├── PasswordPrompt.tsx               # Auth prompt (production)
 │   │   │
 │   │   ├── ModalWrapper.tsx                 # Modal container wrapper
 │   │   ├── ModalContent.tsx                 # Base modal content
@@ -178,7 +177,7 @@ The React application source code. Contains all UI components, business logic, a
 - **Modal Components**: ModalWrapper, AddPredictionModalContent, CrossPollinateModalContent, etc.
 - **Sidebar Components**: LeftSidebar, RightSidebar, CenterPanel
 - **Display Components**: PriorArtDisplay, TimelineView, IndustryBranch, HistoryPanel
-- **UI Components**: PasswordPrompt, ContextMenu, Breadcrumb, MiniMap, AIAssistant
+- **UI Components**: ContextMenu, MiniMap, AIAssistant
 
 ### Hooks (`src/hooks/`)
 

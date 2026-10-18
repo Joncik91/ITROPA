@@ -4,7 +4,7 @@ import react from '@vitejs/plugin-react'
 import { sqliteMirrorPlugin } from './vite-plugin-sqlite-mirror'
 import { devApiPlugin } from './vite-plugin-dev-api'
 
-const SERVER_ENV_KEYS = ['GEMINI_API_KEY', 'GEMINI_MODEL', 'APP_PASSWORD'] as const
+const SERVER_ENV_KEYS = ['GEMINI_API_KEY', 'GEMINI_MODEL'] as const
 
 export default defineConfig(({ mode }) => {
   // Expose server-only secrets from .env to the dev API middleware (never to the client bundle).

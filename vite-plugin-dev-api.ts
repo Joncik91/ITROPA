@@ -39,7 +39,7 @@ function send(res: ServerResponse, status: number, body: unknown, headers: Recor
 }
 
 /**
- * Serves /api/gemini, /api/ai-assistant and /api/auth from the same core module the Vercel
+ * Serves /api/gemini and /api/ai-assistant from the same core module the Vercel
  * functions use, so `npm run dev` works end-to-end with the API key kept server-side.
  */
 export function devApiPlugin(): Plugin {
@@ -50,7 +50,6 @@ export function devApiPlugin(): Plugin {
       const routes: Record<string, (core: typeof Core, req: Core.CoreRequest) => Core.CoreResponse | Promise<Core.CoreResponse>> = {
         '/api/gemini': (core, req) => core.handleGenerate(req, 0.9),
         '/api/ai-assistant': (core, req) => core.handleGenerate(req, 0.7),
-        '/api/auth': (core, req) => core.handleAuth(req),
       };
 
       server.middlewares.use(async (req, res, next) => {
