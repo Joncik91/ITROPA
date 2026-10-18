@@ -1,7 +1,10 @@
 /**
- * Generic framework analyzer for running multiple analytical frameworks in parallel.
- * Follows Open/Closed Principle - extend by adding new framework definitions, not modifying code.
+ * Runs several analytical-framework prompts in parallel against the AI.
+ * Concurrency is bounded by the API client; partial failures are tolerated,
+ * total failure is reported as an error rather than an empty "success".
  */
+
+import { normalizeFrameworkResults } from './ai-normalizers';
 
 export interface FrameworkDefinition<T extends string = string> {
   /** Unique identifier for this framework */
@@ -15,95 +18,26 @@ export interface FrameworkAnalysisOptions {
   maxTokens?: number;
   /** Number of retry attempts (default: 1) */
   retries?: number;
-  /** Custom error handler */
-  onError?: (type: string, error: Error) => void;
 }
 
-/**
- * Run multiple analytical frameworks in parallel against an AI API.
- *
- * @param frameworks - Array of framework definitions with type and prompt
- * @param apiCall - Function to call the AI API
- * @param options - Configuration options
- * @returns Array of successful analysis results (failures are filtered out)
- *
- * @example
- * ```ts
- * const results = await runFrameworkAnalysis(
- *   [
- *     { type: 'functional', prompt: '...' },
- *     { type: 'structural', prompt: '...' },
- *   ],
- *   (prompt, maxTokens) => apiClient.callGemini(prompt, maxTokens),
- *   { maxTokens: 3000 }
- * );
- * ```
- */
 export async function runFrameworkAnalysis<TResult, TType extends string = string>(
   frameworks: FrameworkDefinition<TType>[],
-  apiCall: (prompt: string, maxTokens: number, retries: number) => Promise<TResult>,
+  apiCall: (prompt: string, maxTokens: number, retries: number) => Promise<unknown>,
   options: FrameworkAnalysisOptions = {}
 ): Promise<TResult[]> {
-  const {
-    maxTokens = 3000,
-    retries = 1,
-    onError = (type, err) => console.error(`Failed to generate ${type} analysis:`, err)
-  } = options;
+  const { maxTokens = 3000, retries = 1 } = options;
 
-  const analyses = await Promise.all(
-    frameworks.map(({ type, prompt }) =>
-      apiCall(prompt, maxTokens, retries).catch((err: Error) => {
-        onError(type, err);
-        return null;
-      })
-    )
+  const settled = await Promise.allSettled(frameworks.map(({ prompt }) => apiCall(prompt, maxTokens, retries)));
+
+  const failures = settled.flatMap((r, i) => (r.status === 'rejected' ? [{ type: frameworks[i].type, error: r.reason }] : []));
+  for (const f of failures) console.warn(`Framework "${f.type}" failed:`, f.error);
+
+  const results = normalizeFrameworkResults<TResult>(
+    settled.flatMap((r) => (r.status === 'fulfilled' ? [r.value] : [])),
   );
-
-  return analyses.filter((analysis) => analysis !== null) as TResult[];
-}
-
-/**
- * Create a framework definition with type inference.
- * Helper function for better TypeScript support when defining frameworks.
- */
-export function defineFramework<T extends string>(
-  type: T,
-  prompt: string
-): FrameworkDefinition<T> {
-  return { type, prompt };
-}
-
-/**
- * Builder class for constructing framework analyses with fluent API.
- * Useful when dynamically building framework definitions.
- */
-export class FrameworkAnalysisBuilder<TResult> {
-  private frameworks: FrameworkDefinition[] = [];
-  private options: FrameworkAnalysisOptions = {};
-
-  addFramework(type: string, prompt: string): this {
-    this.frameworks.push({ type, prompt });
-    return this;
+  if (results.length === 0 && frameworks.length > 0) {
+    const first = failures[0]?.error;
+    throw first instanceof Error ? first : new Error('All analyses failed.');
   }
-
-  withMaxTokens(maxTokens: number): this {
-    this.options.maxTokens = maxTokens;
-    return this;
-  }
-
-  withRetries(retries: number): this {
-    this.options.retries = retries;
-    return this;
-  }
-
-  withErrorHandler(handler: (type: string, error: Error) => void): this {
-    this.options.onError = handler;
-    return this;
-  }
-
-  async execute(
-    apiCall: (prompt: string, maxTokens: number, retries: number) => Promise<TResult>
-  ): Promise<TResult[]> {
-    return runFrameworkAnalysis<TResult>(this.frameworks, apiCall, this.options);
-  }
+  return results;
 }

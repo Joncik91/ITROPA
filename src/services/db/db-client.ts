@@ -1,15 +1,18 @@
-import Dexie, { Table } from 'dexie';
-import type { Need, IndustryExpression, AppConcept } from '../../types';
+import Dexie, { Table, type Transaction } from 'dexie';
+import type { Need, IndustryExpression, AppConcept, DeepDiveDetails, MechanismDetails, PriorArt } from '../../types';
+import { rekeyNeedExpressions, resolveExpression } from './migrations';
+import { mirrorMiddleware } from './mirror.service';
 
-// Database Schema Design:
-// 1. needs - Store complete Need objects with all nested data
-// 2. mechanisms - Cache mechanism analysis results
-// 3. deepDives - Cache deep dive analysis results
-// 4. crossPollinates - Store cross-pollination results
-// 5. searchCache - Cache prior art and generation results
-// 6. patternAnalyses - Pattern analysis results
-// 7. priorArtAnalyses - Prior art analysis results
-// 8. chainAnalyses - Chain analysis results
+// Tables:
+// needs            - complete Need objects (eras, tree)
+// mechanisms       - mechanism analyses, keyed by expression id
+// deepDives        - deep dive analyses, keyed by expression id
+// crossPollinates  - cross-pollination results, keyed by sorted expression id pair
+// searchCache      - prior art per normalized need name
+// patternAnalyses  - pattern analyses, keyed by normalized pattern name
+// priorArtAnalyses - prior art framework analyses, keyed by normalized need name
+// chainAnalyses    - inspiration chain analyses, keyed by expression id
+// appConcepts      - app concepts, keyed by expression id
 
 export interface DBNeed extends Need {
   createdAt: number;
@@ -20,19 +23,7 @@ export interface DBMechanism {
   id: string; // IndustryExpression.id
   expressionName: string;
   needId: string;
-  details: {
-    coreMechanism?: string;
-    abstractPattern?: string;
-    historicalApplications?: Array<{
-      domain: string;
-      era: string;
-      implementation: string;
-    }>;
-    futureApplications?: Array<{
-      domain: string;
-      potential: string;
-    }>;
-  };
+  details: MechanismDetails[];
   createdAt: number;
 }
 
@@ -40,20 +31,12 @@ export interface DBDeepDive {
   id: string; // IndustryExpression.id
   expressionName: string;
   needId: string;
-  details: {
-    marketOpportunity?: string;
-    keyEnablers?: string[];
-    challenges?: Array<{
-      challenge: string;
-      potentialSolution: string;
-    }>;
-    timeline?: string;
-  };
+  details: DeepDiveDetails;
   createdAt: number;
 }
 
 export interface DBCrossPollinate {
-  id: string; // Composite of two expression IDs
+  id: string; // Sorted pair of expression IDs
   expression1Id: string;
   expression2Id: string;
   expression1Name: string;
@@ -65,14 +48,14 @@ export interface DBCrossPollinate {
 export interface DBSearchCache {
   key: string; // Normalized need name
   needName: string;
-  priorArt: any;
+  priorArt: PriorArt;
   createdAt: number;
 }
 
 export interface DBPatternAnalysis {
   id: string; // Pattern name normalized as key
   patternName: string;
-  analyses: any[]; // Array of PatternAnalysis objects (5 frameworks)
+  analyses: any[]; // PatternAnalysis objects (one per framework)
   mechanismCount: number;
   createdAt: number;
 }
@@ -80,26 +63,82 @@ export interface DBPatternAnalysis {
 export interface DBPriorArtAnalysis {
   id: string; // Need name normalized as key
   needName: string;
-  analyses: any[]; // Array of PriorArtAnalysis objects (5 frameworks)
+  analyses: any[]; // PriorArtAnalysis objects (one per framework)
   createdAt: number;
 }
 
 export interface DBChainAnalysis {
-  id: string; // Expression ID as key
+  id: string; // Expression ID
   expressionId: string;
   expressionName: string;
   needId: string;
-  analyses: any[]; // Array of ChainAnalysis objects (5 frameworks)
+  analyses: any[]; // ChainAnalysis objects (one per framework)
   createdAt: number;
 }
 
 export interface DBAppConcept {
-  id: string;              // industryId
+  id: string;              // Expression ID
   industryName: string;
   needId: string;
   concepts: AppConcept[];
   deepDiveAvailable: boolean;
   createdAt: number;
+}
+
+const SCHEMA_V5 = {
+  needs: 'id, name, createdAt, updatedAt',
+  mechanisms: 'id, needId, expressionName, createdAt',
+  deepDives: 'id, needId, expressionName, createdAt',
+  crossPollinates: 'id, expression1Id, expression2Id, createdAt',
+  searchCache: 'key, needName, createdAt',
+  patternAnalyses: 'id, patternName, mechanismCount, createdAt',
+  priorArtAnalyses: 'id, needName, createdAt',
+  chainAnalyses: 'id, expressionId, needId, createdAt',
+  appConcepts: 'id, industryName, needId, createdAt',
+};
+
+export const ALL_TABLES = Object.keys(SCHEMA_V5) as Array<keyof typeof SCHEMA_V5>;
+
+/** Re-key a table whose primary key is an expression ID, fixing needId along the way. */
+async function rekeyExpressionTable(
+  tx: Transaction,
+  tableName: string,
+  nameOf: (row: any) => string | undefined,
+  mapping: ReturnType<typeof rekeyNeedExpressions>,
+  extra?: (row: any, newId: string) => void,
+) {
+  const table = tx.table(tableName);
+  const rows = await table.toArray();
+  for (const row of rows) {
+    const ref = resolveExpression(mapping, row.id, nameOf(row), row.needId);
+    if (!ref || ref.newId === row.id) continue;
+    await table.delete(row.id);
+    extra?.(row, ref.newId);
+    await table.put({ ...row, id: ref.newId, needId: ref.needId });
+  }
+}
+
+export async function migrateToV6(tx: Transaction): Promise<void> {
+  const needsTable = tx.table('needs');
+  const needs = await needsTable.toArray();
+  const mapping = rekeyNeedExpressions(needs);
+  await needsTable.bulkPut(needs);
+
+  await rekeyExpressionTable(tx, 'mechanisms', (r) => r.expressionName, mapping);
+  await rekeyExpressionTable(tx, 'deepDives', (r) => r.expressionName, mapping);
+  await rekeyExpressionTable(tx, 'chainAnalyses', (r) => r.expressionName, mapping, (row, newId) => { row.expressionId = newId; });
+  await rekeyExpressionTable(tx, 'appConcepts', (r) => r.industryName, mapping);
+
+  const cross = tx.table('crossPollinates');
+  for (const row of await cross.toArray()) {
+    const a = resolveExpression(mapping, row.expression1Id, row.expression1Name);
+    const b = resolveExpression(mapping, row.expression2Id, row.expression2Name);
+    if (!a || !b) continue;
+    const id = [a.newId, b.newId].sort().join('_');
+    if (id === row.id) continue;
+    await cross.delete(row.id);
+    await cross.put({ ...row, id, expression1Id: a.newId, expression2Id: b.newId });
+  }
 }
 
 class IndustryFamilyTreeDB extends Dexie {
@@ -117,58 +156,19 @@ class IndustryFamilyTreeDB extends Dexie {
     super('IndustryFamilyTreeDB');
 
     this.version(1).stores({
-      needs: 'id, name, createdAt, updatedAt',
-      mechanisms: 'id, needId, expressionName, createdAt',
-      deepDives: 'id, needId, expressionName, createdAt',
-      crossPollinates: 'id, expression1Id, expression2Id, createdAt',
-      searchCache: 'key, needName, createdAt'
+      needs: SCHEMA_V5.needs,
+      mechanisms: SCHEMA_V5.mechanisms,
+      deepDives: SCHEMA_V5.deepDives,
+      crossPollinates: SCHEMA_V5.crossPollinates,
+      searchCache: SCHEMA_V5.searchCache,
     });
+    this.version(2).stores({ patternAnalyses: SCHEMA_V5.patternAnalyses });
+    this.version(3).stores({ priorArtAnalyses: SCHEMA_V5.priorArtAnalyses });
+    this.version(4).stores({ chainAnalyses: SCHEMA_V5.chainAnalyses });
+    this.version(5).stores({ appConcepts: SCHEMA_V5.appConcepts });
+    this.version(6).stores(SCHEMA_V5).upgrade(migrateToV6);
 
-    // Add pattern analyses table in version 2
-    this.version(2).stores({
-      needs: 'id, name, createdAt, updatedAt',
-      mechanisms: 'id, needId, expressionName, createdAt',
-      deepDives: 'id, needId, expressionName, createdAt',
-      crossPollinates: 'id, expression1Id, expression2Id, createdAt',
-      searchCache: 'key, needName, createdAt',
-      patternAnalyses: 'id, patternName, mechanismCount, createdAt'
-    });
-
-    // Add prior art analyses table in version 3
-    this.version(3).stores({
-      needs: 'id, name, createdAt, updatedAt',
-      mechanisms: 'id, needId, expressionName, createdAt',
-      deepDives: 'id, needId, expressionName, createdAt',
-      crossPollinates: 'id, expression1Id, expression2Id, createdAt',
-      searchCache: 'key, needName, createdAt',
-      patternAnalyses: 'id, patternName, mechanismCount, createdAt',
-      priorArtAnalyses: 'id, needName, createdAt'
-    });
-
-    // Add chain analyses table in version 4
-    this.version(4).stores({
-      needs: 'id, name, createdAt, updatedAt',
-      mechanisms: 'id, needId, expressionName, createdAt',
-      deepDives: 'id, needId, expressionName, createdAt',
-      crossPollinates: 'id, expression1Id, expression2Id, createdAt',
-      searchCache: 'key, needName, createdAt',
-      patternAnalyses: 'id, patternName, mechanismCount, createdAt',
-      priorArtAnalyses: 'id, needName, createdAt',
-      chainAnalyses: 'id, expressionId, needId, createdAt'
-    });
-
-    // Add app concepts table in version 5
-    this.version(5).stores({
-      needs: 'id, name, createdAt, updatedAt',
-      mechanisms: 'id, needId, expressionName, createdAt',
-      deepDives: 'id, needId, expressionName, createdAt',
-      crossPollinates: 'id, expression1Id, expression2Id, createdAt',
-      searchCache: 'key, needName, createdAt',
-      patternAnalyses: 'id, patternName, mechanismCount, createdAt',
-      priorArtAnalyses: 'id, needName, createdAt',
-      chainAnalyses: 'id, expressionId, needId, createdAt',
-      appConcepts: 'id, industryName, needId, createdAt'
-    });
+    this.use(mirrorMiddleware);
   }
 }
 

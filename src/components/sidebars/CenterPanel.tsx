@@ -3,36 +3,32 @@
  * Contains the main canvas with NeedView and toolbar.
  */
 
-import { useState, useEffect } from "react";
-import { Lightbulb, Maximize2, Minimize2, PanelRight, Target } from "lucide-react";
+import { useState, useEffect, useCallback } from "react";
+import { Lightbulb, Loader2, Maximize2, Minimize2, PanelRight, Target } from "lucide-react";
 import { NeedView } from "../NeedView";
-import { Breadcrumb } from "../Breadcrumb";
 import { IndustryBranch } from "../IndustryBranch";
-import type { IndustryExpression, Need, Era, HomePageManager, ConstraintsProfile, DeepDiveDetails } from "../../types";
+import { ErrorBoundary } from "../ErrorBoundary";
+import type { IndustryExpression, ConstraintsProfile, DeepDiveDetails } from "../../types";
+import type { NeedManager } from "../../hooks/useNeedManager";
 import type { Theme } from "../../config/theme";
 import { calculateMatchScore, MatchScoreResult } from "../../utils/match-score";
 import { DBService } from "../../services/db.service";
-import toast from "react-hot-toast";
 
 export interface CenterPanelProps {
   theme: Theme;
   dark: boolean;
-  manager: HomePageManager;
+  manager: NeedManager;
   scrollContainerRef: React.RefObject<HTMLDivElement>;
   viewDensity: "compact" | "comfortable";
   setViewDensity: (density: "compact" | "comfortable") => void;
-  breadcrumbPath: string[];
   rightSidebarOpen: boolean;
   setRightSidebarOpen: (open: boolean) => void;
-  analyzedExpressions: {
-    mechanisms: Set<string>;
-    deepDives: Set<string>;
-    appConcepts?: Set<string>;
-  };
   constraintsProfile: ConstraintsProfile;
   filterEnabled: boolean;
   setFilterEnabled: (enabled: boolean) => void;
 }
+
+const FILTER_THRESHOLD = 40;
 
 export const CenterPanel = ({
   theme,
@@ -41,82 +37,42 @@ export const CenterPanel = ({
   scrollContainerRef,
   viewDensity,
   setViewDensity,
-  breadcrumbPath,
   rightSidebarOpen,
   setRightSidebarOpen,
-  analyzedExpressions,
   constraintsProfile,
   filterEnabled,
   setFilterEnabled,
 }: CenterPanelProps) => {
-  // Cache of deep dive data for match score calculation
   const [deepDiveCache, setDeepDiveCache] = useState<Map<string, DeepDiveDetails>>(new Map());
+  const activeNeedId = manager.activeNeed?.id;
+  const { deepDives: analyzedDeepDives } = manager.analyzed;
 
-  // Load deep dive data for scoring
+  // Deep dive details feed the match score; reload when the need or its analyses change.
   useEffect(() => {
-    const loadDeepDives = async () => {
-      if (!manager.activeNeed) return;
+    let alive = true;
+    setDeepDiveCache(new Map());
+    if (!activeNeedId) return;
+    DBService.getDeepDivesByNeed(activeNeedId)
+      .then((dives) => {
+        if (!alive) return;
+        setDeepDiveCache(new Map(dives.filter((d) => d.details?.marketOpportunity).map((d) => [d.id, d.details])));
+      })
+      .catch((e) => console.error('Failed to load deep dives for scoring:', e));
+    return () => { alive = false; };
+  }, [activeNeedId, analyzedDeepDives]);
 
-      try {
-        const deepDives = await DBService.getDeepDivesByNeed(manager.activeNeed.id);
-        const cache = new Map<string, DeepDiveDetails>();
-        for (const dd of deepDives) {
-          // Type assertion since DB may have partial data
-          if (dd.details?.marketOpportunity) {
-            cache.set(dd.id, dd.details as DeepDiveDetails);
-          }
-        }
-        setDeepDiveCache(cache);
-      } catch (e) {
-        console.error('Failed to load deep dives for scoring:', e);
-      }
-    };
+  const getMatchScore = useCallback((expr: IndustryExpression): MatchScoreResult | null => {
+    const deepDive = deepDiveCache.get(expr.id);
+    return deepDive ? calculateMatchScore(expr, deepDive, constraintsProfile) : null;
+  }, [deepDiveCache, constraintsProfile]);
 
-    loadDeepDives();
-  }, [manager.activeNeed?.id, analyzedExpressions.deepDives]);
+  const scoredCount = deepDiveCache.size;
 
-  // Calculate match score for an expression
-  const getMatchScore = (expr: IndustryExpression): MatchScoreResult | null => {
-    // Only show match scores for industries with deep dive data
-    const deepDive = deepDiveCache.get(expr.id) || null;
-    if (!deepDive) return null;
-
-    return calculateMatchScore(expr, deepDive, constraintsProfile);
-  };
-  const renderBranch = (expr: IndustryExpression, depth: number, needId: string): JSX.Element => {
-
-    // Delete handler for user-added expressions
-    const handleDelete = expr.userAdded ? () => {
-      // Find and remove the expression from the need's predictions
-      const need = manager.needs.find((n: Need) => n.id === needId);
-      if (!need) return;
-
-      const removeFromTree = (expressions: IndustryExpression[]): IndustryExpression[] => {
-        return expressions.filter(e => e.id !== expr.id).map(e => ({
-          ...e,
-          children: removeFromTree(e.children || [])
-        }));
-      };
-
-      const updatedEras = need.eras.map((era: Era) => ({
-        ...era,
-        expressions: removeFromTree(era.expressions as IndustryExpression[])
-      }));
-
-      manager.setNeeds((prev: Need[]) =>
-        prev.map((n: Need) => n.id === needId ? { ...n, eras: updatedEras } : n)
-      );
-
-      toast.success("Prediction deleted");
-    } : undefined;
-
-    // Get match score for this expression
+  const renderBranch = (expr: IndustryExpression, depth: number, needId: string): JSX.Element | null => {
     const matchScore = getMatchScore(expr);
-
-    // Filter out low-scoring items if filter is enabled
-    if (filterEnabled && matchScore && matchScore.score < 40) {
-      return <></>;  // Don't render low-scoring items when filter is on
-    }
+    // A low-scoring parent stays visible (dimmed) when any descendant could still match.
+    const hidden = filterEnabled && matchScore && matchScore.score < FILTER_THRESHOLD && !(expr.children?.length);
+    if (hidden) return null;
 
     return (
       <IndustryBranch
@@ -125,117 +81,136 @@ export const CenterPanel = ({
         depth={depth}
         needId={needId}
         isExpanded={!!manager.expandedBranches[expr.id]}
-        isLoading={manager.branchLoading === expr.id}
-        isSelected={manager.selected?.id === expr.id}
-        isCrossSelected={manager.crossPollinate.items.some((i: any) => i.id === expr.id)}
+        isBranching={manager.isBranching(expr.id)}
+        isCrossSelected={manager.crossPollinate.items.some((i) => i.id === expr.id)}
+        dimmed={!!(filterEnabled && matchScore && matchScore.score < FILTER_THRESHOLD)}
         theme={theme}
-        branchLoading={manager.branchLoading}
-        mechanismLoading={manager.mechanismLoading}
-        deepDiveLoading={manager.deepDiveLoading}
-        appConceptsLoading={manager.appConceptsLoading}
-        hasMechanism={analyzedExpressions.mechanisms.has(expr.id)}
-        hasDeepDive={analyzedExpressions.deepDives.has(expr.id)}
-        hasAppConcepts={analyzedExpressions.appConcepts?.has(expr.id)}
+        mechanismLoading={manager.isPending("mechanism", expr.id)}
+        deepDiveLoading={manager.isPending("deepDive", expr.id)}
+        appConceptsLoading={manager.isPending("appConcepts", expr.id)}
+        hasMechanism={manager.analyzed.mechanisms.has(expr.id)}
+        hasDeepDive={manager.analyzed.deepDives.has(expr.id)}
+        hasAppConcepts={manager.analyzed.appConcepts.has(expr.id)}
         matchScore={matchScore}
-        onToggleExpand={() => manager.setExpandedBranches((p: any) => ({ ...p, [expr.id]: !p[expr.id] }))}
+        onToggleExpand={() => manager.setExpandedBranches((p) => ({ ...p, [expr.id]: !p[expr.id] }))}
         onBranch={() => manager.branchIndustry(expr, needId)}
         onFetchMechanism={() => manager.fetchMechanism(expr)}
         onFetchDeepDive={() => manager.fetchDeepDive(expr)}
-        onFetchAppConcepts={() => manager.fetchAppConcepts(expr, needId)}
+        onFetchAppConcepts={() => manager.fetchAppConcepts(expr)}
         onToggleCross={() => manager.toggleCrossItem(expr)}
-        onAddSubIndustry={() => manager.setModal({ open: true, needId, parentId: expr.id })}
-        onDelete={handleDelete}
+        onDropCross={(dragged) => manager.selectCrossPair(dragged, expr)}
+        onAddSubIndustry={() => manager.openAddModal(needId, expr.id)}
+        onDelete={() => manager.deleteExpression(needId, expr.id)}
         viewDensity={viewDensity}
         renderBranch={renderBranch}
       />
     );
   };
 
-  return (
-    <div className="flex-1 overflow-y-auto">
-      {!manager.needs.length && !manager.loading ? (
+  if (!manager.needs.length) {
+    return (
+      <div className="flex-1 overflow-y-auto">
         <div className="flex items-center justify-center h-full p-8">
-          <div className="text-center max-w-md">
-            <Lightbulb className={`w-16 h-16 ${theme.muted} mx-auto mb-4 opacity-50`} />
-            <h2 className="text-xl font-semibold mb-2">Innovation = Prior Art + New Context</h2>
-            <p className={`text-sm ${theme.muted} mb-6`}>
-              Research the "best known art" for any human need, then generate future industries as recombinations of existing solutions.
-            </p>
-            <p className={`text-xs ${theme.muted}`}>
-              Choose a suggested need from the sidebar to get started.
-            </p>
+          <div className="text-center max-w-md" aria-live="polite">
+            {manager.loading ? (
+              <>
+                <Loader2 className={`w-12 h-12 ${theme.accent} mx-auto mb-4 animate-spin`} />
+                <h2 className="text-lg font-semibold mb-1">Building your research tree</h2>
+                <p className={`text-sm ${theme.muted}`}>{manager.loadingStage || "Working..."}</p>
+              </>
+            ) : (
+              <>
+                <Lightbulb className={`w-16 h-16 ${theme.muted} mx-auto mb-4 opacity-50`} />
+                <h2 className="text-xl font-semibold mb-2">Innovation = Prior Art + New Context</h2>
+                <p className={`text-sm ${theme.muted} mb-6`}>
+                  Research the "best known art" for any human need, then generate future industries as recombinations of existing solutions.
+                </p>
+                <p className={`text-xs ${theme.muted}`}>
+                  Search for a need or choose a suggestion from the sidebar to get started.
+                </p>
+              </>
+            )}
           </div>
         </div>
-      ) : manager.activeNeed ? (
-        <div className="flex flex-col h-full">
-          {/* Toolbar */}
-          <div className="flex items-center justify-between px-6 py-3 border-b border-gray-700 flex-shrink-0">
-            <div className="flex items-center gap-2">
-              {breadcrumbPath.length > 0 && (
-                <Breadcrumb path={breadcrumbPath} theme={theme} />
-              )}
-            </div>
-            <div className="flex items-center gap-2">
-              {/* Match Score Filter Toggle */}
-              <button
-                onClick={() => setFilterEnabled(!filterEnabled)}
-                className={`px-2 py-1 text-xs flex items-center gap-1.5 rounded-lg border transition-colors ${
-                  filterEnabled
-                    ? "bg-emerald-500/20 text-emerald-300 border-emerald-500/50"
-                    : `${theme.border} ${theme.hover}`
-                }`}
-                title={filterEnabled ? "Showing only matching industries (score >= 40)" : "Show all industries"}
-              >
-                <Target className="w-3.5 h-3.5" />
-                {filterEnabled ? "Filtered" : "Filter"}
-              </button>
+      </div>
+    );
+  }
 
-              {/* View Density Toggle */}
-              <div className={`flex items-center rounded-lg border ${theme.border} overflow-hidden`}>
-                <button
-                  onClick={() => setViewDensity("comfortable")}
-                  className={`px-2 py-1 text-xs flex items-center gap-1.5 transition-colors ${
-                    viewDensity === "comfortable" ? "bg-gray-500/20 text-gray-300" : theme.hover
-                  }`}
-                  title="Comfortable view"
-                >
-                  <Maximize2 className="w-3.5 h-3.5" />
-                </button>
-                <button
-                  onClick={() => setViewDensity("compact")}
-                  className={`px-2 py-1 text-xs flex items-center gap-1.5 transition-colors ${
-                    viewDensity === "compact" ? "bg-gray-500/20 text-gray-300" : theme.hover
-                  }`}
-                  title="Compact view"
-                >
-                  <Minimize2 className="w-3.5 h-3.5" />
-                </button>
-              </div>
-            </div>
+  if (!manager.activeNeed) return <div className="flex-1" />;
 
-            {/* Mobile Right Sidebar Toggle */}
+  return (
+    <div className="flex-1 overflow-hidden flex flex-col min-w-0">
+      {/* Toolbar */}
+      <div className="flex items-center justify-between gap-2 px-6 py-3 border-b border-gray-700 flex-shrink-0">
+        <div className={`text-xs ${theme.muted} truncate`} aria-live="polite">
+          {manager.loading && manager.loadingStage ? (
+            <span className="flex items-center gap-1.5"><Loader2 className="w-3 h-3 animate-spin" />{manager.loadingStage}</span>
+          ) : null}
+        </div>
+        <div className="flex items-center gap-2">
+          <button
+            onClick={() => setFilterEnabled(!filterEnabled)}
+            disabled={scoredCount === 0 && !filterEnabled}
+            aria-pressed={filterEnabled}
+            className={`px-2 py-1 text-xs flex items-center gap-1.5 rounded-lg border transition-colors disabled:opacity-40 ${
+              filterEnabled
+                ? "bg-emerald-500/20 text-emerald-300 border-emerald-500/50"
+                : `${theme.border} ${theme.hover}`
+            }`}
+            title={
+              scoredCount === 0
+                ? "Run a deep dive on a prediction to score it against your builder profile"
+                : filterEnabled ? `Hiding scored industries below ${FILTER_THRESHOLD}%` : "Hide industries that don't match your profile"
+            }
+          >
+            <Target className="w-3.5 h-3.5" />
+            {filterEnabled ? "Filtered" : "Filter"}
+          </button>
+
+          <div className={`flex items-center rounded-lg border ${theme.border} overflow-hidden`} role="group" aria-label="View density">
             <button
-              onClick={() => setRightSidebarOpen(!rightSidebarOpen)}
-              className={`md:hidden px-3 py-1.5 rounded flex items-center gap-2 ${theme.btn} transition-colors text-xs`}
+              onClick={() => setViewDensity("comfortable")}
+              aria-pressed={viewDensity === "comfortable"}
+              className={`px-2 py-1 text-xs flex items-center gap-1.5 transition-colors ${viewDensity === "comfortable" ? "bg-gray-500/20 text-gray-300" : theme.hover}`}
+              title="Comfortable view"
+              aria-label="Comfortable view"
             >
-              <PanelRight className="w-3.5 h-3.5" />
-              {rightSidebarOpen ? 'Hide' : 'Show'} Assistant
+              <Maximize2 className="w-3.5 h-3.5" />
+            </button>
+            <button
+              onClick={() => setViewDensity("compact")}
+              aria-pressed={viewDensity === "compact"}
+              className={`px-2 py-1 text-xs flex items-center gap-1.5 transition-colors ${viewDensity === "compact" ? "bg-gray-500/20 text-gray-300" : theme.hover}`}
+              title="Compact view"
+              aria-label="Compact view"
+            >
+              <Minimize2 className="w-3.5 h-3.5" />
             </button>
           </div>
 
-          {/* Content */}
-          <div ref={scrollContainerRef} className="flex-1 overflow-y-auto p-4 md:p-6">
-            <NeedView
-              need={manager.activeNeed}
-              theme={theme}
-              dark={dark}
-              renderBranch={renderBranch}
-              onAddPrediction={() => manager.setModal({ open: true, needId: manager.activeNeed!.id, parentId: null })}
-              onFetchNeed={manager.fetchNeed}
-            />
-          </div>
+          <button
+            onClick={() => setRightSidebarOpen(!rightSidebarOpen)}
+            className={`md:hidden px-3 py-1.5 rounded flex items-center gap-2 ${theme.btn} transition-colors text-xs`}
+            aria-expanded={rightSidebarOpen}
+          >
+            <PanelRight className="w-3.5 h-3.5" />
+            {rightSidebarOpen ? 'Hide' : 'Show'} Assistant
+          </button>
         </div>
-      ) : null}
+      </div>
+
+      <div ref={scrollContainerRef} className="flex-1 overflow-y-auto p-4 md:p-6">
+        <ErrorBoundary label={`"${manager.activeNeed.name}"`} resetKey={manager.activeNeed.id}>
+          <NeedView
+            need={manager.activeNeed}
+            theme={theme}
+            dark={dark}
+            renderBranch={renderBranch}
+            onAddPrediction={() => manager.openAddModal(manager.activeNeed!.id, null)}
+            onFetchNeed={manager.fetchNeed}
+          />
+        </ErrorBoundary>
+      </div>
     </div>
   );
 };

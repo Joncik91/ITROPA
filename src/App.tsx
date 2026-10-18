@@ -1,203 +1,197 @@
-import { useState, useEffect } from "react";
-import { Sun, Moon, Keyboard, BookOpen, Shapes, Home, FileText } from "lucide-react";
+import { useState, useCallback, lazy, Suspense } from "react";
+import { Sun, Moon, Keyboard, BookOpen, Shapes, Home, FileText, Layers, TrendingUp, Rocket, Loader2 } from "lucide-react";
 import { Toaster } from 'react-hot-toast';
 import { getTheme } from "./config/theme";
 import { useTheme } from "./hooks/useTheme";
 import { useKeyboardShortcuts } from "./hooks/useKeyboardShortcuts";
 import { useNeedManager } from "./hooks/useNeedManager";
 import { ModalWrapper } from "./components/ModalWrapper";
+import { ErrorBoundary } from "./components/ErrorBoundary";
 import { HomePage } from "./components/HomePage";
-import { LibraryView } from "./components/LibraryView";
-import { PatternsView } from "./components/PatternsView";
-import { PasswordPrompt } from "./components/PasswordPrompt";
-import { 
-  MechanismModalContent, 
-  DeepDiveModalContent, 
+import {
+  MechanismModalContent,
+  DeepDiveModalContent,
   CrossPollinateModalContent,
   AddPredictionModalContent,
-  KeyboardShortcutsModalContent 
+  KeyboardShortcutsModalContent,
+  AppConceptModalContent,
 } from "./components/ModalContent";
-import { Layers, TrendingUp } from "lucide-react";
+
+// Secondary pages load on demand to keep the initial bundle small.
+const LibraryView = lazy(() => import("./components/LibraryView").then(m => ({ default: m.LibraryView })));
+const PatternsView = lazy(() => import("./components/PatternsView").then(m => ({ default: m.PatternsView })));
+
+const DOCS_URL = "https://github.com/Joncik91/ITROPA/tree/main/docs";
+
+type Page = "home" | "library" | "patterns";
 
 export default function App() {
   const [showKeys, setShowKeys] = useState(false);
-  const [page, setPage] = useState<"home" | "library" | "patterns">("home");
-  const [authenticated, setAuthenticated] = useState(false);
-  const [checkingAuth, setCheckingAuth] = useState(true);
-  const [passwordRequired, setPasswordRequired] = useState(false);
+  const [page, setPage] = useState<Page>("home");
 
   const { dark, toggleTheme } = useTheme();
   const theme = getTheme(dark);
-  
-  // IMPORTANT: Always call hooks before any conditional returns
   const manager = useNeedManager();
 
-  // Check authentication on mount
-  useEffect(() => {
-    const checkAuth = async () => {
-      try {
-        const response = await fetch('/api/auth');
-        const data = await response.json();
-        if (data.required) {
-          setPasswordRequired(true);
-          const isAuth = localStorage.getItem('authenticated') === 'true';
-          setAuthenticated(isAuth);
-        } else {
-          // No password configured — open access
-          setPasswordRequired(false);
-          setAuthenticated(true);
-        }
-      } catch {
-        // If the API is unreachable (e.g. local dev without Vercel), allow access
-        setPasswordRequired(false);
-        setAuthenticated(true);
-      } finally {
-        setCheckingAuth(false);
-      }
-    };
-    checkAuth();
-  }, []);
+  const closeAll = useCallback(() => {
+    manager.closeAllModals();
+    setShowKeys(false);
+  }, [manager.closeAllModals]);
 
   useKeyboardShortcuts({
     needs: manager.needs,
     activeTab: manager.activeTab,
-    modalOpen: manager.modal.open,
+    modalOpen: manager.anyModalOpen || showKeys,
     onTabChange: manager.setActiveTab,
-    onCloseModals: () => {
-      manager.closeAllModals();
-      setShowKeys(false);
-    },
+    onCloseModals: closeAll,
     onToggleShortcuts: () => setShowKeys(p => !p),
     onUndo: manager.undo,
     onRedo: manager.redo,
   });
 
-  // Show loading or password prompt
-  if (checkingAuth) {
-    return null;
-  }
+  const openFromLibrary = useCallback(async (needId: string) => {
+    if (await manager.openNeed(needId)) setPage("home");
+  }, [manager.openNeed]);
 
-  if (passwordRequired && !authenticated) {
+  const toaster = (
+    <Toaster
+      position="bottom-right"
+      toastOptions={{
+        duration: 4000,
+        style: {
+          background: dark ? '#1e293b' : '#ffffff',
+          color: dark ? '#e2e8f0' : '#1e293b',
+          border: dark ? '1px solid #334155' : '1px solid #cbd5e1',
+          maxWidth: 420,
+        },
+        success: { iconTheme: { primary: '#10b981', secondary: '#ffffff' } },
+        error: { duration: 6000, iconTheme: { primary: '#ef4444', secondary: '#ffffff' } },
+        loading: { iconTheme: { primary: '#6366f1', secondary: '#ffffff' } },
+      }}
+    />
+  );
+
+  if (!manager.ready) {
     return (
-      <>
-        <PasswordPrompt 
-          onAuthenticated={() => setAuthenticated(true)}
-          theme={theme}
-          dark={dark}
-        />
-        <Toaster position="bottom-right" />
-      </>
+      <div className={`min-h-screen flex items-center justify-center ${theme.bg} ${theme.text}`} aria-busy="true">
+        <Loader2 className={`w-8 h-8 animate-spin ${theme.accent}`} aria-label="Loading" />
+      </div>
     );
   }
 
-  const loadNeedFromLibrary = (need: any) => {
-    const existing = manager.needs.find(n => n.id === need.id);
-    if (!existing) {
-      manager.fetchNeed(need.name);
-    } else {
-      manager.setActiveTab(need.id);
-    }
-    setPage("home");
-  };
+  const navButton = (target: Page, label: string, Icon: typeof Home) => (
+    <button
+      onClick={() => setPage(target)}
+      className={`p-2 rounded-lg ${page === target ? "bg-gray-500/20 text-gray-300" : theme.hover}`}
+      title={label}
+      aria-label={label}
+      aria-current={page === target ? "page" : undefined}
+    >
+      <Icon className="w-4 h-4" />
+    </button>
+  );
+
+  const { mechanism, deepDive, appConcepts } = manager;
 
   return (
     <div className={`min-h-screen ${theme.bg} ${theme.text} transition-colors duration-200`}>
       <div className="flex flex-col h-screen">
-        <header className="flex items-center justify-between px-6 py-4 border-b border-gray-700 flex-shrink-0">
-          <div>
-            <h1 className="text-2xl font-bold">ITROPA</h1>
-          </div>
-          <div className="flex gap-2">
-            <button 
-              onClick={() => setPage("home")} 
-              className={`p-2 rounded-lg ${page === "home" ? "bg-gray-500/20 text-gray-300" : theme.hover}`}
-              title="Home"
-            >
-              <Home className="w-4 h-4" />
-            </button>
-            <button 
-              onClick={() => setPage("library")} 
-              className={`p-2 rounded-lg ${page === "library" ? "bg-gray-500/20 text-gray-300" : theme.hover}`}
-              title="Library"
-            >
-              <BookOpen className="w-4 h-4" />
-            </button>
-            <button 
-              onClick={() => setPage("patterns")} 
-              className={`p-2 rounded-lg ${page === "patterns" ? "bg-gray-500/20 text-gray-300" : theme.hover}`}
-              title="Pattern Library"
-            >
-              <Shapes className="w-4 h-4" />
-            </button>
-            <button 
-              onClick={() => window.open('/docs/index.html', '_blank')} 
-              className={`p-2 rounded-lg ${theme.hover}`} 
-              title="Documentation"
-            >
+        <header className="flex items-center justify-between pl-16 md:pl-6 pr-6 py-4 border-b border-gray-700 flex-shrink-0">
+          <h1 className="text-2xl font-bold">ITROPA</h1>
+          <nav className="flex gap-2" aria-label="Main">
+            {navButton("home", "Home", Home)}
+            {navButton("library", "Library", BookOpen)}
+            {navButton("patterns", "Pattern Library", Shapes)}
+            <a href={DOCS_URL} target="_blank" rel="noopener noreferrer" className={`p-2 rounded-lg ${theme.hover}`} title="Documentation" aria-label="Documentation">
               <FileText className="w-4 h-4" />
+            </a>
+            <button onClick={() => setShowKeys(true)} className={`p-2 rounded-lg ${theme.hover}`} title="Keyboard Shortcuts" aria-label="Keyboard shortcuts">
+              <Keyboard className="w-4 h-4" />
             </button>
-            <button onClick={() => setShowKeys(true)} className={`p-2 rounded-lg ${theme.hover}`} title="Keyboard Shortcuts"><Keyboard className="w-4 h-4" /></button>
-            <button onClick={toggleTheme} className={`p-2 rounded-lg ${theme.hover}`} title="Toggle Theme">{dark ? <Sun className="w-4 h-4" /> : <Moon className="w-4 h-4" />}</button>
-          </div>
+            <button onClick={toggleTheme} className={`p-2 rounded-lg ${theme.hover}`} title="Toggle Theme" aria-label={dark ? "Switch to light theme" : "Switch to dark theme"}>
+              {dark ? <Sun className="w-4 h-4" /> : <Moon className="w-4 h-4" />}
+            </button>
+          </nav>
         </header>
 
-        <div className="flex-1 overflow-hidden">
-          {page === "library" ? (
-            <div className="h-full overflow-auto px-6 py-4">
-              <LibraryView theme={theme} dark={dark} onLoadNeed={loadNeedFromLibrary} />
-            </div>
-          ) : page === "patterns" ? (
-            <div className="h-full overflow-auto px-6 py-4">
-              <PatternsView theme={theme} dark={dark} onLoadNeed={loadNeedFromLibrary} />
-            </div>
-          ) : (
-            <HomePage theme={theme} dark={dark} manager={manager} />
-          )}
-        </div>
+        <main className="flex-1 overflow-hidden">
+          <ErrorBoundary label={page === "home" ? "the workspace" : page === "library" ? "the library" : "the pattern library"} resetKey={page}>
+            <Suspense fallback={<div className="flex justify-center py-16"><Loader2 className={`w-6 h-6 animate-spin ${theme.accent}`} /></div>}>
+              {page === "library" ? (
+                <div className="h-full overflow-auto px-6 py-4">
+                  <LibraryView theme={theme} dark={dark} onOpenNeed={openFromLibrary} onDeleteNeed={manager.removeNeed} onClearAll={manager.clearAllData} />
+                </div>
+              ) : page === "patterns" ? (
+                <div className="h-full overflow-auto px-6 py-4">
+                  <PatternsView theme={theme} dark={dark} onOpenNeed={openFromLibrary} />
+                </div>
+              ) : (
+                <HomePage theme={theme} dark={dark} manager={manager} />
+              )}
+            </Suspense>
+          </ErrorBoundary>
+        </main>
 
-        {/* Modals */}
         <ModalWrapper
-          isOpen={!!manager.mechanism}
+          isOpen={!!mechanism}
           onClose={() => manager.setMechanism(null)}
-          title={`Mechanism: ${manager.mechanism?.name || ""}`}
+          title={`Mechanism: ${mechanism?.expressionName ?? ""}`}
           icon={<Layers className={`w-5 h-5 ${theme.accent}`} />}
           theme={theme}
         >
-          {manager.mechanism && (
-            <MechanismModalContent 
-              mechanism={manager.mechanism} 
-              theme={theme} 
+          {mechanism && (
+            <MechanismModalContent
+              mechanism={mechanism.details}
+              theme={theme}
               dark={dark}
-              aiSuggestions={manager.mechanismAISuggestions}
-              onAIAssist={() => manager.requestMechanismAIAssist(manager.mechanism.id)}
-              aiLoading={manager.aiLoading}
+              aiSuggestions={manager.mechanismSuggestions?.targetId === mechanism.expressionId ? manager.mechanismSuggestions.response : null}
+              onAIAssist={() => manager.requestMechanismAIAssist(mechanism.expressionId)}
+              aiLoading={manager.isAILoading("mechanism")}
               onExecuteAction={manager.executeAIAction}
             />
           )}
         </ModalWrapper>
 
         <ModalWrapper
-          isOpen={!!manager.deepDive}
+          isOpen={!!deepDive}
           onClose={() => manager.setDeepDive(null)}
-          title={`Deep Dive: ${manager.deepDive?.name || ""}`}
+          title={`Deep Dive: ${deepDive?.expressionName ?? ""}`}
           icon={<TrendingUp className={`w-5 h-5 ${theme.accent}`} />}
           theme={theme}
         >
-          {manager.deepDive && (
-            <DeepDiveModalContent 
-              deepDive={manager.deepDive} 
+          {deepDive && (
+            <DeepDiveModalContent
+              deepDive={deepDive.details}
               theme={theme}
-              aiSuggestions={manager.deepDiveAISuggestions}
-              onAIAssist={() => manager.requestDeepDiveAIAssist(manager.deepDive.id)}
-              aiLoading={manager.aiLoading}
+              aiSuggestions={manager.deepDiveSuggestions?.targetId === deepDive.expressionId ? manager.deepDiveSuggestions.response : null}
+              onAIAssist={() => manager.requestDeepDiveAIAssist(deepDive.expressionId)}
+              aiLoading={manager.isAILoading("deepDive")}
               onExecuteAction={manager.executeAIAction}
+            />
+          )}
+        </ModalWrapper>
+
+        <ModalWrapper
+          isOpen={!!appConcepts}
+          onClose={() => manager.setAppConcepts(null)}
+          title={`App Concepts: ${appConcepts?.expressionName ?? ""}`}
+          icon={<Rocket className={`w-5 h-5 ${theme.accent}`} />}
+          theme={theme}
+          maxWidth="max-w-2xl"
+        >
+          {appConcepts && (
+            <AppConceptModalContent
+              concepts={appConcepts.details}
+              industryName={appConcepts.expressionName}
+              theme={theme}
+              dark={dark}
             />
           )}
         </ModalWrapper>
 
         <ModalWrapper
           isOpen={manager.crossPollinate.open}
-          onClose={() => manager.setCrossPollinate(p => ({ ...p, open: false }))}
+          onClose={manager.closeCrossPollinate}
           title="Cross-Pollinate Industries"
           theme={theme}
         >
@@ -206,14 +200,17 @@ export default function App() {
             crossLoading={manager.crossLoading}
             theme={theme}
             onExecute={manager.executeCrossPollinate}
+            onRegenerate={() => manager.executeCrossPollinate({ regenerate: true })}
+            onReset={manager.resetCrossPollinate}
             needs={manager.needs}
-            onAddToNeed={manager.addCrossPollinationResult}
+            activeNeedId={manager.activeTab}
+            onAddToNeed={(result, needId) => manager.addCrossPollinationResult(result, needId, manager.crossPollinate.items)}
           />
         </ModalWrapper>
 
         <ModalWrapper
           isOpen={manager.modal.open}
-          onClose={() => manager.setModal({ open: false, needId: null, parentId: null })}
+          onClose={manager.closeAddModal}
           title="Add Prediction"
           theme={theme}
           maxWidth="max-w-md"
@@ -223,7 +220,7 @@ export default function App() {
             theme={theme}
             isSubBranch={!!manager.modal.parentId}
             onFormChange={(updates) => manager.setFormData(f => ({ ...f, ...updates }))}
-            onCancel={() => manager.setModal({ open: false, needId: null, parentId: null })}
+            onCancel={manager.closeAddModal}
             onSubmit={manager.addPrediction}
           />
         </ModalWrapper>
@@ -237,37 +234,8 @@ export default function App() {
         >
           <KeyboardShortcutsModalContent theme={theme} />
         </ModalWrapper>
-
       </div>
-      <Toaster
-        position="bottom-right"
-        toastOptions={{
-          duration: 4000,
-          style: {
-            background: dark ? '#1e293b' : '#ffffff',
-            color: dark ? '#e2e8f0' : '#1e293b',
-            border: dark ? '1px solid #334155' : '1px solid #cbd5e1',
-          },
-          success: {
-            iconTheme: {
-              primary: '#10b981',
-              secondary: '#ffffff',
-            },
-          },
-          error: {
-            iconTheme: {
-              primary: '#ef4444',
-              secondary: '#ffffff',
-            },
-          },
-          loading: {
-            iconTheme: {
-              primary: '#6366f1',
-              secondary: '#ffffff',
-            },
-          },
-        }}
-      />
+      {toaster}
     </div>
   );
 }

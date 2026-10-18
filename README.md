@@ -4,62 +4,46 @@ An interactive tool for exploring human needs and generating future industry pre
 
 ## Setup
 
-### Local Development
+### Local development
 
-1. **Install dependencies:**
-   ```bash
-   npm install
-   ```
+```bash
+npm install
+cp .env.example .env      # then set GEMINI_API_KEY (https://aistudio.google.com/app/apikey)
+npm run dev               # http://localhost:5173
+```
 
-2. **Get a Gemini API key:**
-   - Visit https://aistudio.google.com/app/apikey
-   - Create a new API key
-   - Copy the key
+`npm run dev` serves the same `/api/*` handlers as production through Vite middleware, so the
+API key stays server-side in development too. Data lives in the browser (IndexedDB); in dev it is
+also mirrored to `local-mirror.db` (SQLite) so it survives browser storage resets.
 
-3. **Configure your API key:**
-   - Copy `.env.example` to `.env`
-   - Replace `your_gemini_api_key_here` with your actual API key:
-     ```
-     GEMINI_API_KEY=your_actual_api_key
-     ```
+| Variable | Required | Purpose |
+|----------|----------|---------|
+| `GEMINI_API_KEY` | yes | Google AI Studio key (server-side only) |
+| `GEMINI_MODEL` | no | Model id, default `gemini-2.5-flash` |
 
-4. **Run the development server:**
-   ```bash
-   npm run dev
-   ```
+Never prefix these with `VITE_`: Vite inlines `VITE_*` variables into the browser bundle.
 
-5. **Open your browser:**
-   - The app will be available at `http://localhost:5173`
+### Checks
 
-### Vercel Deployment (Secure Remote Access)
+```bash
+npm run typecheck   # app, API functions, and Vite config
+npm test            # unit + IndexedDB migration tests (Vitest)
+npm run check       # typecheck + test + production build
+```
 
-**Important:** This app uses Vercel Serverless Functions to protect your API key. Never expose your Gemini API key in the browser.
+### Vercel deployment
 
-1. **Install Vercel CLI:**
-   ```bash
-   npm install -g vercel
-   ```
+1. `npm install -g vercel && vercel`
+2. In Project Settings → Environment Variables, add `GEMINI_API_KEY` (and optionally
+   `GEMINI_MODEL`) for all environments.
+3. `vercel --prod`
 
-2. **Deploy to Vercel:**
-   ```bash
-   vercel
-   ```
-
-3. **Set environment variables:**
-   - In Vercel Dashboard, go to: Project Settings → Environment Variables
-   - Add `GEMINI_API_KEY` = `your_actual_api_key`
-   - Optionally add `APP_PASSWORD` = `your_secure_password` to enable password protection
-   - Select all environments (Production, Preview, Development)
-
-4. **Redeploy:**
-   ```bash
-   vercel --prod
-   ```
-
-**Security:** 
-- Your API key is stored as a Vercel environment variable and only accessible by serverless functions
-- Password protection is **opt-in**: set `APP_PASSWORD` to enable it; leave it unset for open access
-- No authentication required when `APP_PASSWORD` is not configured
+**Security model**
+- The Gemini key exists only in the serverless functions.
+- There is no login: anyone who can reach the deployment can use the AI endpoints (and your Gemini
+  quota). Keep the URL private, or put Vercel Deployment Protection in front if that matters.
+- Request bodies are validated and bounded: prompt size, token and temperature ranges.
+- No wildcard CORS. The API is same-origin only.
 
 ## Features
 
@@ -114,17 +98,25 @@ An interactive tool for exploring human needs and generating future industry pre
 
 ## Architecture
 
-### Secure API Design
-
 ```
-Browser → Vercel Serverless Function → Google Gemini API
-         (No API key)        (Has API key)      (Protected)
+Browser (React SPA, IndexedDB)
+   │  same-origin fetch, ≤4 concurrent, retries transient errors only
+   ▼
+/api/gemini · /api/ai-assistant      ← Vercel functions (prod) / Vite middleware (dev)
+   │  api/_lib/core.ts: validation, Gemini call, error mapping
+   ▼
+Google Gemini (JSON mode)
 ```
 
-- **Frontend:** React app (no secrets)
-- **Backend:** Vercel Serverless Functions (`/api` directory)
-- **Storage:** IndexedDB (local browser storage)
-- **API Key:** Stored as Vercel environment variable
+- **State:** `src/hooks/need-manager/*`, composed by `useNeedManager`. Async operations read the
+  latest state through refs, so concurrent AI results never overwrite each other. Every tree
+  mutation is persisted and undoable (Ctrl/⌘+Z, Ctrl/⌘+Y).
+- **AI output:** never trusted. `src/utils/need-model.ts` and `src/utils/ai-normalizers.ts` assign
+  client-side IDs and guarantee shapes before anything reaches state or storage.
+- **Storage:** Dexie (IndexedDB), schema v6. The v6 migration makes legacy expression IDs globally
+  unique and re-attaches cached analyses to the correct need.
+- **Workspace:** open tabs and the active need are remembered per browser. Closing a tab keeps the
+  need in the Library.
 
 ## Technologies
 
@@ -133,6 +125,8 @@ Browser → Vercel Serverless Function → Google Gemini API
 - Vite
 - Tailwind CSS
 - Framer Motion
-- Google Gemini AI (2.5-flash)
+- Google Gemini (default `gemini-2.5-flash`, configurable)
 - Lucide React Icons
 - Vercel Serverless Functions
+- Dexie (IndexedDB)
+- Vitest

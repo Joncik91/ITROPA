@@ -1,136 +1,137 @@
-// API Client for calling backend Vercel functions or direct Gemini API in dev mode
-// Use environment variable to determine if we're using local or production API
+/**
+ * Client for the server-side AI endpoints (/api/gemini, /api/ai-assistant).
+ *
+ * - The Gemini key never reaches the browser; the same endpoints are served by
+ *   Vercel in production and by the Vite dev middleware locally.
+ * - Requests are capped in flight so 5-framework fan-outs don't trip rate limits.
+ * - Only transient failures (network, 429, 5xx) are retried, with jittered backoff.
+ */
 
-import { extractJSON } from "../utils/json-parser";
+import { extractJSON } from '../utils/json-parser';
 
-const API_BASE_URL = import.meta.env.VITE_API_URL || '';
-const GEMINI_API_KEY = import.meta.env.VITE_GEMINI_API_KEY;
-const IS_DEV_MODE = !API_BASE_URL && GEMINI_API_KEY;
+export type ApiErrorCode =
+  | 'quota' | 'timeout' | 'network' | 'invalid' | 'config'
+  | 'model' | 'blocked' | 'empty' | 'parse' | 'upstream' | 'unknown';
 
-// Log the mode on initialization
-if (IS_DEV_MODE) {
-  console.log('🔧 Development Mode: Using direct Gemini API calls');
-} else {
-  console.log('🚀 Production Mode: Using backend API endpoints');
-}
-
-class APIClient {
-  private async callDirectGemini(prompt: string, maxTokens: number, temperature: number): Promise<any> {
-    if (!GEMINI_API_KEY) {
-      throw new Error("VITE_GEMINI_API_KEY not found in environment variables");
-    }
-
-    const response = await fetch(
-      `https://generativelanguage.googleapis.com/v1beta/models/gemma-3-27b-it:generateContent?key=${GEMINI_API_KEY}`,
-      {
-        method: 'POST',
-        headers: {
-          'Content-Type': 'application/json',
-        },
-        body: JSON.stringify({
-          contents: [{
-            parts: [{ text: prompt }]
-          }],
-          generationConfig: {
-            temperature,
-            maxOutputTokens: maxTokens,
-          }
-        })
-      }
-    );
-
-    if (!response.ok) {
-      const errorData = await response.json();
-      throw new Error(errorData.error?.message || `HTTP ${response.status}`);
-    }
-
-    const data = await response.json();
-    const text = data.candidates?.[0]?.content?.parts?.[0]?.text;
-    
-    if (!text) {
-      throw new Error("No response text from Gemini API");
-    }
-
-    return extractJSON(text);
+export class ApiError extends Error {
+  constructor(message: string, readonly code: ApiErrorCode, readonly status?: number) {
+    super(message);
+    this.name = 'ApiError';
   }
 
-  private async callAPI(
-    endpoint: string, 
-    prompt: string, 
-    maxTokens: number = 8000, 
-    temperature: number = 0.9,
-    retries: number = 1
-  ): Promise<any> {
-    // In dev mode, call Gemini directly
-    if (IS_DEV_MODE) {
-      for (let attempt = 0; attempt <= retries; attempt++) {
-        try {
-          return await this.callDirectGemini(prompt, maxTokens, temperature);
-        } catch (e: any) {
-          console.error(`Direct API attempt ${attempt + 1} failed:`, e.message);
-          
-          if (e.message?.includes("quota") || e.message?.includes("429")) {
-            throw new Error("API quota exceeded. Please wait a minute or upgrade your Gemini API plan at https://ai.google.dev/pricing");
-          }
-          
-          if (attempt === retries) {
-            throw new Error(`API Error: ${e.message || "Unknown error"}`);
-          }
-          
-          await new Promise(r => setTimeout(r, 2000));
-        }
-      }
-    }
+  get retryable(): boolean {
+    return ['quota', 'timeout', 'network', 'upstream', 'empty', 'parse'].includes(this.code);
+  }
+}
 
-    // In production, call backend API
-    for (let attempt = 0; attempt <= retries; attempt++) {
+const REQUEST_TIMEOUT_MS = 70_000;
+const MAX_CONCURRENT = 4;
+
+// ============ Concurrency limiter ============
+
+let active = 0;
+const waiting: Array<() => void> = [];
+
+async function withSlot<T>(task: () => Promise<T>): Promise<T> {
+  if (active >= MAX_CONCURRENT) {
+    // The releasing task hands its slot over directly, so `active` never dips below
+    // the cap in between and a newcomer cannot jump the queue.
+    await new Promise<void>((resolve) => waiting.push(resolve));
+  } else {
+    active++;
+  }
+  try {
+    return await task();
+  } finally {
+    const next = waiting.shift();
+    if (next) next();
+    else active--;
+  }
+}
+
+const sleep = (ms: number) => new Promise((r) => setTimeout(r, ms));
+
+function backoffDelay(attempt: number, error: ApiError): number {
+  const base = error.code === 'quota' ? 8000 : 1500;
+  return base * 2 ** attempt + Math.random() * 500;
+}
+
+async function postOnce(endpoint: string, body: object): Promise<string> {
+  const controller = new AbortController();
+  const timer = setTimeout(() => controller.abort(), REQUEST_TIMEOUT_MS);
+
+  // The timeout covers the whole exchange, including a body that stalls mid-stream.
+  let response: Response;
+  let payload: { text?: unknown; error?: unknown; code?: unknown } = {};
+  try {
+    response = await fetch(`/api/${endpoint}`, {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify(body),
+      signal: controller.signal,
+    });
+    const raw = await response.text();
+    try {
+      payload = raw ? JSON.parse(raw) : {};
+    } catch {
+      /* Error pages from proxies/CDNs may not be JSON; the status below still applies. */
+    }
+  } catch {
+    if (controller.signal.aborted) throw new ApiError('The request timed out.', 'timeout');
+    throw new ApiError('Network error — check your connection.', 'network');
+  } finally {
+    clearTimeout(timer);
+  }
+
+  if (!response.ok) {
+    const message = typeof payload.error === 'string' ? payload.error : `Request failed (HTTP ${response.status})`;
+    const code: ApiErrorCode =
+      typeof payload.code === 'string' ? (payload.code as ApiErrorCode)
+      : response.status === 429 ? 'quota'
+      : response.status === 504 ? 'timeout'
+      : response.status >= 500 ? 'upstream'
+      : 'unknown';
+    throw new ApiError(message, code, response.status);
+  }
+
+  if (typeof payload.text !== 'string' || !payload.text.trim()) {
+    throw new ApiError('The AI returned an empty response.', 'empty', response.status);
+  }
+  return payload.text;
+}
+
+export interface CallOptions {
+  maxTokens?: number;
+  retries?: number;
+}
+
+async function call<T>(endpoint: string, prompt: string, temperature: number, opts: CallOptions = {}): Promise<T> {
+  const { maxTokens = 4000, retries = 1 } = opts;
+
+  for (let attempt = 0; ; attempt++) {
+    try {
+      const text = await withSlot(() => postOnce(endpoint, { prompt, maxTokens, temperature }));
       try {
-        const response = await fetch(`${API_BASE_URL}/api/${endpoint}`, {
-          method: 'POST',
-          headers: {
-            'Content-Type': 'application/json',
-          },
-          body: JSON.stringify({
-            prompt,
-            maxTokens,
-            temperature,
-          }),
-        });
-
-        if (!response.ok) {
-          const errorData = await response.json();
-          throw new Error(errorData.error || `HTTP ${response.status}`);
-        }
-
-        const data = await response.json();
-        return extractJSON(data.text);
-      } catch (e: any) {
-        console.error(`Attempt ${attempt + 1} failed:`, e.message);
-        
-        // Check for quota/rate limit errors
-        if (e.message?.includes("quota") || e.message?.includes("429")) {
-          throw new Error("API quota exceeded. Please wait a minute or upgrade your Gemini API plan at https://ai.google.dev/pricing");
-        }
-        
-        if (attempt === retries) {
-          throw new Error(`API Error: ${e.message || "Unknown error"}`);
-        }
-        
-        await new Promise(r => setTimeout(r, 2000));
+        return extractJSON<T>(text);
+      } catch (e) {
+        throw new ApiError(`The AI returned malformed JSON (${(e as Error).message}).`, 'parse');
       }
+    } catch (e) {
+      const error = e instanceof ApiError ? e : new ApiError(String((e as Error)?.message ?? e), 'unknown');
+      if (!error.retryable || attempt >= retries) throw error;
+      await sleep(backoffDelay(attempt, error));
     }
-  }
-
-  // Gemini API calls (for main content generation)
-  async callGemini(prompt: string, maxTokens: number = 8000, retries: number = 1): Promise<any> {
-    return this.callAPI('gemini', prompt, maxTokens, 0.9, retries);
-  }
-
-  // AI Assistant API calls (for chat/assistance)
-  async callAIAssistant(prompt: string, maxTokens: number = 8000, retries: number = 1): Promise<any> {
-    return this.callAPI('ai-assistant', prompt, maxTokens, 0.7, retries);
   }
 }
 
-// Singleton instance
-export const apiClient = new APIClient();
+export const apiClient = {
+  /** Main content generation. Returns parsed JSON. */
+  callGemini<T = unknown>(prompt: string, maxTokens = 4000, retries = 1): Promise<T> {
+    return call<T>('gemini', prompt, 0.9, { maxTokens, retries });
+  },
+
+  /** Assistant suggestions. Returns parsed JSON. */
+  callAIAssistant<T = unknown>(prompt: string, maxTokens = 3000, retries = 1): Promise<T> {
+    return call<T>('ai-assistant', prompt, 0.7, { maxTokens, retries });
+  },
+};

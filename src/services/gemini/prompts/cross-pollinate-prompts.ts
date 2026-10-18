@@ -39,8 +39,6 @@ ${JSON_ARRAY_ONLY}
 
 [
   {
-    "id": "cross-1",
-    "type": "future",
     "name": "Clear hybrid name",
     "mutation": "What specifically enables this combination (technology, market shift, etc)",
     "insight": "Why this combination creates exponentially more value than either alone",
@@ -56,8 +54,6 @@ ${JSON_ARRAY_ONLY}
     "children": []
   },
   {
-    "id": "cross-2",
-    "type": "future",
     "name": "Different hybrid using Substitution strategy",
     "mutation": "What enables this",
     "insight": "Why valuable",
@@ -70,8 +66,6 @@ ${JSON_ARRAY_ONLY}
     "children": []
   },
   {
-    "id": "cross-3",
-    "type": "future",
     "name": "Complementary combination",
     "mutation": "Enabler",
     "insight": "Value",
@@ -84,8 +78,6 @@ ${JSON_ARRAY_ONLY}
     "children": []
   },
   {
-    "id": "cross-4",
-    "type": "future",
     "name": "Sequential enablement combination",
     "mutation": "Enabler",
     "insight": "Value",
@@ -98,8 +90,6 @@ ${JSON_ARRAY_ONLY}
     "children": []
   },
   {
-    "id": "cross-5",
-    "type": "future",
     "name": "Contradiction synthesis combination",
     "mutation": "Enabler",
     "insight": "Value",

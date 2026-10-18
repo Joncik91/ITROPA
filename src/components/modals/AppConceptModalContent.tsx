@@ -89,6 +89,15 @@ const ConceptCard = ({
         dark ? 'bg-gray-800/50 border-gray-700 hover:border-gray-600' : 'bg-white border-gray-200 hover:border-gray-300'
       }`}
       onClick={onToggle}
+      role="button"
+      tabIndex={0}
+      aria-expanded={expanded}
+      onKeyDown={(e) => {
+        if (e.key === 'Enter' || e.key === ' ') {
+          e.preventDefault();
+          onToggle();
+        }
+      }}
     >
       {/* Header */}
       <div className="flex items-start justify-between mb-2">
@@ -139,7 +148,7 @@ const ConceptCard = ({
           <div>
             <p className={`text-xs ${theme.muted} mb-1`}>Tech Stack</p>
             <div className="flex flex-wrap gap-1">
-              {concept.techStack.map((tech, i) => (
+              {(concept.techStack ?? []).map((tech, i) => (
                 <span key={i} className={`text-xs px-2 py-0.5 rounded ${theme.itemBgAlt}`}>
                   {tech}
                 </span>
@@ -169,7 +178,7 @@ const ConceptCard = ({
           </div>
 
           {/* Risks */}
-          {concept.risks && concept.risks.length > 0 && (
+          {Array.isArray(concept.risks) && concept.risks.length > 0 && (
             <div>
               <p className={`text-xs ${theme.muted} mb-1`}>Risks</p>
               <ul className="space-y-1">

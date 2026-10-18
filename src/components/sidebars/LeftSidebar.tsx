@@ -4,11 +4,13 @@
  */
 
 import { useState, useRef, useEffect } from "react";
+import type { NeedManager } from "../../hooks/useNeedManager";
+import { expressionAncestors, getFutureExpressions } from "../../utils/need-model";
 import { motion } from "framer-motion";
 import { Search, Loader2, AlertCircle, Shuffle, Download, ChevronDown, ChevronRight, BookOpen, X, Settings } from "lucide-react";
 import { getIcon, SUGGESTED_NEEDS } from "../../config/constants";
 import { MiniMap } from "../MiniMap";
-import type { Need, HomePageManager, ConstraintsProfile } from "../../types";
+import type { Need, ConstraintsProfile } from "../../types";
 import type { Theme } from "../../config/theme";
 import { exportAsJSON, exportAsMarkdown, exportAsCSV } from "../../utils/export";
 import { ConstraintsSettingsModal } from "../modals/ConstraintsSettingsModal";
@@ -17,14 +19,10 @@ import toast from "react-hot-toast";
 export interface LeftSidebarProps {
   theme: Theme;
   dark: boolean;
-  manager: HomePageManager;
+  manager: NeedManager;
   isOpen: boolean;
   onClose: () => void;
   scrollContainerRef: React.RefObject<HTMLDivElement>;
-  analyzedExpressions: {
-    mechanisms: Set<string>;
-    deepDives: Set<string>;
-  };
   constraintsProfile: ConstraintsProfile;
   onSaveConstraints: (profile: ConstraintsProfile) => void;
 }
@@ -34,9 +32,8 @@ export const LeftSidebar = ({
   dark,
   manager,
   isOpen,
-  onClose: _onClose,
+  onClose,
   scrollContainerRef,
-  analyzedExpressions,
   constraintsProfile,
   onSaveConstraints,
 }: LeftSidebarProps) => {
@@ -65,8 +62,8 @@ export const LeftSidebar = ({
     const exportData = {
       need: manager.activeNeed,
       analyzedExpressions: {
-        mechanisms: Array.from(analyzedExpressions.mechanisms),
-        deepDives: Array.from(analyzedExpressions.deepDives),
+        mechanisms: Array.from(manager.analyzed.mechanisms),
+        deepDives: Array.from(manager.analyzed.deepDives),
       },
     };
 
@@ -93,11 +90,29 @@ export const LeftSidebar = ({
   };
 
   const handleSearch = () => {
-    if (search.trim()) {
-      manager.fetchNeed(search.trim(), searchDescription.trim() || undefined);
-      setSearch("");
-      setSearchDescription("");
+    if (!search.trim() || manager.loading) return;
+    void manager.fetchNeed(search.trim(), searchDescription.trim() || undefined);
+    setSearch("");
+    setSearchDescription("");
+    onClose();
+  };
+
+  /** Expand the path to a node in the main tree, then scroll it into view and flash it. */
+  const revealExpression = (exprId: string) => {
+    const need = manager.activeNeed;
+    if (!need) return;
+    const ancestors = expressionAncestors(getFutureExpressions(need), exprId) ?? [];
+    if (ancestors.length) {
+      manager.setExpandedBranches((prev) => ({ ...prev, ...Object.fromEntries(ancestors.map((id) => [id, true])) }));
     }
+    onClose();
+    // Wait for the expand animation to mount the target.
+    window.setTimeout(() => {
+      const el = scrollContainerRef.current?.querySelector<HTMLElement>(`[data-expr-id="${CSS.escape(exprId)}"]`);
+      if (!el) return;
+      el.scrollIntoView({ behavior: "smooth", block: "center" });
+      el.animate([{ outline: "2px solid rgb(245 158 11)" }, { outline: "2px solid transparent" }], { duration: 1200 });
+    }, ancestors.length ? 250 : 0);
   };
 
   return (
@@ -114,6 +129,8 @@ export const LeftSidebar = ({
               onChange={e => setSearch(e.target.value)}
               onKeyDown={e => e.key === "Enter" && !e.shiftKey && handleSearch()}
               placeholder="Search needs (e.g., vibecoder)..."
+              aria-label="Need to research"
+              maxLength={200}
               className={`w-full pl-10 pr-4 py-4 rounded-lg ${theme.inputBg} border focus:outline-none focus:border-gray-500 text-sm transition-colors`}
             />
             {manager.loading && (
@@ -124,6 +141,8 @@ export const LeftSidebar = ({
             value={searchDescription}
             onChange={e => setSearchDescription(e.target.value)}
             placeholder="Optional: What do you mean by this? (e.g., 'A person without coding skills who uses AI to program')"
+            aria-label="Optional description of the need"
+            maxLength={1000}
             className={`w-full px-3 py-3 rounded-lg ${theme.inputBg} border focus:outline-none focus:border-gray-500 text-sm transition-colors resize-none overflow-hidden leading-relaxed`}
             rows={3}
           />
@@ -159,8 +178,12 @@ export const LeftSidebar = ({
                   }`}
                 >
                   <button
-                    onClick={() => manager.setActiveTab(n.id)}
-                    className="flex-1 text-left font-medium"
+                    onClick={() => {
+                      manager.setActiveTab(n.id);
+                      onClose();
+                    }}
+                    className="flex-1 text-left font-medium truncate"
+                    aria-current={manager.activeTab === n.id ? "true" : undefined}
                   >
                     {n.name}
                   </button>
@@ -173,6 +196,7 @@ export const LeftSidebar = ({
                       dark ? 'hover:bg-gray-600' : 'hover:bg-gray-200'
                     }`}
                     title="Close (keeps in library)"
+                    aria-label={`Close ${n.name} (keeps it in the library)`}
                   >
                     <X className="w-3 h-3" />
                   </button>
@@ -284,7 +308,10 @@ export const LeftSidebar = ({
                 return (
                   <button
                     key={s.name}
-                    onClick={() => manager.fetchNeed(s.name)}
+                    onClick={() => {
+                      void manager.fetchNeed(s.name);
+                      onClose();
+                    }}
                     className={`w-full flex items-center gap-2 px-3 py-2 rounded-lg border ${theme.card} ${theme.border} ${theme.hover} transition-all text-sm`}
                   >
                     <Icon className={`w-4 h-4 ${theme.accent}`} />
@@ -303,7 +330,10 @@ export const LeftSidebar = ({
             <div className="space-y-1">
               {manager.crossPollinate.items.length > 0 && (
                 <button
-                  onClick={() => manager.setCrossPollinate((p: any) => ({ ...p, open: true }))}
+                  onClick={() => {
+                    manager.openCrossPollinate();
+                    onClose();
+                  }}
                   className="w-full px-3 py-2 rounded-lg bg-amber-500/20 text-amber-300 text-xs flex items-center gap-2"
                 >
                   <Shuffle className="w-4 h-4" />
@@ -361,7 +391,7 @@ export const LeftSidebar = ({
             <MiniMap
               eras={manager.activeNeed.eras}
               theme={theme}
-              scrollContainerRef={scrollContainerRef}
+              onNodeClick={revealExpression}
             />
           </div>
         )}

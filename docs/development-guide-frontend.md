@@ -453,12 +453,9 @@ GEMINI_API_KEY=your_api_key  # For local development
 
 ### Using Environment Variables
 
-```tsx
-// In component or service
-const apiKey = import.meta.env.VITE_GEMINI_API_KEY;
-
-// Note: Only variables prefixed with VITE_ are exposed to frontend
-```
+Secrets are server-side only: `GEMINI_API_KEY` and `GEMINI_MODEL` are read
+by `api/_lib/core.ts` (Vercel functions in production, Vite dev middleware locally). Never
+prefix them with `VITE_`, because Vite inlines `VITE_*` variables into the client bundle.
 
 ### For Production (Vercel)
 

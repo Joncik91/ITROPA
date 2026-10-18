@@ -1,32 +1,15 @@
 import { geminiClient } from '../gemini-client';
 import { buildAppConceptPrompt } from '../prompts/app-concept-prompts';
+import { normalizeAppConcepts } from '../../../utils/ai-normalizers';
 import type { IndustryExpression, DeepDiveDetails, AppConcept } from '../../../types';
 
 /**
  * Operations for generating app concepts
  */
 export class AppConceptOperation {
-  /**
-   * Generate app concepts for an industry
-   */
-  async generateConcepts(
-    industry: IndustryExpression,
-    deepDive?: DeepDiveDetails
-  ): Promise<AppConcept[]> {
-    const prompt = buildAppConceptPrompt(industry, deepDive);
-
-    // Longer timeout for complex generation (5 seconds)
-    const result = await geminiClient.callAPI(prompt, 5000);
-
-    // Handle response format - may be wrapped in { concepts: [...] } or be array directly
-    if (result && result.concepts && Array.isArray(result.concepts)) {
-      return result.concepts;
-    }
-
-    if (Array.isArray(result)) {
-      return result;
-    }
-
-    throw new Error('Invalid response format from app concept generation');
+  async generateConcepts(industry: IndustryExpression, deepDive?: DeepDiveDetails): Promise<AppConcept[]> {
+    const concepts = normalizeAppConcepts(await geminiClient.callAPI(buildAppConceptPrompt(industry, deepDive), 5000));
+    if (concepts.length === 0) throw new Error('The AI returned no app concepts.');
+    return concepts;
   }
 }

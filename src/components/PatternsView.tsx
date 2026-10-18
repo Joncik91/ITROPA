@@ -1,5 +1,5 @@
 import { motion } from "framer-motion";
-import { Loader2, Layers, ArrowRight, TrendingUp, Network, Target, Shuffle, BarChart3 } from "lucide-react";
+import { Loader2, Layers, ArrowRight, TrendingUp, Network, Target, Shuffle, BarChart3, RefreshCw, AlertCircle } from "lucide-react";
 import { usePatterns } from "../hooks/usePatterns";
 import { createRatingBadgeGetter } from "../utils/badge-styles";
 import { getFrameworkLabel } from "../config/analysis-frameworks";
@@ -8,11 +8,11 @@ import type { Theme } from "../config/theme";
 interface PatternsViewProps {
   theme: Theme;
   dark: boolean;
-  onLoadNeed: (need: any) => void;
+  onOpenNeed: (needId: string) => void;
 }
 
-export const PatternsView = ({ theme, dark, onLoadNeed }: PatternsViewProps) => {
-  const { patterns, loading } = usePatterns();
+export const PatternsView = ({ theme, dark, onOpenNeed }: PatternsViewProps) => {
+  const { patterns, loading, refreshPatterns } = usePatterns();
 
   const getScoreColor = (score: number) => {
     if (score >= 80) return dark ? 'text-green-400' : 'text-green-600';
@@ -50,25 +50,33 @@ export const PatternsView = ({ theme, dark, onLoadNeed }: PatternsViewProps) => 
         <Layers className={`w-12 h-12 ${theme.muted} mx-auto mb-4 opacity-50`} />
         <p className={`${theme.muted} mb-2`}>No patterns found</p>
         <p className={`text-xs ${theme.muted} max-w-md mx-auto`}>
-          Extract mechanisms from industries (2+ instances) to see recurring patterns analyzed across different needs.
+          Extract mechanisms from several industries. Patterns appear when two or more share a similar abstract mechanism.
         </p>
+        <button onClick={refreshPatterns} className={`mt-4 px-3 py-1.5 rounded-lg text-xs ${theme.btn} inline-flex items-center gap-1.5`}>
+          <RefreshCw className="w-3.5 h-3.5" /> Refresh
+        </button>
       </div>
     );
   }
 
   return (
     <div className="space-y-6">
-      <div className="mb-6">
-        <h2 className="text-xl font-bold mb-1">Pattern Intelligence</h2>
-        <p className={`text-sm ${theme.muted}`}>
-          AI-powered analysis of {patterns.length} patterns discovered across {patterns.reduce((sum, p) => sum + p.mechanisms.length, 0)} industries
-        </p>
+      <div className="mb-6 flex items-start justify-between gap-4">
+        <div>
+          <h2 className="text-xl font-bold mb-1">Pattern Intelligence</h2>
+          <p className={`text-sm ${theme.muted}`}>
+            AI-powered analysis of {patterns.length} patterns discovered across {new Set(patterns.flatMap((p) => p.mechanisms.map((m) => m.id))).size} industries
+          </p>
+        </div>
+        <button onClick={refreshPatterns} className={`px-3 py-1.5 rounded-lg text-xs ${theme.btn} flex items-center gap-1.5 flex-shrink-0`} title="Re-scan mechanisms and retry failed analyses">
+          <RefreshCw className="w-3.5 h-3.5" /> Refresh
+        </button>
       </div>
 
       <div className="space-y-8">
         {patterns.map((patternGroup, index) => (
           <motion.div
-            key={index}
+            key={patternGroup.pattern}
             initial={{ opacity: 0, y: 20 }}
             animate={{ opacity: 1, y: 0 }}
             transition={{ delay: index * 0.05 }}
@@ -162,7 +170,7 @@ export const PatternsView = ({ theme, dark, onLoadNeed }: PatternsViewProps) => 
               )}
 
               {/* Categorical Ratings */}
-              {patternGroup.analyses && patternGroup.analyses.length > 0 && (
+              {Array.isArray(patternGroup.analyses) && patternGroup.analyses.length > 0 && (
                 <div className="mt-3 flex flex-wrap gap-2">
                   {patternGroup.analyses[0].needCoverage && (
                     <div className="flex items-center gap-1.5">
@@ -220,7 +228,7 @@ export const PatternsView = ({ theme, dark, onLoadNeed }: PatternsViewProps) => 
                     {/* Framework-Specific Content */}
                     {analysis.distributionMap && (
                       <div className="space-y-2">
-                        {analysis.distributionMap.hotZones && analysis.distributionMap.hotZones.length > 0 && (
+                        {Array.isArray(analysis.distributionMap.hotZones) && analysis.distributionMap.hotZones.length > 0 && (
                           <div>
                             <p className={`text-xs font-medium ${theme.muted} mb-1`}>Hot Zones (High Concentration):</p>
                             <div className="flex flex-wrap gap-1">
@@ -230,7 +238,7 @@ export const PatternsView = ({ theme, dark, onLoadNeed }: PatternsViewProps) => 
                             </div>
                           </div>
                         )}
-                        {analysis.distributionMap.coldZones && analysis.distributionMap.coldZones.length > 0 && (
+                        {Array.isArray(analysis.distributionMap.coldZones) && analysis.distributionMap.coldZones.length > 0 && (
                           <div>
                             <p className={`text-xs font-medium ${theme.muted} mb-1`}>Cold Zones (Expansion Opportunities):</p>
                             <div className="flex flex-wrap gap-1">
@@ -243,7 +251,7 @@ export const PatternsView = ({ theme, dark, onLoadNeed }: PatternsViewProps) => 
                       </div>
                     )}
 
-                    {analysis.needAdaptations && analysis.needAdaptations.length > 0 && (
+                    {Array.isArray(analysis.needAdaptations) && analysis.needAdaptations.length > 0 && (
                       <div className="space-y-2">
                         <p className={`text-xs font-medium ${theme.muted}`}>Need-Specific Adaptations:</p>
                         {analysis.needAdaptations.slice(0, 3).map((adapt: any, i: number) => (
@@ -287,7 +295,7 @@ export const PatternsView = ({ theme, dark, onLoadNeed }: PatternsViewProps) => 
                       </div>
                     )}
 
-                    {analysis.transferTargets && analysis.transferTargets.length > 0 && (
+                    {Array.isArray(analysis.transferTargets) && analysis.transferTargets.length > 0 && (
                       <div className="space-y-2">
                         <p className={`text-xs font-medium ${theme.muted}`}>Transfer Opportunities:</p>
                         {analysis.transferTargets.slice(0, 2).map((target: any, i: number) => (
@@ -303,7 +311,7 @@ export const PatternsView = ({ theme, dark, onLoadNeed }: PatternsViewProps) => 
                     )}
 
                     {/* Strategic Implications */}
-                    {analysis.strategicImplications && analysis.strategicImplications.length > 0 && (
+                    {Array.isArray(analysis.strategicImplications) && analysis.strategicImplications.length > 0 && (
                       <div className="mt-2">
                         <p className={`text-xs font-medium ${theme.muted} mb-1`}>Strategic Implications:</p>
                         <ul className="list-disc list-inside space-y-0.5">
@@ -316,17 +324,23 @@ export const PatternsView = ({ theme, dark, onLoadNeed }: PatternsViewProps) => 
                   </div>
                 ))}
               </div>
+            ) : patternGroup.failed ? (
+              <div className={`p-4 text-xs flex items-center gap-2 ${theme.muted}`}>
+                <AlertCircle className="w-4 h-4 text-red-400" />
+                AI analysis failed for this pattern. Use Refresh to retry.
+              </div>
             ) : null}
 
             {/* Pattern Instances */}
             <div className={`p-4 border-t ${theme.border}`}>
               <p className={`text-xs font-medium ${theme.muted} mb-3`}>Found in {patternGroup.mechanisms.length} industries:</p>
               <div className="grid grid-cols-1 md:grid-cols-2 gap-2">
-                {patternGroup.mechanisms.map((mech, i) => (
-                  <div
-                    key={i}
-                    className={`p-2 rounded ${theme.itemBgAlt} ${theme.hover} cursor-pointer transition-all text-xs`}
-                    onClick={() => onLoadNeed({ id: mech.needId, name: mech.needName })}
+                {patternGroup.mechanisms.map((mech) => (
+                  <button
+                    key={mech.id}
+                    className={`p-2 rounded ${theme.itemBgAlt} ${theme.hover} cursor-pointer transition-all text-xs text-left`}
+                    onClick={() => onOpenNeed(mech.needId)}
+                    title={mech.needName ? `Open ${mech.needName}` : "Open need"}
                   >
                     <div className="flex items-center gap-2">
                       <span className="font-medium">{mech.expressionName}</span>
@@ -337,7 +351,7 @@ export const PatternsView = ({ theme, dark, onLoadNeed }: PatternsViewProps) => 
                         </>
                       )}
                     </div>
-                  </div>
+                  </button>
                 ))}
               </div>
             </div>

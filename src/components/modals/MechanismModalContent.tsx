@@ -17,7 +17,7 @@ export interface MechanismModalContentProps {
   aiSuggestions?: { suggestions: AIActionSuggestion[]; reasoning: string } | null;
   onAIAssist?: () => void;
   aiLoading?: boolean;
-  onExecuteAction?: (suggestion: AIActionSuggestion) => Promise<void>;
+  onExecuteAction?: (suggestion: AIActionSuggestion) => Promise<boolean>;
 }
 
 export const MechanismModalContent = ({
@@ -174,7 +174,7 @@ export const MechanismModalContent = ({
           )}
 
           {/* Framework-Specific Fields */}
-          {analysis.keyPrinciples && analysis.keyPrinciples.length > 0 && (
+          {Array.isArray(analysis.keyPrinciples) && analysis.keyPrinciples.length > 0 && (
             <div>
               <p className={`text-xs font-medium ${theme.muted} mb-2`}>Key Principles (Functional)</p>
               {analysis.keyPrinciples.map((p: any, i: number) => (
@@ -187,7 +187,7 @@ export const MechanismModalContent = ({
             </div>
           )}
 
-          {analysis.structuralElements && analysis.structuralElements.length > 0 && (
+          {Array.isArray(analysis.structuralElements) && analysis.structuralElements.length > 0 && (
             <div>
               <p className={`text-xs font-medium ${theme.muted} mb-2`}>Structural Elements</p>
               {analysis.structuralElements.map((e: any, i: number) => (
@@ -208,13 +208,13 @@ export const MechanismModalContent = ({
                 <div>
                   <span className="font-medium">Sequence:</span>
                   <ol className="list-decimal list-inside ml-2 mt-1 space-y-1">
-                    {analysis.causalChain.sequence.map((step: string, i: number) => (
+                    {(Array.isArray(analysis.causalChain.sequence) ? analysis.causalChain.sequence : []).map((step: string, i: number) => (
                       <li key={i} className="text-xs">{step}</li>
                     ))}
                   </ol>
                 </div>
                 <div><span className="font-medium">Outcome:</span> {analysis.causalChain.outcome}</div>
-                {analysis.causalChain.interventionPoints.length > 0 && (
+                {Array.isArray(analysis.causalChain.interventionPoints) && analysis.causalChain.interventionPoints.length > 0 && (
                   <div>
                     <span className="font-medium">Intervention Points:</span>
                     <ul className="list-disc list-inside ml-2 mt-1">
@@ -228,7 +228,7 @@ export const MechanismModalContent = ({
             </div>
           )}
 
-          {analysis.constraintOpportunities && analysis.constraintOpportunities.length > 0 && (
+          {Array.isArray(analysis.constraintOpportunities) && analysis.constraintOpportunities.length > 0 && (
             <div>
               <p className={`text-xs font-medium ${theme.muted} mb-2`}>Constraint-Opportunity Pairs</p>
               {analysis.constraintOpportunities.map((co: any, i: number) => (
@@ -248,7 +248,7 @@ export const MechanismModalContent = ({
                 <div><span className="font-medium">Micro Scale:</span> {analysis.scaleContextInsights.microScale}</div>
                 <div><span className="font-medium">Meso Scale:</span> {analysis.scaleContextInsights.mesoScale}</div>
                 <div><span className="font-medium">Macro Scale:</span> {analysis.scaleContextInsights.macroScale}</div>
-                {analysis.scaleContextInsights.contextVariations.length > 0 && (
+                {Array.isArray(analysis.scaleContextInsights.contextVariations) && analysis.scaleContextInsights.contextVariations.length > 0 && (
                   <div>
                     <span className="font-medium">Context Variations:</span>
                     <ul className="list-disc list-inside ml-2 mt-1">
@@ -263,7 +263,7 @@ export const MechanismModalContent = ({
           )}
 
           {/* Historical Applications */}
-          {analysis.historicalApplications && analysis.historicalApplications.length > 0 && (
+          {Array.isArray(analysis.historicalApplications) && analysis.historicalApplications.length > 0 && (
             <div>
               <p className={`text-xs font-medium ${theme.muted} mb-2`}>Historical Applications</p>
               {analysis.historicalApplications.map((h: any, i: number) => (
@@ -282,7 +282,7 @@ export const MechanismModalContent = ({
           )}
 
           {/* Untapped Domains */}
-          {analysis.untappedDomains && analysis.untappedDomains.length > 0 && (
+          {Array.isArray(analysis.untappedDomains) && analysis.untappedDomains.length > 0 && (
             <div>
               <p className={`text-xs font-medium ${theme.muted} mb-2`}>Untapped Domains</p>
               {analysis.untappedDomains.map((u: any, i: number) => (
@@ -305,7 +305,7 @@ export const MechanismModalContent = ({
           )}
 
           {/* Combination Potential */}
-          {analysis.combinationPotential && analysis.combinationPotential.length > 0 && (
+          {Array.isArray(analysis.combinationPotential) && analysis.combinationPotential.length > 0 && (
             <div>
               <p className={`text-xs font-medium ${theme.muted} mb-2`}>Combination Potential</p>
               <div className="flex flex-wrap gap-2">

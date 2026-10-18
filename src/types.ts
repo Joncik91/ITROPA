@@ -481,15 +481,21 @@ export interface AIAssistantResponse {
 
 export interface HistoryAction {
   id: string;
-  type: 'add_need' | 'delete_need' | 'close_need' | 'branch' | 'add_child' | 'delete_expression' | 'cross_pollinate' | 'fetch_mechanism' | 'fetch_deepdive';
+  type: 'close_need' | 'branch' | 'add_child' | 'delete_expression';
   timestamp: number;
   description: string;
+  /**
+   * Targeted inverse-operation data (not whole-need snapshots), so undoing one action
+   * never reverts unrelated changes made after it.
+   */
   data: {
-    needId?: string;
-    expressionId?: string;
-    parentId?: string;
-    previousState?: any;
-    newState?: any;
+    needId: string;
+    /** Parent of the affected nodes; null = root of the future era. */
+    parentId?: string | null;
+    /** Index among siblings (delete_expression). */
+    index?: number;
+    /** Nodes added (branch/add_child) or removed (delete_expression). */
+    nodes?: IndustryExpression[];
   };
 }
 
@@ -659,25 +665,3 @@ export interface AppConceptAnalysis {
     marketOpportunity?: string;
   };
 }
-
-// Re-export manager interfaces for convenience
-export type {
-  NeedState,
-  SelectionState,
-  LoadingState,
-  UIState,
-  AIState,
-  NeedOperations,
-  ExpressionOperations,
-  AnalysisOperations,
-  CrossPollinateOperations,
-  HistoryOperations,
-  AIOperations,
-  StateSetters,
-  ModalOperations,
-  HomePageManager,
-  NeedDisplayManager,
-  BranchManager,
-  ModalManager,
-} from './types/manager-interfaces';
-

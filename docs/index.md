@@ -102,12 +102,11 @@
 
 1. **Prepare for Production**
    - Read: [Deployment Guide](./deployment-guide.md)
-   - Set environment variables: `GEMINI_API_KEY`, `APP_PASSWORD`
+   - Set environment variables: `GEMINI_API_KEY`
    - Deploy to Vercel: `vercel --prod`
 
 2. **Security Checklist**
    - API key protection (server-side only)
-   - Password authentication (production)
    - CORS configuration
    - Rate limiting via Gemini quotas
 
@@ -174,7 +173,6 @@ industry-family-tree/
 - **Export Functionality** - Export research to JSON/CSV
 
 ### Security & Deployment
-- **Password Protection** - Production authentication
 - **API Key Protection** - Server-side only (never exposed in browser)
 - **CORS Configuration** - Secure cross-origin requests
 - **Vercel Deployment** - Serverless architecture with auto-scaling

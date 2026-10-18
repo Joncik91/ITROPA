@@ -46,6 +46,28 @@
   .border-gray-200 { border-color: #e5e5e5 !important; }
   .border-gray-100 { border-color: #f5f5f5 !important; }
 
+  /*
+   * Light-mode contrast. Components were styled dark-first (e.g. active states use
+   * text-gray-300, status colours use the -300/-400 shades), which is unreadable on light
+   * backgrounds. Remap those shades to their accessible light-mode equivalents.
+   */
+  html[data-theme="light"], html[data-theme="light"] body { background-color: #fafafa; }
+  html[data-theme="light"] .text-gray-100,
+  html[data-theme="light"] .text-gray-200,
+  html[data-theme="light"] .text-gray-300 { color: #404040 !important; }
+  html[data-theme="light"] .text-gray-400 { color: #636363 !important; }
+  html[data-theme="light"] .text-amber-300, html[data-theme="light"] .text-amber-400 { color: #b45309 !important; }
+  html[data-theme="light"] .text-yellow-300, html[data-theme="light"] .text-yellow-400 { color: #a16207 !important; }
+  html[data-theme="light"] .text-emerald-300, html[data-theme="light"] .text-emerald-400 { color: #047857 !important; }
+  html[data-theme="light"] .text-green-300, html[data-theme="light"] .text-green-400 { color: #15803d !important; }
+  html[data-theme="light"] .text-red-200, html[data-theme="light"] .text-red-300, html[data-theme="light"] .text-red-400 { color: #b91c1c !important; }
+  html[data-theme="light"] .text-rose-300, html[data-theme="light"] .text-rose-400 { color: #be123c !important; }
+  html[data-theme="light"] .text-blue-300, html[data-theme="light"] .text-blue-400 { color: #1d4ed8 !important; }
+  html[data-theme="light"] .text-orange-400 { color: #c2410c !important; }
+  html[data-theme="light"] .text-purple-400 { color: #7e22ce !important; }
+  html[data-theme="light"] .text-pink-400 { color: #be185d !important; }
+  html[data-theme="light"] .text-cyan-400 { color: #0e7490 !important; }
+
   /* Hide scrollbars while keeping functionality */
   * {
     scrollbar-width: none; /* Firefox */

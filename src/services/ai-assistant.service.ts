@@ -3,6 +3,12 @@ import type {
 } from "../types";
 import { DBService } from "./db.service";
 import { apiClient } from "./api-client.service";
+import { normalizeAssistantResponse } from "../utils/ai-normalizers";
+import { getAllExpressionsFromNeed } from "../utils/tree-search";
+
+/** Mechanism records store one entry per analytical framework; older records stored a single object. */
+const primaryMechanism = (details: unknown): { coreMechanism?: string; abstractPattern?: string } =>
+  (Array.isArray(details) ? details[0] : details) ?? {};
 
 class AIAssistantService {
   // Context builders
@@ -21,6 +27,7 @@ class AIAssistantService {
       deepDives,
       crossPollinations,
       predictionCount: this.countPredictions(need.eras),
+      predictionNames: getAllExpressionsFromNeed(need).map((e) => e.name),
     };
   }
 
@@ -30,8 +37,9 @@ class AIAssistantService {
 
     const need = await DBService.getNeed(mechanism.needId);
     const allMechanisms = await DBService.getAllMechanisms();
-    const similarPatterns = allMechanisms.filter((m: any) => 
-      m.details?.abstractPattern === mechanism.details?.abstractPattern && m.id !== mechanismId
+    const pattern = primaryMechanism(mechanism.details).abstractPattern;
+    const similarPatterns = allMechanisms.filter((m) =>
+      !!pattern && primaryMechanism(m.details).abstractPattern === pattern && m.id !== mechanismId
     );
 
     return {
@@ -42,9 +50,7 @@ class AIAssistantService {
   }
 
   private async buildDeepDiveContext(deepDiveId: string) {
-    // Find deep dive by ID across all needs
-    const allDeepDives = await DBService.getAllDeepDives();
-    const deepDive = allDeepDives.find(dd => dd.id === deepDiveId);
+    const deepDive = await DBService.getDeepDiveById(deepDiveId);
     if (!deepDive) throw new Error("Deep dive not found");
 
     const need = await DBService.getNeed(deepDive.needId);
@@ -85,23 +91,21 @@ class AIAssistantService {
 
 CONTEXT:
 Mechanism: ${context.mechanism.expressionName}
-Core Mechanism: ${context.mechanism.details?.coreMechanism || 'N/A'}
-Pattern Type: ${context.mechanism.details?.abstractPattern || 'N/A'}
+Core Mechanism: ${primaryMechanism(context.mechanism.details).coreMechanism || 'N/A'}
+Pattern Type: ${primaryMechanism(context.mechanism.details).abstractPattern || 'N/A'}
 Parent Need: ${context.parentNeed?.name || "Unknown"}
 Similar Patterns Found: ${context.similarPatterns.length}
 
 MECHANISM DETAILS:
-${JSON.stringify(context.mechanism.details, null, 2)}
+${JSON.stringify(context.mechanism.details).slice(0, 12000)}
 
 TASK:
 Analyze this mechanism and suggest 2-4 actionable next steps the user should take.
 
 Available actions:
-1. create_need - Create a new research need from an enabler/requirement
-2. branch - Branch to explore a specific aspect deeper
-3. find_similar - Find similar mechanisms in the pattern library
-4. analyze - Generate a deep dive business analysis for this mechanism
-5. compare - Compare this mechanism with similar patterns
+1. create_need - Create a new research need (params.needName, params.needDescription)
+2. branch - Branch this industry into sub-industries (params.expressionName)
+3. extract - Generate a deep dive business analysis (params.expressionName)
 
 Respond with ONLY valid JSON:
 {
@@ -110,12 +114,8 @@ Respond with ONLY valid JSON:
       "id": "unique_id",
       "action": "Short action description (e.g., 'Explore thermal management')",
       "reasoning": "Why this action is valuable",
-      "actionType": "create_need|branch|find_similar|analyze|compare",
-      "params": {
-        "title": "...",
-        "description": "...",
-        // other relevant params
-      }
+      "actionType": "create_need|branch|extract",
+      "params": { "needName": "...", "needDescription": "...", "expressionName": "${context.mechanism.expressionName}" }
     }
   ],
   "reasoning": "Overall assessment of this mechanism's viability and key considerations"
@@ -126,7 +126,7 @@ Focus on practical, high-value actions. Be concise but insightful.`;
     try {
       const data = await apiClient.callAIAssistant(prompt, 2000);
       
-      return data as AIAssistantResponse;
+      return normalizeAssistantResponse(data);
     } catch (e: any) {
       console.error("AI Assistant Error:", e);
       throw new Error(`Failed to generate suggestions: ${e.message}`);
@@ -147,17 +147,15 @@ Challenges: ${context.deepDive.details?.challenges?.length || 0}
 Related Mechanisms: ${context.mechanisms.length}
 
 DEEP DIVE DETAILS:
-${JSON.stringify(context.deepDive.details, null, 2)}
+${JSON.stringify(context.deepDive.details).slice(0, 12000)}
 
 TASK:
 Analyze this business opportunity and suggest 2-4 actionable next steps.
 
 Available actions:
-1. extract - Extract enablers or challenges as new research needs
-2. create_need - Create a specific need from an identified gap
-3. find_similar - Find mechanisms that address these challenges
-4. compare - Compare this opportunity with other deep dives
-5. analyze - Generate mechanism analysis for technical feasibility
+1. create_need - Turn an enabler, challenge or gap into a new research need (params.needName, params.needDescription)
+2. analyze - Extract the transferable mechanism of this industry (params.expressionName)
+3. branch - Branch this industry into sub-industries (params.expressionName)
 
 Respond with ONLY valid JSON:
 {
@@ -166,14 +164,8 @@ Respond with ONLY valid JSON:
       "id": "unique_id",
       "action": "Short action description",
       "reasoning": "Why this action is valuable",
-      "actionType": "extract|create_need|find_similar|compare|analyze",
-      "params": {
-        "enablerIndex": 0,  // if extracting enabler
-        "challengeIndex": 0,  // if extracting challenge
-        "title": "...",
-        "description": "...",
-        // other relevant params
-      }
+      "actionType": "create_need|analyze|branch",
+      "params": { "needName": "...", "needDescription": "...", "expressionName": "${context.deepDive.expressionName}" }
     }
   ],
   "reasoning": "Overall viability assessment and recommended focus areas"
@@ -184,7 +176,7 @@ Prioritize actions that address critical enablers or major challenges.`;
     try {
       const data = await apiClient.callAIAssistant(prompt, 2000);
       
-      return data as AIAssistantResponse;
+      return normalizeAssistantResponse(data);
     } catch (e: any) {
       console.error("AI Assistant Error:", e);
       throw new Error(`Failed to generate suggestions: ${e.message}`);
@@ -215,12 +207,14 @@ ${JSON.stringify({
 TASK:
 Analyze this research tree and suggest 2-4 actionable next steps to advance the research.
 
-Available actions:
-1. analyze - Suggest which prediction to analyze next (mechanism or deep dive)
-2. compare - Compare predictions or branches for viability
-3. find_similar - Find gaps by comparing with pattern library
-4. branch - Suggest promising predictions to branch deeper
-5. create_need - Identify missing research areas
+Available actions (use exact prediction names from the list below for params.expressionName):
+1. analyze - Extract the mechanism of a prediction (params.expressionName)
+2. extract - Deep dive business analysis of a prediction (params.expressionName)
+3. branch - Branch a promising prediction deeper (params.expressionName)
+4. create_need - Open a missing research area (params.needName, params.needDescription)
+
+PREDICTIONS:
+${context.predictionNames.slice(0, 60).join('\n')}
 
 Respond with ONLY valid JSON:
 {
@@ -229,13 +223,8 @@ Respond with ONLY valid JSON:
       "id": "unique_id",
       "action": "Short action description",
       "reasoning": "Why this action is valuable",
-      "actionType": "analyze|compare|find_similar|branch|create_need",
-      "params": {
-        "predictionPath": "Era > Prediction name",  // if targeting specific prediction
-        "analysisType": "mechanism|deepdive",
-        "gap": "description of gap found",
-        // other relevant params
-      }
+      "actionType": "analyze|extract|branch|create_need",
+      "params": { "expressionName": "...", "needName": "...", "needDescription": "..." }
     }
   ],
   "reasoning": "Overall research progress assessment and strategic recommendations"
@@ -246,68 +235,7 @@ Focus on filling gaps, deepening promising areas, and advancing toward actionabl
     try {
       const data = await apiClient.callAIAssistant(prompt, 3000);
       
-      return data as AIAssistantResponse;
-    } catch (e: any) {
-      console.error("AI Assistant Error:", e);
-      throw new Error(`Failed to generate suggestions: ${e.message}`);
-    }
-  }
-
-  async suggestPatternActions(patternType: string, currentNeedId?: string): Promise<AIAssistantResponse> {
-    const allMechanisms = await DBService.getAllMechanisms();
-    const patternInstances = allMechanisms.filter((m: any) => m.abstractPattern === patternType);
-    
-    let currentNeed = null;
-    if (currentNeedId) {
-      currentNeed = await DBService.getNeed(currentNeedId);
-    }
-
-    const prompt = `You are an intelligent research assistant helping apply patterns across domains.
-
-CONTEXT:
-Pattern Type: ${patternType}
-Instances Found: ${patternInstances.length}
-Current Need: ${currentNeed?.name || "None"}
-
-PATTERN INSTANCES:
-${JSON.stringify(patternInstances.slice(0, 5).map((m: any) => ({
-  prediction: m.predictionName,
-  mechanism: m.coreMechanism,
-  untappedDomains: m.untappedDomains?.length || 0,
-})), null, 2)}
-
-TASK:
-Suggest 2-3 ways to apply this pattern.
-
-Available actions:
-1. apply_pattern - Apply this pattern to current need
-2. create_need - Create new need inspired by this pattern
-3. find_similar - Find related patterns that could combine
-4. compare - Compare pattern effectiveness across instances
-
-Respond with ONLY valid JSON:
-{
-  "suggestions": [
-    {
-      "id": "unique_id",
-      "action": "Short action description",
-      "reasoning": "Why this action is valuable",
-      "actionType": "apply_pattern|create_need|find_similar|compare",
-      "params": {
-        "targetNeedId": "${currentNeedId || ''}",
-        "patternType": "${patternType}",
-        "context": "...",
-        // other relevant params
-      }
-    }
-  ],
-  "reasoning": "Pattern insights and application recommendations"
-}`;
-
-    try {
-      const data = await apiClient.callAIAssistant(prompt, 2000);
-      
-      return data as AIAssistantResponse;
+      return normalizeAssistantResponse(data);
     } catch (e: any) {
       console.error("AI Assistant Error:", e);
       throw new Error(`Failed to generate suggestions: ${e.message}`);
@@ -315,18 +243,6 @@ Respond with ONLY valid JSON:
   }
 }
 
-// Singleton instance
-let aiAssistantService: AIAssistantService | null = null;
+const aiAssistantService = new AIAssistantService();
 
-export const initializeAIAssistant = () => {
-  aiAssistantService = new AIAssistantService();
-};
-
-export const getAIAssistant = (): AIAssistantService => {
-  if (!aiAssistantService) {
-    aiAssistantService = new AIAssistantService();
-  }
-  return aiAssistantService;
-};
-
-export { aiAssistantService };
+export const getAIAssistant = (): AIAssistantService => aiAssistantService;

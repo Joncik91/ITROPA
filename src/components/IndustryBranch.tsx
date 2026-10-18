@@ -17,6 +17,7 @@ import {
   TreeDeciduous,
   GripVertical,
   Target,
+  Rocket,
 } from "lucide-react";
 import type { IndustryExpression } from "../types";
 import type { Theme } from "../config/theme";
@@ -24,16 +25,18 @@ import { ContextMenu } from "./ContextMenu";
 import type { MatchScoreResult } from "../utils/match-score";
 import { getMatchScoreColor, getMatchScoreLabel } from "../utils/match-score";
 
+const DRAG_MIME = "application/x-itropa-expression";
+
 interface IndustryBranchProps {
   expr: IndustryExpression;
   depth: number;
   needId: string;
   isExpanded: boolean;
-  isLoading: boolean;
-  isSelected: boolean;
+  isBranching: boolean;
   isCrossSelected: boolean;
+  /** Rendered faded: scored below the profile filter but kept for its children. */
+  dimmed?: boolean;
   theme: Theme;
-  branchLoading: string | null;
   mechanismLoading: boolean;
   deepDiveLoading: boolean;
   appConceptsLoading?: boolean;
@@ -48,9 +51,11 @@ interface IndustryBranchProps {
   onFetchDeepDive: () => void;
   onFetchAppConcepts: () => void;
   onToggleCross: () => void;
+  /** Another industry was dropped onto this one. */
+  onDropCross: (dragged: IndustryExpression) => void;
   onAddSubIndustry: () => void;
   onDelete?: () => void;
-  renderBranch: (child: IndustryExpression, depth: number, needId: string) => JSX.Element;
+  renderBranch: (child: IndustryExpression, depth: number, needId: string) => JSX.Element | null;
 }
 
 export const IndustryBranch = ({
@@ -58,16 +63,16 @@ export const IndustryBranch = ({
   depth,
   needId,
   isExpanded,
-  isLoading,
-  isSelected,
+  isBranching,
   isCrossSelected,
+  dimmed,
   theme,
   mechanismLoading,
   deepDiveLoading,
-  appConceptsLoading: _appConceptsLoading,
+  appConceptsLoading,
   hasMechanism,
   hasDeepDive,
-  hasAppConcepts: _hasAppConcepts,
+  hasAppConcepts,
   matchScore,
   viewDensity = "comfortable",
   onToggleExpand,
@@ -76,11 +81,12 @@ export const IndustryBranch = ({
   onFetchDeepDive,
   onFetchAppConcepts,
   onToggleCross,
+  onDropCross,
   onAddSubIndustry,
   onDelete,
   renderBranch,
 }: IndustryBranchProps) => {
-  const hasChildren = expr.children?.length > 0;
+  const hasChildren = (expr.children?.length ?? 0) > 0;
   const [contextMenu, setContextMenu] = useState<{ x: number; y: number } | null>(null);
   const [isDragging, setIsDragging] = useState(false);
   const [isDropTarget, setIsDropTarget] = useState(false);
@@ -95,12 +101,14 @@ export const IndustryBranch = ({
 
   const handleContextMenu = (e: React.MouseEvent) => {
     e.preventDefault();
+    e.stopPropagation(); // nested branches: only the innermost card opens a menu
     setContextMenu({ x: e.clientX, y: e.clientY });
   };
 
   const handleDragStart = (e: React.DragEvent) => {
+    e.stopPropagation();
     e.dataTransfer.effectAllowed = "copy";
-    e.dataTransfer.setData("application/json", JSON.stringify(expr));
+    e.dataTransfer.setData(DRAG_MIME, JSON.stringify(expr));
     setIsDragging(true);
   };
 
@@ -109,7 +117,9 @@ export const IndustryBranch = ({
   };
 
   const handleDragOver = (e: React.DragEvent) => {
+    if (!e.dataTransfer.types.includes(DRAG_MIME)) return;
     e.preventDefault();
+    e.stopPropagation();
     e.dataTransfer.dropEffect = "copy";
     setIsDropTarget(true);
   };
@@ -124,18 +134,10 @@ export const IndustryBranch = ({
     setIsDropTarget(false);
     
     try {
-      const draggedExpr: IndustryExpression = JSON.parse(e.dataTransfer.getData("application/json"));
-      if (draggedExpr.id === expr.id) return; // Can't drop on itself
-      
-      // Trigger cross-pollination by adding both items
-      onToggleCross(); // Add current item
-      // Need to add the dragged item through a callback
-      setTimeout(() => {
-        const event = new CustomEvent('cross-pollinate-drag', { 
-          detail: { draggedExpr, targetExpr: expr } 
-        });
-        window.dispatchEvent(event);
-      }, 0);
+      const raw = e.dataTransfer.getData(DRAG_MIME);
+      if (!raw) return;
+      const draggedExpr = JSON.parse(raw) as IndustryExpression;
+      if (draggedExpr?.id && draggedExpr.id !== expr.id) onDropCross(draggedExpr);
     } catch (err) {
       console.error('Drop failed:', err);
     }
@@ -147,8 +149,9 @@ export const IndustryBranch = ({
 
   return (
     <>
-    <div 
-      className="relative"
+    <div
+      className="relative scroll-mt-4"
+      data-expr-id={expr.id}
       draggable
       onDragStart={handleDragStart}
       onDragEnd={handleDragEnd}
@@ -164,12 +167,10 @@ export const IndustryBranch = ({
             ? "opacity-50 scale-95"
             : isDropTarget
             ? "ring-2 ring-amber-500 bg-amber-500/10 border-amber-500 scale-105"
-            : isSelected
-            ? "bg-gray-500/15 border-gray-500"
             : isCrossSelected
             ? "bg-amber-500/15 border-amber-500"
             : theme.cardHover
-        } ${expr.userAdded ? "ring-1 ring-emerald-500/30" : ""}`}
+        } ${expr.userAdded ? "ring-1 ring-emerald-500/30" : ""} ${dimmed ? "opacity-50" : ""}`}
       >
         <div className={`flex items-start justify-between ${densityClasses.gap} ${viewDensity === "compact" ? "mb-1" : "mb-2"}`}>
             <div className={`flex items-center ${densityClasses.gap} flex-1`}>
@@ -210,15 +211,21 @@ export const IndustryBranch = ({
 
                 {/* Mechanism analyzed badge */}
                 {hasMechanism && (
-                  <span className="inline-flex items-center gap-0.5 px-1.5 py-0.5 rounded text-[10px] bg-gray-500/20 text-gray-300 border border-gray-500/30">
+                  <span className="inline-flex items-center gap-0.5 px-1.5 py-0.5 rounded text-[10px] bg-gray-500/20 text-gray-300 border border-gray-500/30" title="Mechanism analyzed">
                     <Microscope className="w-2.5 h-2.5" />
                   </span>
                 )}
 
                 {/* Deep dive analyzed badge */}
                 {hasDeepDive && (
-                  <span className="inline-flex items-center gap-0.5 px-1.5 py-0.5 rounded text-[10px] bg-gray-600/20 text-gray-300 border border-gray-600/30">
+                  <span className="inline-flex items-center gap-0.5 px-1.5 py-0.5 rounded text-[10px] bg-gray-600/20 text-gray-300 border border-gray-600/30" title="Deep dive available">
                     <Briefcase className="w-2.5 h-2.5" />
+                  </span>
+                )}
+
+                {hasAppConcepts && (
+                  <span className="inline-flex items-center gap-0.5 px-1.5 py-0.5 rounded text-[10px] bg-gray-600/20 text-gray-300 border border-gray-600/30" title="App concepts available">
+                    <Rocket className="w-2.5 h-2.5" />
                   </span>
                 )}
               </div>
@@ -227,6 +234,8 @@ export const IndustryBranch = ({
               <button
                 onClick={onToggleExpand}
                 className={`p-1 rounded ${theme.muted} ${theme.hover}`}
+                aria-label={isExpanded ? `Collapse ${expr.name}` : `Expand ${expr.name}`}
+                aria-expanded={isExpanded}
               >
                 {isExpanded ? (
                   <ChevronDown className="w-3.5 h-3.5" />
@@ -238,7 +247,7 @@ export const IndustryBranch = ({
           </div>
           <p className={`${viewDensity === "compact" ? "text-[11px]" : "text-xs"} ${theme.muted} ${viewDensity === "compact" ? "mb-1" : "mb-2"}`}>{expr.mutation}</p>
 
-          {expr.inspirations?.length > 0 && (
+          {(expr.inspirations?.length ?? 0) > 0 && (
             <div className={`mb-2 p-2 rounded ${theme.itemBg}`}>
               <p className={`text-xs font-medium ${theme.muted} mb-1 flex items-center gap-1`}>
                 <BookOpen className="w-3 h-3" />
@@ -259,10 +268,10 @@ export const IndustryBranch = ({
           <div className={`flex flex-wrap gap-1.5 ${viewDensity === "compact" ? "mt-1.5" : "mt-2"}`}>
             <button
               onClick={onBranch}
-              disabled={isLoading}
+              disabled={isBranching}
               className={`text-xs px-2 py-1 rounded flex items-center gap-1 ${theme.btn} transition-colors disabled:opacity-50 touch-manipulation min-h-[32px] md:min-h-0`}
             >
-              {isLoading ? (
+              {isBranching ? (
                 <Loader2 className="w-3 h-3 animate-spin" />
               ) : (
                 <GitBranch className="w-3 h-3" />
@@ -272,17 +281,17 @@ export const IndustryBranch = ({
             <button
               onClick={onFetchMechanism}
               disabled={mechanismLoading}
-              className={`text-xs px-2 py-1 rounded flex items-center gap-1 ${theme.btn} transition-colors touch-manipulation min-h-[32px] md:min-h-0`}
+              className={`text-xs px-2 py-1 rounded flex items-center gap-1 ${theme.btn} transition-colors disabled:opacity-50 touch-manipulation min-h-[32px] md:min-h-0`}
             >
-              <Layers className="w-3 h-3" />
+              {mechanismLoading ? <Loader2 className="w-3 h-3 animate-spin" /> : <Layers className="w-3 h-3" />}
               Mechanism
             </button>
             <button
               onClick={onFetchDeepDive}
               disabled={deepDiveLoading}
-              className={`text-xs px-2 py-1 rounded flex items-center gap-1 ${theme.btn} transition-colors touch-manipulation min-h-[32px] md:min-h-0`}
+              className={`text-xs px-2 py-1 rounded flex items-center gap-1 ${theme.btn} transition-colors disabled:opacity-50 touch-manipulation min-h-[32px] md:min-h-0`}
             >
-              <TrendingUp className="w-3 h-3" />
+              {deepDiveLoading ? <Loader2 className="w-3 h-3 animate-spin" /> : <TrendingUp className="w-3 h-3" />}
               Dive
             </button>
             <button
@@ -296,8 +305,19 @@ export const IndustryBranch = ({
               {isCrossSelected ? "Selected" : "Cross"}
             </button>
             <button
+              onClick={onFetchAppConcepts}
+              disabled={appConceptsLoading}
+              className={`text-xs px-2 py-1 rounded flex items-center gap-1 ${theme.btn} transition-colors disabled:opacity-50 touch-manipulation min-h-[32px] md:min-h-0`}
+              title="Generate buildable app concepts for this industry"
+            >
+              {appConceptsLoading ? <Loader2 className="w-3 h-3 animate-spin" /> : <Rocket className="w-3 h-3" />}
+              Apps
+            </button>
+            <button
               onClick={onAddSubIndustry}
               className={`text-xs px-2 py-1 rounded flex items-center gap-1 ${theme.btn} transition-colors touch-manipulation min-h-[32px] md:min-h-0`}
+              aria-label={`Add sub-industry to ${expr.name}`}
+              title="Add sub-industry"
             >
               <Plus className="w-3 h-3" />
             </button>
@@ -312,7 +332,7 @@ export const IndustryBranch = ({
             exit={{ opacity: 0, height: 0 }}
             className={`${viewDensity === "compact" ? "mt-1 ml-4 pl-2" : "mt-2 ml-6 pl-3"} border-l-2 border-gray-500/20 ${densityClasses.spacing}`}
           >
-            {expr.children.map((child) => renderBranch(child, depth + 1, needId))}
+            {(expr.children ?? []).map((child) => renderBranch(child, depth + 1, needId))}
           </motion.div>
         )}
       </AnimatePresence>
@@ -329,7 +349,6 @@ export const IndustryBranch = ({
           onAddChild={onAddSubIndustry}
           onDelete={onDelete}
           theme={theme}
-          isUserAdded={expr.userAdded}
         />
       )}
     </>

@@ -2,17 +2,21 @@ import { StrictMode } from 'react'
 import { createRoot } from 'react-dom/client'
 import App from './App.tsx'
 import './index.css'
-import { initializeAIAssistant } from './services/ai-assistant.service'
 import { DBService } from './services/db/db.service'
+import { ErrorBoundary } from './components/ErrorBoundary'
 
-// Initialize AI Assistant (no API key needed, uses backend)
-initializeAIAssistant();
+async function start() {
+  // Dev only: restore IndexedDB from the SQLite mirror *before* the app reads it,
+  // otherwise the first load races the restore. Resolves immediately in production.
+  await DBService.syncFromMirror().catch((e) => console.warn('Mirror restore skipped:', e))
 
-// Restore IndexedDB from local SQLite mirror (dev only, no-op in production)
-DBService.syncFromMirror().catch(() => {});
+  createRoot(document.getElementById('root')!).render(
+    <StrictMode>
+      <ErrorBoundary label="ITROPA">
+        <App />
+      </ErrorBoundary>
+    </StrictMode>,
+  )
+}
 
-createRoot(document.getElementById('root')!).render(
-  <StrictMode>
-    <App />
-  </StrictMode>,
-)
+void start()

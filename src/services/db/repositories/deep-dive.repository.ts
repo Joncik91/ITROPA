@@ -1,5 +1,6 @@
 import { BaseRepository } from '../base.repository';
 import { db, DBDeepDive } from '../db-client';
+import type { DeepDiveDetails } from '../../../types';
 
 /**
  * Repository for DeepDive entities
@@ -12,7 +13,7 @@ export class DeepDiveRepository extends BaseRepository<DBDeepDive, string> {
   /**
    * Save a deep dive analysis result
    */
-  async saveDeepDive(expressionId: string, expressionName: string, needId: string, details: any): Promise<void> {
+  async saveDeepDive(expressionId: string, expressionName: string, needId: string, details: DeepDiveDetails): Promise<void> {
     const deepDive: DBDeepDive = {
       id: expressionId,
       expressionName,
@@ -23,13 +24,6 @@ export class DeepDiveRepository extends BaseRepository<DBDeepDive, string> {
     await this.save(deepDive);
   }
 
-  /**
-   * Get a deep dive by expression ID and need ID
-   */
-  async getDeepDive(expressionId: string, needId: string): Promise<DBDeepDive | undefined> {
-    const deepDives = await db.deepDives.where('id').equals(expressionId).toArray();
-    return deepDives.find(dd => dd.needId === needId);
-  }
 
   /**
    * Get deep dives for a specific need
@@ -46,7 +40,7 @@ export class DeepDiveRepository extends BaseRepository<DBDeepDive, string> {
     const allDives = await this.toArray();
     return allDives.filter(dive =>
       dive.expressionName.toLowerCase().includes(lowerQuery) ||
-      dive.details.marketOpportunity?.toLowerCase().includes(lowerQuery)
+      dive.details?.marketOpportunity?.toLowerCase().includes(lowerQuery)
     );
   }
 }

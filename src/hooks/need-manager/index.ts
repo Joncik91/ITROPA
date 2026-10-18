@@ -1,198 +1,129 @@
+import { useCallback, useRef } from 'react';
 import toast from 'react-hot-toast';
 import { useHistory } from '../useHistory';
 import { useNeedState } from './useNeedState';
-import { useUIState } from './useUIState';
 import { useNeedCRUD } from './useNeedCRUD';
 import { useTreeOperations } from './useTreeOperations';
 import { useExpressionAnalysis } from './useExpressionAnalysis';
 import { useCrossPollination } from './useCrossPollination';
 import { useAIAssistant } from './useAIAssistant';
-import type { Need } from '../../types';
+import { DBService } from '../../services/db.service';
+import {
+  collectExpressionIds,
+  getFutureExpressions,
+  insertIntoExpressionTree,
+  removeFromExpressionTree,
+  withFutureExpressions,
+} from '../../utils/need-model';
+import type { HistoryAction } from '../../types';
 
 /**
- * Composed hook that integrates all need manager functionality.
- * Maintains the same API as the original useNeedManager for backwards compatibility.
+ * The application's research workspace: open needs, tree editing, AI analyses,
+ * cross-pollination, assistant suggestions and undo/redo.
  */
 export function useNeedManager() {
-  // Initialize all sub-hooks
   const history = useHistory();
-  const needState = useNeedState();
-  const uiState = useUIState();
-
-  // Initialize CRUD operations with dependencies
-  const crud = useNeedCRUD({
-    needs: needState.needs,
-    setNeeds: needState.setNeeds,
-    activeTab: needState.activeTab,
-    setActiveTab: needState.setActiveTab,
-    cache: needState.cache,
-    setCache: needState.setCache,
-    setLoading: needState.setLoading,
-    setLoadingStage: needState.setLoadingStage,
-    setError: needState.setError,
-    setShowPriorArt: uiState.setShowPriorArt,
-    setExpandedBranches: uiState.setExpandedBranches,
-    history,
-  });
-
-  // Initialize tree operations with dependencies
-  const tree = useTreeOperations({
-    needs: needState.needs,
-    setNeeds: needState.setNeeds,
-    setBranchLoading: uiState.setBranchLoading,
-    setExpandedBranches: uiState.setExpandedBranches,
-    modal: uiState.modal,
-    setModal: uiState.setModal,
-    formData: uiState.formData,
-    setFormData: uiState.setFormData,
-    crossPollinate: uiState.crossPollinate,
-    history,
-  });
-
-  // Initialize analysis operations with dependencies
-  const analysis = useExpressionAnalysis({
-    setMechanism: uiState.setMechanism,
-    setMechanismLoading: uiState.setMechanismLoading,
-    setDeepDive: uiState.setDeepDive,
-    setDeepDiveLoading: uiState.setDeepDiveLoading,
-    setAppConcepts: uiState.setAppConcepts,
-    setAppConceptsLoading: uiState.setAppConceptsLoading,
-  });
-
-  // Initialize cross-pollination with dependencies
-  const cross = useCrossPollination({
-    crossPollinate: uiState.crossPollinate,
-    setCrossPollinate: uiState.setCrossPollinate,
-    setCrossLoading: uiState.setCrossLoading,
-  });
-
-  // Initialize AI assistant with dependencies
-  const ai = useAIAssistant({
-    needs: needState.needs,
-    setNeeds: needState.setNeeds,
-    activeNeed: needState.activeNeed,
+  const state = useNeedState();
+  const crud = useNeedCRUD(state, history);
+  const tree = useTreeOperations(state, history);
+  const analysis = useExpressionAnalysis(state);
+  const cross = useCrossPollination();
+  const ai = useAIAssistant(state, {
+    fetchNeed: crud.fetchNeed,
     fetchMechanism: analysis.fetchMechanism,
     fetchDeepDive: analysis.fetchDeepDive,
     branchIndustry: tree.branchIndustry,
   });
 
-  // Undo/Redo action handlers that apply state changes
-  const undo = () => {
-    const action = history.popUndo();
-    if (!action) return;
+  const { updateNeed, openInWorkspace, removeFromWorkspace } = state;
 
-    // Restore previous state based on action type
-    switch (action.type) {
-      case 'add_need':
-        if (action.data.needId) {
-          needState.setNeeds((prev: Need[]) => prev.filter(n => n.id !== action.data.needId));
-          toast.success('Undid: Add need');
-        }
-        break;
+  /** Apply an action forwards (redo) or backwards (undo). Returns false if its target is gone. */
+  const apply = useCallback(async (action: HistoryAction, direction: 'undo' | 'redo'): Promise<boolean> => {
+    const { needId, parentId = null, index, nodes = [] } = action.data;
 
-      case 'delete_need':
-        if (action.data.previousState) {
-          needState.setNeeds((prev: Need[]) => [...prev, action.data.previousState]);
-          toast.success('Undid: Delete need');
-        }
-        break;
-
-      case 'close_need':
-        if (action.data.previousState) {
-          needState.setNeeds((prev: Need[]) => [...prev, action.data.previousState]);
-          needState.setActiveTab(action.data.needId ?? null);
-          toast.success('Undid: Close need');
-        }
-        break;
-
-      case 'branch':
-      case 'add_child':
-      case 'delete_expression':
-        if (action.data.needId && action.data.previousState) {
-          needState.setNeeds((prev: Need[]) => prev.map(n =>
-            n.id === action.data.needId ? action.data.previousState : n
-          ));
-          toast.success(`Undid: ${action.description}`);
-        }
-        break;
-
-      default:
-        console.warn('Unknown action type for undo:', action.type);
+    if (action.type === 'close_need') {
+      if (direction === 'redo') {
+        removeFromWorkspace(needId);
+        return true;
+      }
+      const need = await DBService.getNeed(needId);
+      if (!need) return false;
+      openInWorkspace(need);
+      return true;
     }
-  };
 
-  const redo = () => {
-    const action = history.popRedo();
-    if (!action) return;
+    const adds = action.type === 'branch' || action.type === 'add_child';
+    const insert = adds === (direction === 'redo');
+    const result = updateNeed(needId, (need) => {
+      const list = getFutureExpressions(need);
+      const existing = insert ? collectExpressionIds(need) : null;
+      const toInsert = existing ? nodes.filter((n) => !existing.has(n.id)) : nodes;
+      if (insert && toInsert.length === 0) return need;
+      const next = insert
+        ? insertIntoExpressionTree(list, parentId, toInsert, adds ? undefined : index)
+        : nodes.reduce((acc, node) => removeFromExpressionTree(acc, node.id), list);
+      return next === list ? need : withFutureExpressions(need, () => next);
+    });
+    return result !== null;
+  }, [updateNeed, openInWorkspace, removeFromWorkspace]);
 
-    // Re-apply state based on action type
-    switch (action.type) {
-      case 'add_need':
-        if (action.data.newState) {
-          needState.setNeeds((prev: Need[]) => [...prev, action.data.newState]);
-          needState.setActiveTab(action.data.needId ?? null);
-          toast.success('Redid: Add need');
-        }
-        break;
+  // Undo/redo steps run strictly one after another: some are async (reopening a need),
+  // and a later step may depend on an earlier one having landed.
+  const queue = useRef<Promise<void>>(Promise.resolve());
+  const step = useCallback((direction: 'undo' | 'redo') => {
+    queue.current = queue.current.then(async () => {
+      const action = direction === 'undo' ? history.popUndo() : history.popRedo();
+      if (!action) return;
+      const ok = await apply(action, direction).catch(() => false);
+      const verb = direction === 'undo' ? 'Undid' : 'Redid';
+      if (ok) {
+        toast.success(`${verb}: ${action.description}`, { id: 'history' });
+      } else {
+        // Keep the stacks truthful: the action did not happen, so it stays where it was.
+        if (direction === 'undo') history.revertUndo();
+        else history.revertRedo();
+        toast.error(`Cannot ${direction} "${action.description}" — open its need and try again.`, { id: 'history' });
+      }
+    });
+  }, [history, apply]);
 
-      case 'delete_need':
-        if (action.data.needId) {
-          needState.setNeeds((prev: Need[]) => prev.filter(n => n.id !== action.data.needId));
-          toast.success('Redid: Delete need');
-        }
-        break;
+  const undo = useCallback(() => step('undo'), [step]);
+  const redo = useCallback(() => step('redo'), [step]);
 
-      case 'close_need':
-        if (action.data.needId) {
-          needState.setNeeds((prev: Need[]) => prev.filter(n => n.id !== action.data.needId));
-          toast.success('Redid: Close need');
-        }
-        break;
+  const closeAllModals = useCallback(() => {
+    analysis.setMechanism(null);
+    analysis.setDeepDive(null);
+    analysis.setAppConcepts(null);
+    cross.closeCrossPollinate();
+    tree.closeAddModal();
+  }, [analysis.setMechanism, analysis.setDeepDive, analysis.setAppConcepts, cross.closeCrossPollinate, tree.closeAddModal]);
 
-      case 'branch':
-      case 'add_child':
-      case 'delete_expression':
-        if (action.data.needId && action.data.newState) {
-          needState.setNeeds((prev: Need[]) => prev.map(n =>
-            n.id === action.data.needId ? action.data.newState : n
-          ));
-          toast.success(`Redid: ${action.description}`);
-        }
-        break;
+  const anyModalOpen = !!(analysis.mechanism || analysis.deepDive || analysis.appConcepts || cross.crossPollinate.open || tree.modal.open);
 
-      default:
-        console.warn('Unknown action type for redo:', action.type);
-    }
-  };
-
-  // Return unified API
   return {
-    // State from needState
-    ...needState,
-
-    // UI state from uiState
-    ...uiState,
-
-    // CRUD operations
+    // workspace
+    ready: state.ready,
+    needs: state.needs,
+    activeTab: state.activeTab,
+    setActiveTab: state.setActiveTab,
+    activeNeed: state.activeNeed,
+    loading: state.loading,
+    loadingStage: state.loadingStage,
+    error: state.error,
     ...crud,
-
-    // Tree operations
     ...tree,
-
-    // Analysis operations
     ...analysis,
-
-    // Cross-pollination
     ...cross,
-
-    // AI Assistant
     ...ai,
-
-    // History
+    // history
     history: history.history,
-    addToHistory: history.addToHistory,
     undo,
     redo,
     clearHistory: history.clearHistory,
+    // modals
+    anyModalOpen,
+    closeAllModals,
   };
 }
+
+export type NeedManager = ReturnType<typeof useNeedManager>;
