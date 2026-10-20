@@ -64,7 +64,18 @@ export function validateGenerateBody(body: unknown, defaultTemperature: number):
 
 const UPSTREAM_TIMEOUT_MS = 55_000;
 
+export type Provider = 'gemini' | 'anthropic';
+
+/** AI_PROVIDER wins; otherwise Gemini if its key is set, else Anthropic if its key is set. */
+export function providerName(): Provider {
+  const explicit = process.env.AI_PROVIDER?.trim().toLowerCase();
+  if (explicit === 'gemini' || explicit === 'anthropic') return explicit;
+  if (!process.env.GEMINI_API_KEY?.trim() && process.env.ANTHROPIC_API_KEY?.trim()) return 'anthropic';
+  return 'gemini';
+}
+
 export function modelName(): string {
+  if (providerName() === 'anthropic') return process.env.ANTHROPIC_MODEL?.trim() || 'claude-sonnet-5-5';
   return process.env.GEMINI_MODEL?.trim() || 'gemini-2.5-flash';
 }
 
@@ -82,23 +93,67 @@ function generationConfigFor(model: string, params: GenerateParams): GenerationC
   return config;
 }
 
+interface GenerateResult {
+  text: string;
+  truncated: boolean;
+}
+
+async function generateWithGemini(apiKey: string, model: string, params: GenerateParams): Promise<GenerateResult> {
+  const client = new GoogleGenerativeAI(apiKey).getGenerativeModel({ model }, { timeout: UPSTREAM_TIMEOUT_MS });
+  const result = await client.generateContent({
+    contents: [{ role: 'user', parts: [{ text: params.prompt }] }],
+    generationConfig: generationConfigFor(model, params),
+  });
+  const response = result.response;
+  return { text: response.text(), truncated: response.candidates?.[0]?.finishReason === 'MAX_TOKENS' };
+}
+
+/** Anthropic Messages API over fetch (no SDK dependency). Temperature is capped at 1.0 by the API. */
+async function generateWithAnthropic(apiKey: string, model: string, params: GenerateParams): Promise<GenerateResult> {
+  const res = await fetch('https://api.anthropic.com/v1/messages', {
+    method: 'POST',
+    headers: { 'content-type': 'application/json', 'x-api-key': apiKey, 'anthropic-version': '2023-06-01' },
+    body: JSON.stringify({
+      model,
+      max_tokens: params.maxTokens,
+      temperature: Math.min(params.temperature, 1),
+      messages: [{ role: 'user', content: params.prompt }],
+    }),
+    signal: AbortSignal.timeout(UPSTREAM_TIMEOUT_MS),
+  });
+  const data = (await res.json().catch(() => ({}))) as {
+    content?: { type: string; text?: string }[];
+    stop_reason?: string;
+    error?: { type?: string; message?: string };
+  };
+  if (!res.ok) {
+    const err = new Error(data.error?.message || `Anthropic API error ${res.status}`) as Error & { status?: number; type?: string };
+    err.status = res.status;
+    err.type = data.error?.type;
+    throw err;
+  }
+  const text = (data.content ?? []).map((b) => (b.type === 'text' ? b.text ?? '' : '')).join('');
+  return { text, truncated: data.stop_reason === 'max_tokens' };
+}
+
 function classifyUpstreamError(error: unknown): CoreResponse {
   const message = error instanceof Error ? error.message : String(error);
   const status = (error as { status?: number })?.status;
 
-  if (status === 429 || /quota|rate.?limit|resource.?exhausted|\b429\b/i.test(message)) {
+  if (status === 429 || status === 529 || /quota|rate.?limit|overloaded|resource.?exhausted|\b429\b/i.test(message)) {
     return json(429, { error: 'AI quota exceeded. Wait a minute and retry.', code: 'quota' }, { 'Retry-After': '30' });
   }
   if (error instanceof Error && (error.name === 'AbortError' || /timed? ?out|aborted/i.test(message))) {
     return json(504, { error: 'The AI model took too long to respond.', code: 'timeout' });
   }
-  if (/API[_ ]?KEY|api key not valid|permission denied/i.test(message)) {
-    return json(500, { error: 'The server\'s Gemini API key was rejected. Check GEMINI_API_KEY.', code: 'config' });
+  if (status === 401 || status === 403 || /API[_ ]?KEY|api key not valid|permission denied|authentication/i.test(message)) {
+    const keyVar = providerName() === 'anthropic' ? 'ANTHROPIC_API_KEY' : 'GEMINI_API_KEY';
+    return json(500, { error: `The server's AI API key was rejected. Check ${keyVar}.`, code: 'config' });
   }
-  if (status === 404 || /models\/.*not found|is not found/i.test(message)) {
+  if (status === 404 || /models\/.*not found|is not found|not_found/i.test(message)) {
     return json(502, { error: `Model "${modelName()}" is not available.`, code: 'model' });
   }
-  if (/SAFETY|blocked/i.test(message)) {
+  if (/SAFETY|blocked|refus/i.test(message)) {
     return json(422, { error: 'The AI declined to answer this prompt.', code: 'blocked' });
   }
   return json(502, { error: 'The AI provider returned an error.', code: 'upstream' });
@@ -107,27 +162,21 @@ function classifyUpstreamError(error: unknown): CoreResponse {
 export async function handleGenerate(req: CoreRequest, defaultTemperature: number): Promise<CoreResponse> {
   if (req.method !== 'POST') return json(405, { error: 'Method not allowed' }, { Allow: 'POST' });
 
-  const apiKey = process.env.GEMINI_API_KEY?.trim();
-  if (!apiKey) return json(500, { error: 'GEMINI_API_KEY is not configured on the server', code: 'config' });
+  const provider = providerName();
+  const keyVar = provider === 'anthropic' ? 'ANTHROPIC_API_KEY' : 'GEMINI_API_KEY';
+  const apiKey = process.env[keyVar]?.trim();
+  if (!apiKey) return json(500, { error: `${keyVar} is not configured on the server`, code: 'config' });
 
   const parsed = validateGenerateBody(req.body, defaultTemperature);
   if (!parsed.ok) return json(400, { error: parsed.error, code: 'invalid' });
 
   const model = modelName();
   try {
-    const client = new GoogleGenerativeAI(apiKey).getGenerativeModel({ model }, { timeout: UPSTREAM_TIMEOUT_MS });
-    const result = await client.generateContent({
-      contents: [{ role: 'user', parts: [{ text: parsed.value.prompt }] }],
-      generationConfig: generationConfigFor(model, parsed.value),
-    });
-    const response = result.response;
-    const text = response.text();
+    const { text, truncated } = await (provider === 'anthropic' ? generateWithAnthropic : generateWithGemini)(apiKey, model, parsed.value);
     if (!text.trim()) return json(502, { error: 'The AI returned an empty response.', code: 'empty' });
-
-    const finishReason = response.candidates?.[0]?.finishReason;
-    return json(200, { text, truncated: finishReason === 'MAX_TOKENS' });
+    return json(200, { text, truncated });
   } catch (error) {
-    console.error('[gemini] upstream error:', error);
+    console.error(`[${provider}] upstream error:`, error);
     return classifyUpstreamError(error);
   }
 }

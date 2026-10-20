@@ -18,8 +18,11 @@ also mirrored to `local-mirror.db` (SQLite) so it survives browser storage reset
 
 | Variable | Required | Purpose |
 |----------|----------|---------|
-| `GEMINI_API_KEY` | yes | Google AI Studio key (server-side only) |
+| `AI_PROVIDER` | no | `gemini` or `anthropic`; default: Gemini if its key is set, else Anthropic |
+| `GEMINI_API_KEY` | if Gemini | Google AI Studio key (server-side only) |
 | `GEMINI_MODEL` | no | Model id, default `gemini-2.5-flash` |
+| `ANTHROPIC_API_KEY` | if Anthropic | Anthropic API key (server-side only) |
+| `ANTHROPIC_MODEL` | no | Model id, default `claude-sonnet-5-5` |
 
 Never prefix these with `VITE_`: Vite inlines `VITE_*` variables into the browser bundle.
 
