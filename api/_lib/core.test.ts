@@ -82,7 +82,7 @@ describe('provider selection', () => {
     const res = await handleGenerate(req('POST', { prompt: 'x', temperature: 1.4 }), 0.9);
     expect(res).toMatchObject({ status: 200, body: { text: '{"ok":1}', truncated: true } });
     const sent = JSON.parse(fetchMock.mock.calls[0][1].body);
-    expect(sent.temperature).toBe(1);
+    expect(sent).not.toHaveProperty('temperature');
     expect(fetchMock.mock.calls[0][1].headers['x-api-key']).toBe('a');
     vi.unstubAllGlobals();
   });

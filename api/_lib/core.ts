@@ -108,7 +108,7 @@ async function generateWithGemini(apiKey: string, model: string, params: Generat
   return { text: response.text(), truncated: response.candidates?.[0]?.finishReason === 'MAX_TOKENS' };
 }
 
-/** Anthropic Messages API over fetch (no SDK dependency). Temperature is capped at 1.0 by the API. */
+/** Anthropic Messages API over fetch (no SDK dependency). No `temperature`: current Claude models reject it (400 "deprecated for this model"). */
 async function generateWithAnthropic(apiKey: string, model: string, params: GenerateParams): Promise<GenerateResult> {
   const res = await fetch('https://api.anthropic.com/v1/messages', {
     method: 'POST',
@@ -116,7 +116,6 @@ async function generateWithAnthropic(apiKey: string, model: string, params: Gene
     body: JSON.stringify({
       model,
       max_tokens: params.maxTokens,
-      temperature: Math.min(params.temperature, 1),
       messages: [{ role: 'user', content: params.prompt }],
     }),
     signal: AbortSignal.timeout(UPSTREAM_TIMEOUT_MS),
