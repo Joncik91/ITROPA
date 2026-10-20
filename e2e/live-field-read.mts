@@ -1,10 +1,10 @@
 // Check 3: one real run against the live API. Saves the fixtures the e2e tests replay.
 // Usage: API_BASE=http://100.108.36.107:5173 npx tsx e2e/live-field-read.mts
 import { writeFileSync } from 'node:fs';
-import { buildFetchPriorArtPrompt } from '../src/services/gemini/prompts/need-prompts';
+import { buildFetchPriorArtPrompt, buildGenerateNeedPrompt } from '../src/services/gemini/prompts/need-prompts';
 import { extractJSON } from '../src/utils/json-parser';
-import { normalizePriorArt } from '../src/utils/need-model';
-import { PRIOR_ART_TOKENS } from '../src/v2/prior-art';
+import { normalizeNeed, getFutureExpressions, normalizePriorArt } from '../src/utils/need-model';
+import { NEED_TOKENS, PRIOR_ART_TOKENS } from '../src/v2/tokens';
 import { buildFieldReadPrompt, normalizeFieldRead } from '../src/v2/field-read';
 
 const base = process.env.API_BASE ?? 'http://127.0.0.1:5173';
@@ -26,6 +26,11 @@ const priorArt = normalizePriorArt(await call(buildFetchPriorArtPrompt(NEED), PR
 const items = Object.values(priorArt).flat().length;
 const field = normalizeFieldRead(await call(buildFieldReadPrompt(NEED, priorArt), 3500));
 
+const rawNeed = await call(buildGenerateNeedPrompt(NEED, priorArt), NEED_TOKENS);
+const need = normalizeNeed(rawNeed, NEED, priorArt);
+const industries = getFutureExpressions(need);
+console.log(`industries: ${industries.length}, with inspirations: ${industries.filter((i) => i.inspirations.length > 0).length}, historical eras: ${need.eras.length - 1}`);
+
 const long = (xs: { detail: string }[]) => xs.filter((x) => x.detail.length > 40).length;
 console.log(`prior art items: ${items}`);
 console.log(`gaps: ${field.gaps.length} (${long(field.gaps)} over 40 chars)`);
@@ -35,9 +40,12 @@ console.log(`leaders: ${field.leaders.length}, entry moves: ${field.entryMoves.l
 const failures: string[] = [];
 if (long(field.gaps) < 3) failures.push('fewer than 3 gaps with text over 40 chars');
 if (long(field.whiteSpace) < 3) failures.push('fewer than 3 white-space items with text over 40 chars');
+if (industries.length < 5) failures.push('fewer than 5 future industries');
+if (industries.some((i) => !i.mutation || !i.insight || i.inspirations.length === 0)) failures.push('an industry lacks shift, insight or inspirations');
 if (items < 12) failures.push('fewer than 12 prior-art items');
 if (failures.length) { console.error('FAIL: ' + failures.join('; ')); process.exit(1); }
 
 writeFileSync(new URL('./fixtures/belonging-prior-art.json', import.meta.url), JSON.stringify(priorArt, null, 2));
 writeFileSync(new URL('./fixtures/belonging-field-read.json', import.meta.url), JSON.stringify(field, null, 2));
+writeFileSync(new URL('./fixtures/belonging-need.json', import.meta.url), JSON.stringify(rawNeed, null, 2));
 console.log('PASS, fixtures written');

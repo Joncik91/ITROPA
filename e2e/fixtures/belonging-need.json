@@ -1,0 +1,165 @@
+{
+  "name": "Belonging",
+  "icon": "Users",
+  "description": "The deep human need to be known, accepted, needed and woven into a group of others who will notice when we are absent and show up when we struggle. It rests on repeated contact, shared identity, mutual dependence and tangible care, not just on access to people or content.",
+  "eras": [
+    {
+      "name": "Pre-Industrial",
+      "expressions": [
+        "Village life and extended kin networks, where shared labor and seasonal festivals made belonging unavoidable",
+        "Guilds, religious congregations and friendly societies, which offered initiation, ritual and mutual aid in sickness and death"
+      ]
+    },
+    {
+      "name": "Industrial",
+      "expressions": [
+        "Settlement houses, pubs, barbershops, union halls and fraternal lodges as third places and mutual-aid organizations for urban newcomers",
+        "Company towns, workplace clubs and neighborhood associations that tied identity to employer and locality"
+      ]
+    },
+    {
+      "name": "Digital (2000s-2020)",
+      "expressions": [
+        "Meetup, Facebook Groups, Reddit, Discord and Slack communities offering interest-based identity at scale, though often shallow or parasocial",
+        "Employee resource groups, online support forums and social prescribing programs that formalized belonging within institutions and health systems"
+      ]
+    },
+    {
+      "name": "Post-AI Era (2025+)",
+      "expressions": [
+        {
+          "name": "Pod Weaving Services",
+          "mutation": "AI matching models that read values, rhythms, life stage and communication style, combined with lightweight scheduling and context-aware nudges, can form and maintain small stable groups at massive scale",
+          "insight": "People drift off at the edges of big communities because nobody is specifically responsible for noticing them. Assembling and tending small groups where each person is reliably attended to by a few others turns belonging from a hope into a maintained structure.",
+          "inspirations": [
+            {
+              "source": "Murmurations of starlings and schooling fish",
+              "mechanism": "Each individual tracks a handful of nearest neighbors, which keeps the whole group coherent without central control",
+              "twist": "AI composes and rebalances pods of 5-8 people over time, flags when a member goes quiet, and re-knits the pod as members' lives change"
+            },
+            {
+              "source": "Meetup and interest-based local communities",
+              "mechanism": "Recurring low-stakes contact builds familiarity over time",
+              "twist": "Instead of open-ended event attendance, the same few people meet repeatedly with an AI-supported rhythm, so familiarity compounds rather than resetting each time"
+            }
+          ],
+          "children": []
+        },
+        {
+          "name": "Human Connector Networks",
+          "mutation": "AI handles matching, logistics and triage, freeing trained human link workers to focus on warm introductions and personal follow-up, which can be funded by health insurers, employers and municipalities",
+          "insight": "Self-serve platforms fail at the follow-through gap: people sign up but never feel welcome. A professionalized, AI-augmented connector role closes that gap and is a new kind of care work.",
+          "inspirations": [
+            {
+              "source": "Social prescribing and community link workers",
+              "mechanism": "A person assesses loneliness, refers people to local groups and follows up to make sure they attend and feel welcome",
+              "twist": "AI copilots give each connector a caseload of hundreds with prompts, group-fit suggestions and drift alerts, and outcome-based contracts pay for felt belonging rather than referrals made"
+            },
+            {
+              "name": "Meetup and interest-based local communities",
+              "source": "Meetup and interest-based local communities",
+              "mechanism": "Existing groups provide the destinations for newcomers",
+              "twist": "Connectors escort newcomers into established groups and coach hosts on integrating them, reducing the clique effect"
+            }
+          ],
+          "children": []
+        },
+        {
+          "name": "Interdependence Infrastructure",
+          "mutation": "Programmable mutual-aid pools, reputation-light skill and resource exchanges, and AI-coordinated routing of help make small acts of reciprocal support cheap to organize and visible",
+          "insight": "Historically, belonging came from needing each other. Modern life removed practical interdependence, so a new industry deliberately rebuilds it: childcare swaps, caregiving rotas, shared tools, emergency funds and skill barters that make membership materially meaningful.",
+          "inspirations": [
+            {
+              "source": "Mycorrhizal networks in forests",
+              "mechanism": "Resources flow automatically from healthy to stressed members, including seedlings in shade",
+              "twist": "AI detects needs from member-shared signals and routes time, money or goods from those with surplus, giving newcomers early access to support so they receive before they must give"
+            },
+            {
+              "source": "Guilds, craft fraternities and friendly societies",
+              "mechanism": "Membership combined identity, mentorship and mutual insurance against sickness and hardship",
+              "twist": "Modern neighborhood and affinity-based friendly societies offer micro-insurance, care rotas and apprenticeship ladders across professions and life stages, managed through transparent software"
+            }
+          ],
+          "children": []
+        },
+        {
+          "name": "Cohort and Rite-of-Passage Design Studios",
+          "mutation": "Generative AI for curriculum and ritual design, plus cheap hybrid event tooling, lets organizations design bounded, high-intensity group journeys with shared challenges and graduation ceremonies for any life transition",
+          "insight": "People bond fastest through shared struggle with a clear beginning and end, and secular life lacks ceremonies for transitions such as moving to a new city, retirement, divorce, new parenthood, career change or immigration. A market emerges to design and run them.",
+          "inspirations": [
+            {
+              "source": "Onboarding and cohort design",
+              "mechanism": "Cohorts that tackle a shared challenge together form strong identity ('Class of...')",
+              "twist": "Time-bound transition cohorts for life changes, with alumni networks that persist and graduates who return as guides for the next cohort"
+            },
+            {
+              "source": "Religious congregations and rites of passage",
+              "mechanism": "Weekly rhythm, communal meals and ceremonies for births, weddings and funerals give shared meaning",
+              "twist": "Secular, personalized ritual kits and facilitators that create recurring gatherings and life-event ceremonies without requiring shared belief, so ceremony becomes available to anyone"
+            }
+          ],
+          "children": []
+        },
+        {
+          "name": "Role-Based Community Engineering",
+          "mutation": "AI that maps member skills, interests and capacity to community needs, together with game-style quest, role and reputation systems, lets organizations assign newcomers specific, visible and needed contributions",
+          "insight": "Feeling needed is a stronger driver of belonging than being welcomed. Many communities leave members as passive lurkers, so tooling and consultancies emerge that engineer meaningful roles and progression paths into any group, from neighborhood associations to online communities to companies.",
+          "inspirations": [
+            {
+              "source": "Game guilds and role-based multiplayer design",
+              "mechanism": "Complementary roles make each member needed, and scheduled shared goals build loyalty",
+              "twist": "Real-world community projects such as food hubs, repair cafes and local newsletters are decomposed into complementary roles, with AI suggesting a first small role within a person's first week"
+            },
+            {
+              "source": "Honeybee colony and the superorganism",
+              "mechanism": "Tasks change with age and experience while shared markers express colony identity",
+              "twist": "Visible role progression from newcomer to steward, with shared symbols, language and badges that make growth in responsibility legible and celebrated"
+            }
+          ],
+          "children": []
+        },
+        {
+          "name": "Psychological Safety as a Service",
+          "mutation": "Real-time conversation analysis, AI facilitation agents and norm-setting templates can model vulnerability, ensure every voice is heard and detect rising toxicity or exclusion in groups, on and offline",
+          "insight": "Authentic connection requires feeling safe enough to be imperfect. Moderator burnout and toxicity undermine trust in communities, so a new industry provides facilitation, norms and safety infrastructure as a service for communities, teams and support groups.",
+          "inspirations": [
+            {
+              "source": "Trauma-informed and psychological safety practices",
+              "mechanism": "Leaders normalize mistakes, invite every voice and respond to disclosure with acceptance",
+              "twist": "AI co-facilitators run check-ins, structured turn-taking and gentle prompts for quieter members, and coach human hosts after sessions, with privacy-preserving, opt-in group-level insights rather than individual surveillance"
+            },
+            {
+              "source": "Discord, Slack and Reddit community spaces",
+              "mechanism": "Shared norms, roles, rituals and inside jokes create group identity",
+              "twist": "Safety signals and norms are built into community platforms as first-class features, and moderation load is shared across trained members so burnout is reduced and lurkers have a low-risk path to participation"
+            }
+          ],
+          "children": []
+        },
+        {
+          "name": "Everyday Grooming Signal Platforms",
+          "mutation": "Ambient and wearable interfaces, voice and messaging agents, and AI that drafts or prompts personalized micro-gestures can make constant, low-cost affiliation signals easy between real people",
+          "insight": "Social animals maintain bonds through frequent small signals rather than occasional grand gestures. Busy, dispersed people under-invest in these, so tools emerge that lower the cost of showing up in small ways while keeping the gesture human and sincere.",
+          "inspirations": [
+            {
+              "source": "Wolf packs and other social mammal groups",
+              "mechanism": "Ritualized behaviors such as howls, play and grooming reinforce bonds through constant small affiliative signals",
+              "twist": "Shared micro-rituals, such as daily voice notes within a pod, small favor prompts, shared playful challenges and presence cues, are woven into daily life and designed to prompt real human reciprocity instead of replacing it"
+            },
+            {
+              "source": "Settlement houses, town squares and 'third places'",
+              "mechanism": "Free, informal and repeated contact in easy-access spaces builds weak ties and neighborhood identity",
+              "twist": "Hybrid third places, where physical venues use presence-aware tools to introduce regulars and welcome newcomers with no purchase or agenda required, and are funded as public infrastructure or by community subscription"
+            }
+          ],
+          "children": []
+        }
+      ]
+    }
+  ],
+  "relatedNeeds": [
+    "Loneliness prevention and social health",
+    "Mutual aid and collective care",
+    "Meaning, ritual and shared identity"
+  ]
+}

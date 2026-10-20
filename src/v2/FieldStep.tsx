@@ -1,9 +1,10 @@
-import { ArrowLeft, Loader2, RotateCw } from 'lucide-react';
+import { ArrowLeft, ArrowRight } from 'lucide-react';
 import { Button, Section } from '../components/ui';
 import type { PriorArt, PriorArtItem } from '../types';
 import { loadFieldRead, loadPriorArt } from './journey';
 import type { FieldRead } from './field-read';
 import { StepFrame } from './StepFrame';
+import { Failed, Loading } from './status';
 import { useCall, type CallState } from './useCall';
 
 const GROUPS: { key: keyof PriorArt; title: string; hint: string; tail: (i: PriorArtItem) => [string, string | undefined][] }[] = [
@@ -21,19 +22,6 @@ const Card = ({ title, sub, rows }: { title: string; sub?: string; rows: [string
       <p key={label} className="text-sm break-words">{label && <span className="font-medium">{label}: </span>}{v}</p>
     ))}
   </article>
-);
-
-const Failed = ({ message, onRetry }: { message: string; onRetry: () => void }) => (
-  <div role="alert" className="p-3 rounded-card border border-bad/40 bg-bad/10 space-y-2">
-    <p className="text-sm">{message}</p>
-    <Button size="sm" icon={<RotateCw className="w-4 h-4" aria-hidden />} onClick={onRetry}>Retry</Button>
-  </div>
-);
-
-const Loading = ({ label }: { label: string }) => (
-  <p className="flex items-center gap-2 text-sm text-ink-2" role="status">
-    <Loader2 className="w-4 h-4 animate-spin" aria-hidden />{label}
-  </p>
 );
 
 const FieldReadView = ({ f }: { f: FieldRead }) => (
@@ -75,7 +63,7 @@ const FieldReadSection = ({ needName, priorArt }: { needName: string; priorArt: 
   );
 };
 
-export const FieldStep = ({ needName, description, onBack }: { needName: string; description?: string; onBack: () => void }) => {
+export const FieldStep = ({ needName, description, onBack, onNext }: { needName: string; description?: string; onBack: () => void; onNext: () => void }) => {
   const [prior, retryPrior] = useCall(() => loadPriorArt(needName, description), `prior:${needName}:${description ?? ''}`);
   const priorArt = prior.status === 'done' ? prior.data : undefined;
 
@@ -84,7 +72,12 @@ export const FieldStep = ({ needName, description, onBack }: { needName: string;
       step={1}
       what={`What already exists for “${needName}”, and where it falls short.`}
       why="New industries grow in the gaps of old ones. Seeing who serves the need, and how, shows where a newcomer can win."
-      next={<Button variant="ghost" icon={<ArrowLeft className="w-4 h-4" aria-hidden />} onClick={onBack}>Pick a different need</Button>}
+      next={(
+        <div className="space-y-2">
+          <Button variant="primary" block icon={<ArrowRight className="w-4 h-4" aria-hidden />} onClick={onNext} disabled={!priorArt}>See future industries</Button>
+          <Button variant="ghost" icon={<ArrowLeft className="w-4 h-4" aria-hidden />} onClick={onBack}>Pick a different need</Button>
+        </div>
+      )}
     >
       <Slot state={prior} retry={retryPrior} label="Researching prior art…">
         {(pa) => (

@@ -8,7 +8,7 @@ import { fetchPriorArt } from './prior-art';
 const inflight = new Map<string, Promise<unknown>>();
 
 /** Joins a call already running for the same key, so a double render (React StrictMode) pays once. */
-function once<T>(key: string, run: () => Promise<T>): Promise<T> {
+export function once<T>(key: string, run: () => Promise<T>): Promise<T> {
   const running = inflight.get(key) as Promise<T> | undefined;
   if (running) return running;
   const p = run().finally(() => inflight.delete(key));
