@@ -1,0 +1,84 @@
+{
+  "summary": "Belonging is well served at the level of discovery and access: it has never been easier to find people who share an interest, identity, or struggle. It is poorly served at the level of depth, because modern products offer membership without interdependence, obligation, defined roles, or ritual, which are the ingredients that historically made belonging durable. The result is abundant weak ties, chronic loneliness, and communities people can leave at zero cost.",
+  "leaders": [
+    {
+      "name": "Interest-based online communities (Discord, Reddit, Facebook Groups)",
+      "strength": "Near-zero friction to find peers around any niche, with persistent channels, roles, and in-group language that make membership feel real and let people participate at their own pace.",
+      "weakness": "Ties stay shallow, attention is fragmented, and algorithms and toxic subcultures push people out. Nothing obliges anyone to show up, so belonging rarely turns into presence or mutual support."
+    },
+    {
+      "name": "Activity and meetup platforms (Meetup, Eventbrite, run clubs, Bumble BFF, Timeleft)",
+      "strength": "Move people into physical rooms with repeated, shared-activity structure, which is the proven route from familiarity to friendship.",
+      "weakness": "Attendance is flaky, cliques block newcomers, many events are one-offs with no ritual, and hosts burn out, so the format often stays transactional."
+    },
+    {
+      "name": "Workplace belonging programs (ERGs, Culture Amp, Gallup Q12)",
+      "strength": "Have budget, a captive population, and daily contact, and they can measure belonging and attach mentorship and onboarding rituals to it.",
+      "weakness": "Belonging is conditional on employment and vanishes with layoffs. Programs feel top-down or performative and measure sentiment rather than real relationships."
+    },
+    {
+      "name": "Peer support and mutual-aid groups (AA, NAMI, grief circles, 7 Cups)",
+      "strength": "Offer the deepest felt understanding through shared lived experience, ritual markers like chips and check-ins, and sponsor relationships that carry real obligation.",
+      "weakness": "Identity can become anchored in the problem, quality depends on facilitators, access is uneven, and stigma or anxiety makes joining hard."
+    }
+  ],
+  "gaps": [
+    {
+      "title": "Belonging without being needed",
+      "detail": "Most platforms make people feel welcome but never give them a role that others depend on, so members drift away unnoticed. History shows feeling needed matters more than feeling welcome, yet almost no product builds interdependence."
+    },
+    {
+      "title": "The newcomer threshold",
+      "detail": "New joiners, movers, immigrants, and the newly single or retired hit cliques and unclear entry points, and often quit after one awkward visit. Current tools offer access but no recognized rite of entry or assigned buddy to carry people across."
+    },
+    {
+      "title": "Lonely people who are not 'struggling' enough for support groups",
+      "detail": "Remote workers, young men, and mid-life adults with thin social lives have no shared diagnosis to organize around and no obvious community to join. They are too well to fit mutual-aid models and too isolated to be served by interest feeds."
+    },
+    {
+      "title": "Durable commitment and mutual obligation",
+      "detail": "Because exit is free and the benefits are only social, communities dissolve at the first competing demand. Guilds, congregations, and fraternal orders held people through dues, duties, and tangible mutual benefit, which modern products avoid."
+    },
+    {
+      "title": "Early detection of drifting members",
+      "detail": "Isolation acts as a physiological stressor, but no community tracks when someone quietly disengages or reaches out to them. Moderators and hosts see only the active, so the people most at risk fall away silently."
+    }
+  ],
+  "whiteSpace": [
+    {
+      "title": "Small fixed cohorts with a shared challenge",
+      "detail": "Groups of 6-12 who move through a time-bound, interdependent experience, borrowing from boot camps and Outward Bound, bond fast but are rare outside education and the military. A consumer product for adults in new cities or life transitions could make this a repeatable format."
+    },
+    {
+      "title": "Neighborhood-scale mutual aid with real roles",
+      "detail": "Hyperlocal networks where each person is tied to a few neighbors and holds an adjustable role (host, driver, cook, checker-in) combine third-place presence with obligation. Existing neighborhood apps focus on complaints and classifieds, leaving the opportunity open."
+    },
+    {
+      "title": "Modern guild and fraternal structures",
+      "detail": "Dues, ranks, initiation, and mutual benefits such as emergency funds, job referrals, and care have almost vanished from secular life outside unions and professional bodies. A chosen-community version for the unaffiliated could rebuild loyalty through a visible ladder of advancement."
+    },
+    {
+      "title": "Ritual infrastructure for secular life",
+      "detail": "Weekly gatherings, life-cycle ceremonies, and shared meals are still held mostly by religion, while the growing nonreligious population has few equivalents. Offering shared rhythm, meaning, and ceremony for births, losses, and milestones is both deeply valued and underserved."
+    },
+    {
+      "title": "Connector and elder roles as a product",
+      "detail": "Mycorrhizal hubs and elephant matriarchs suggest that every community needs anchors who hold memory and introduce newcomers, yet tools treat moderators as janitors. Training, supporting, and compensating these anchors could be a platform layer sold to any community."
+    }
+  ],
+  "evolution": "Belonging began as a byproduct of survival-based village life, then moved into congregations, guilds, and fraternal orders that paired ritual with economic mutual benefit. As industrialization, mobility, and secularization eroded these, third places and civic associations filled part of the gap, and then the internet shifted the focus to discovery and self-selected niches. The current wave of meetup apps and curated dinners is trying to restore physical presence but still lacks obligation, roles, and ritual. What comes next is likely a hybrid that couples digital matching with small stable cohorts, defined roles, shared rituals, and some form of mutual commitment.",
+  "entryMoves": [
+    {
+      "title": "Cohort-based 'new in town' or life-transition programs",
+      "detail": "Match 8-10 people in a transition (relocation, divorce, retirement, new job) into a fixed 8-12 week cohort with a facilitator, a shared challenge, and an ending ceremony. It beats open meetups because the group is stable, the entry threshold is clear, and graduating cohorts can seed ongoing local circles."
+    },
+    {
+      "title": "Role-based micro-communities with cooperative quests",
+      "detail": "Build small groups where each member has a distinct, rotating role and the group works toward recurring shared goals, such as a neighborhood project or a monthly meal, borrowing from MMO guilds. Being counted on creates return behavior that flat feeds and one-off events cannot."
+    },
+    {
+      "title": "A connector-and-drift-detection layer for existing communities",
+      "detail": "Sell to run clubs, alumni groups, congregations, and employers a lightweight tool that flags quietly disengaging members, prompts a buddy to reach out, and supports the host or elder who holds the group together. It avoids competing with incumbents for members and instead fixes the retention and host-burnout problems they all share."
+    }
+  ]
+}

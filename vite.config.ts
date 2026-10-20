@@ -21,6 +21,7 @@ export default defineConfig(({ mode }) => {
     ],
     build: {
       rollupOptions: {
+        input: { main: 'index.html', v2: 'v2/index.html' },
         output: {
           manualChunks: {
             react: ['react', 'react-dom'],
