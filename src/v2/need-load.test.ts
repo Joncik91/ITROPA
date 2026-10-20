@@ -10,7 +10,7 @@ import { DBService } from '../services/db/db.service';
 import { db } from '../services/db/db-client';
 import { getFutureExpressions } from '../utils/need-model';
 import { NEED_TOKENS } from './tokens';
-import { loadNeed } from './need-load';
+import { loadNeed, watchProgress } from './need-load';
 
 const prior = { currentLeaders: [{ name: 'Meetup', mechanism: 'groups' }] };
 const generated = {
@@ -81,5 +81,26 @@ describe('loadNeed', () => {
     vi.mocked(geminiClient.callAPI).mockRejectedValue(new Error('upstream'));
     await expect(loadNeed('Belonging')).rejects.toThrow('upstream');
     expect(await DBService.findNeedByName('Belonging')).toBeUndefined();
+  });
+
+  it('reports step 1 of 2 then step 2 of 2 when prior art has to be fetched too (check 11)', async () => {
+    fetchPriorArt.mockResolvedValue(prior);
+    vi.mocked(geminiClient.callAPI).mockResolvedValue(generated);
+    const seen: string[] = [];
+    const stop = watchProgress('Belonging', (t) => seen.push(t));
+    await loadNeed('Belonging');
+    stop();
+    expect(seen).toEqual(['Step 1 of 2: reading the field', 'Step 2 of 2: imagining industries']);
+  });
+
+  it('reports only step 1 of 1 when the prior art is already stored (check 11)', async () => {
+    await DBService.saveSearchCache('Belonging', prior);
+    vi.mocked(geminiClient.callAPI).mockResolvedValue(generated);
+    const seen: string[] = [];
+    const stop = watchProgress('Belonging', (t) => seen.push(t));
+    await loadNeed('Belonging');
+    stop();
+    expect(seen).toEqual(['Step 1 of 1: imagining industries']);
+    expect(fetchPriorArt).not.toHaveBeenCalled();
   });
 });

@@ -521,3 +521,79 @@ test('Home: with nothing saved there is no list, only how it works (check 4)', a
   await expect(page.getByText('saved on this device')).toBeVisible();
   expect(await noSideScroll(page)).toBe(true);
 });
+
+test('Navigation: the path shows where you are and every earlier part is one tap away (checks 5, 6, 13)', async ({ page }) => {
+  await buildMock(page);
+  await page.goto('/v2/?need=Belonging&step=industries');
+  const path = page.getByTestId('path');
+  await expect(path).toHaveText(/Home.*Belonging.*Industries/);
+  await expect(path.getByRole('button', { name: 'Industries' })).toHaveCount(0); // the current place is not a link
+
+  await page.getByRole('button', { name: /^Dig in:/ }).first().click();
+  await expect(path.getByRole('button', { name: 'Industries' })).toBeVisible();
+  await expect(path.locator('[aria-current="page"]')).not.toHaveText(/^(…|Industry)$/);
+  const industry = (await path.locator('[aria-current="page"]').textContent())!;
+
+  await page.getByRole('button', { name: 'Build an app from this' }).click();
+  await expect(path).toContainText('Build');
+  await expect(path.getByRole('button', { name: industry })).toBeVisible();
+  expect(await noSideScroll(page)).toBe(true);
+
+  // Step bar: Build is the current step, the earlier steps are links.
+  const bar = page.getByRole('navigation', { name: 'Progress' });
+  await expect(bar.getByRole('button', { name: 'Industries' })).toBeVisible();
+  await expect(bar.getByRole('button', { name: 'Build' })).toHaveCount(0);
+
+  await path.getByRole('button', { name: 'Belonging' }).click(); // the need crumb leads back to the field
+  await expect(page.getByTestId('prior-art')).toBeVisible();
+  await page.goBack();
+  await path.getByRole('button', { name: industry }).click();
+  await expect(page.getByRole('button', { name: 'Build an app from this' })).toBeVisible();
+  await page.getByTestId('path').getByRole('button', { name: 'Industries' }).click();
+  await expect(page.getByTestId('industries-list')).toBeVisible();
+  await page.getByTestId('path').getByRole('button', { name: 'Home' }).click();
+  await expect(page).toHaveURL(/\/v2\/$/);
+  await expect(page.getByRole('button', { name: 'Research this need' })).toBeVisible();
+});
+
+test('Navigation: no later step is a link on the Field step, and going back to Field does not pay for prior art again', async ({ page }) => {
+  const calls = await mockApi(page);
+  await page.goto('/v2/');
+  await page.getByLabel('What you mean by it').fill('for remote workers');
+  await page.getByLabel('Or type your own').fill('Belonging');
+  await page.getByRole('button', { name: 'Research this need' }).click();
+  const bar = page.getByRole('navigation', { name: 'Progress' });
+  await expect(bar.getByRole('button', { name: 'Industries' })).toHaveCount(0); // even while prior art is still loading
+  await expect(page.getByTestId('prior-art')).toBeVisible();
+  await page.getByRole('button', { name: 'See future industries' }).click();
+  await expect(page.getByTestId('industries-list')).toBeVisible();
+  const before = { ...calls };
+  await bar.getByRole('button', { name: 'Field' }).click();
+  await expect(page.getByTestId('prior-art')).toBeVisible();
+  expect(calls.prior).toBe(before.prior);
+  expect(calls.field).toBe(before.field);
+});
+
+test('Navigation: Build is not a link until an industry is chosen, and Home has no path bar (check 6)', async ({ page }) => {
+  await mockApi(page);
+  await page.goto('/v2/?need=Belonging&step=industries');
+  const bar = page.getByRole('navigation', { name: 'Progress' });
+  await expect(bar.getByRole('button', { name: 'Field' })).toBeVisible();
+  await expect(bar.getByRole('button', { name: 'Build' })).toHaveCount(0);
+  await expect(bar.getByText('Build')).toBeVisible();
+  await page.goto('/v2/');
+  await expect(page.getByTestId('path')).toHaveCount(0);
+});
+
+test('Navigation: the main action sits in a bar pinned to the bottom, and a long need name keeps the path inside the page (checks 13, edge a)', async ({ page }) => {
+  await mockApi(page);
+  const long = 'Supercalifragilisticexpialidocious'.repeat(4);
+  await page.goto(`/v2/?need=${long}&step=industries`);
+  await expect(page.getByTestId('path')).toContainText(long);
+  expect(await noSideScroll(page)).toBe(true);
+  const bar = page.getByTestId('action-bar');
+  await expect(bar).toBeVisible();
+  const box = await bar.boundingBox();
+  const vh = page.viewportSize()!.height;
+  expect(box!.y + box!.height).toBeLessThanOrEqual(vh + 1);
+});

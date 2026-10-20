@@ -1,8 +1,9 @@
+import { useEffect, useState } from 'react';
 import { ArrowLeft, Microscope, Shuffle } from 'lucide-react';
 import { Badge, Button, Section } from '../components/ui';
 import { getFutureExpressions, isFutureEra } from '../utils/need-model';
 import type { IndustryExpression, Need } from '../types';
-import { loadNeed } from './need-load';
+import { loadNeed, watchProgress } from './need-load';
 import { StepFrame } from './StepFrame';
 import { Failed, Loading } from './status';
 import { useCall } from './useCall';
@@ -64,6 +65,12 @@ const History = ({ need }: { need: Need }) => {
   );
 };
 
+const IndustriesLoading = ({ needName }: { needName: string }) => {
+  const [text, setText] = useState('Imagining future industries…');
+  useEffect(() => watchProgress(needName, setText), [needName]);
+  return <Loading label={text} />;
+};
+
 export const IndustriesStep = ({ needName, description, onBack, onDig }: { needName: string; description?: string; onBack: () => void; onDig: (industryId: string) => void }) => {
   const [state, retry] = useCall(() => loadNeed(needName, description), `need:${needName}`);
   return (
@@ -73,7 +80,7 @@ export const IndustriesStep = ({ needName, description, onBack, onDig }: { needN
       why="Each one recombines how the need was met before with what is newly possible. These are the openings you can pick from."
       next={<Button variant="ghost" icon={<ArrowLeft className="w-4 h-4" aria-hidden />} onClick={onBack}>Back to the field</Button>}
     >
-      {state.status === 'loading' ? <Loading label="Imagining future industries…" />
+      {state.status === 'loading' ? <IndustriesLoading needName={needName} />
         : state.status === 'error' ? <Failed message={state.message} onRetry={retry} />
         : (
           <div className="space-y-5">
