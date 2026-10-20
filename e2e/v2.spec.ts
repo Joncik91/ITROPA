@@ -373,25 +373,27 @@ test('Build: a failed concepts call shows Retry and saves nothing (check 7)', as
 });
 
 /** Writes saved research straight into V1's database, the way earlier visits would have left it. */
-async function seedResearch(page: Page, needs: unknown[], mechanisms: unknown[]) {
+async function seedResearch(page: Page, needs: unknown[], mechanisms: unknown[], extra: { deepDives?: unknown[]; appConcepts?: unknown[]; fieldReads?: unknown[] } = {}) {
   await page.goto('/v2/');
-  await page.getByRole('button', { name: 'Research this need' }).waitFor();
-  await page.evaluate(async ({ needs, mechanisms }) => {
-    const open = () => new Promise<IDBDatabase>((res, rej) => {
-      const r = indexedDB.open('IndustryFamilyTreeDB');
-      r.onsuccess = () => res(r.result);
-      r.onerror = () => rej(r.error);
-    });
-    const db = await open();
-    await new Promise<void>((res, rej) => {
-      const tx = db.transaction(['needs', 'mechanisms'], 'readwrite');
-      needs.forEach((n) => tx.objectStore('needs').put(n));
-      mechanisms.forEach((m) => tx.objectStore('mechanisms').put(m));
-      tx.oncomplete = () => res();
-      tx.onerror = () => rej(tx.error);
-    });
-    db.close();
-  }, { needs, mechanisms });
+  await page.getByTestId('how-it-works').or(page.getByTestId('library')).waitFor(); // the library read has finished, so both databases exist
+  await page.evaluate(async ({ needs, mechanisms, extra }) => {
+    const put = async (dbName: string, stores: Record<string, unknown[]>) => {
+      const db = await new Promise<IDBDatabase>((res, rej) => {
+        const r = indexedDB.open(dbName);
+        r.onsuccess = () => res(r.result);
+        r.onerror = () => rej(r.error);
+      });
+      await new Promise<void>((res, rej) => {
+        const tx = db.transaction(Object.keys(stores), 'readwrite');
+        for (const [store, rows] of Object.entries(stores)) rows.forEach((row) => tx.objectStore(store).put(row));
+        tx.oncomplete = () => res();
+        tx.onerror = () => rej(tx.error);
+      });
+      db.close();
+    };
+    await put('IndustryFamilyTreeDB', { needs, mechanisms, deepDives: extra.deepDives ?? [], appConcepts: extra.appConcepts ?? [] });
+    if (extra.fieldReads?.length) await put('ItropaV2DB', { fieldReads: extra.fieldReads });
+  }, { needs, mechanisms, extra });
   await page.reload();
 }
 
@@ -471,4 +473,51 @@ test('Insights: with no mechanisms it says how patterns appear, and still shows 
   await page.getByRole('button', { name: 'Insights across your needs' }).click();
   await expect(page.getByTestId('patterns')).toContainText('Understand this industry');
   await expect(page.getByTestId('chain')).toHaveCount(1);
+});
+
+test('Home: lists saved research with progress, newest first, and opens a need with no AI call (checks 1, 2, 3)', async ({ page }) => {
+  let calls = 0;
+  await page.route('**/api/gemini', (route) => { calls++; return route.abort(); });
+  await seedResearch(page, [
+    { ...seedNeed('n1', 'Belonging', [seedInd('a', 'Care circles', 'Meetup', [seedInd('a2', 'Night circles', 'Lodges')]), seedInd('b', 'Shared rituals', 'Guilds')]), updatedAt: 30 },
+    { ...seedNeed('n2', 'Sleep', [seedInd('c', 'Sleep clubs', 'Meetup')]), updatedAt: 20 },
+    { ...seedNeed('n3', 'Status', []), updatedAt: 10 },
+    { ...seedNeed('n4', 'Undated', [seedInd('d', 'Dated nothing', 'Meetup')]), updatedAt: undefined },
+  ], [
+    seedMech('a', 'n1', 'Care circles', 'p', 'm'), seedMech('b', 'n1', 'Shared rituals', 'p', 'm'),
+  ], {
+    deepDives: [{ id: 'a', needId: 'n1', expressionName: 'Care circles', details: {}, createdAt: 1 }],
+    appConcepts: [{ id: 'a', needId: 'n1', industryName: 'Care circles', concepts: [{ name: 'X' }], deepDiveAvailable: true, createdAt: 1 }],
+    fieldReads: [{ key: 'belonging', needName: 'Belonging', fieldRead: { summary: 's', leaders: [], gaps: [], whiteSpace: [], evolution: '', entryMoves: [] }, createdAt: 1 }],
+  });
+
+  const rows = page.getByTestId('library').getByRole('button');
+  await expect(rows).toHaveCount(4);
+  await expect(rows.nth(0)).toContainText('Belonging');
+  await expect(rows.nth(0)).toContainText('3 industries · 1 understood · 1 with app ideas · field read done');
+  await expect(rows.nth(1)).toContainText('Sleep');
+  await expect(rows.nth(1)).toContainText('1 industries · 0 understood · 0 with app ideas · field read not yet');
+  await expect(rows.nth(0)).toContainText('Updated');
+  await expect(rows.nth(2)).toContainText('Not finished yet. Opening it will research it.');
+  await expect(rows.nth(3)).toContainText('Undated');
+  await expect(rows.nth(3)).toContainText('Updated: unknown');
+  await expect(page.getByText('Saved on this device')).toBeVisible();
+  expect(await noSideScroll(page)).toBe(true);
+
+  await page.getByRole('button', { name: 'Open Sleep' }).click(); // no field read stored, still opens at Industries
+  await expect(page.getByTestId('industries-list')).toContainText('Sleep clubs');
+  expect(calls).toBe(0);
+
+  await page.goto('/v2/');
+  await page.getByRole('button', { name: 'Open Status' }).click();
+  await expect(page).toHaveURL(/need=Status/);
+  expect(await page.getByTestId('industries-list').count()).toBe(0);
+});
+
+test('Home: with nothing saved there is no list, only how it works (check 4)', async ({ page }) => {
+  await page.goto('/v2/');
+  await expect(page.getByTestId('how-it-works')).toContainText('Industries');
+  await expect(page.getByTestId('library')).toHaveCount(0);
+  await expect(page.getByText('saved on this device')).toBeVisible();
+  expect(await noSideScroll(page)).toBe(true);
 });

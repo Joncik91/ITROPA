@@ -43,7 +43,7 @@ Type: O = outside (real run, or an expected value written here), S = suite (a te
 | 13 | Every changed screen | Rendered at 390 px | No horizontal page scroll; the main action is reachable without scrolling to the end of a long list (a bottom bar holds it). | O: e2e noSideScroll on each screen |
 | 14 | The whole change | `npm run check` | Typecheck, unit tests and build pass; all earlier browser tests pass, with the two earlier tests that expected everything unfolded changed on purpose to unfold first (checks 7 and 8 here). | O |
 
-Edge cases: (a) a need name 136 characters long on the list, path bar and pins (check 13); (b) two saved needs with the same name: V2 identifies a need by its name (as today), so they show as one row, the newest; (c) a record in the needs table with no `updatedAt` (listed last, date shown as "unknown", no crash).
+Edge cases: (a) a need name 136 characters long on the list, path bar and pins (check 13); (b) two saved needs with the same name: V2 identifies a need by its name (as today), so they show as one row describing the record that opens (findNeedByName returns the lowest id); (c) a record in the needs table with no `updatedAt` (listed last, date shown as "unknown", no crash).
 
 Each check fails on a named mutant: 1 list only the newest need; 2 call the API when opening; 3 require V2 data; 4 always show the list header; 5 make crumbs plain text; 6 make every step a link; 7 render all groups unfolded or render none; 8 hide Dig in inside the fold; 9 keep the star in memory only; 10 list pins of missing needs; 11 keep one fixed loading label; 12 swallow the error; 13 add a fixed-width bar; 14 break an import.
 

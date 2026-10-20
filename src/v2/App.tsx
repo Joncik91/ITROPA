@@ -38,7 +38,7 @@ export default function App() {
   };
 
   if (place.insights) return <InsightsStep onBack={() => go({ step: 'field' })} />;
-  if (!place.need) return <NeedStep onStart={(name, desc) => go({ need: name, step: 'field' }, desc)} onInsights={() => go({ step: 'field', insights: true })} />;
+  if (!place.need) return <NeedStep onStart={(name, desc) => go({ need: name, step: 'field' }, desc)} onOpen={(name, step) => go({ need: name, step })} onInsights={() => go({ step: 'field', insights: true })} />;
   const need = place.need;
   if (place.step === 'build' && place.industry) return <BuildStep needName={need} industryId={place.industry} onBack={() => go({ need, step: 'dig', industry: place.industry })} />;
   if (place.step === 'dig' && place.industry) return <DigStep needName={need} industryId={place.industry} onBack={() => go({ need, step: 'industries' })} onBuild={() => go({ need, step: 'build', industry: place.industry })} />;
