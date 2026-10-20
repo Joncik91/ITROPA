@@ -1,5 +1,5 @@
 import { useState } from 'react';
-import { ArrowLeft, GitBranch, Lightbulb, Shuffle } from 'lucide-react';
+import { ArrowLeft, GitBranch, Hammer, Lightbulb, Shuffle } from 'lucide-react';
 import { Badge, Button, Section, Select } from '../components/ui';
 import { DBService } from '../services/db/db.service';
 import { getFutureExpressions, locateInExpressionTree } from '../utils/need-model';
@@ -53,7 +53,7 @@ const Sub = ({ e, depth = 0 }: { e: IndustryExpression; depth?: number }) => (
   </li>
 );
 
-export const DigStep = ({ needName, industryId, onBack }: { needName: string; industryId: string; onBack: () => void }) => {
+export const DigStep = ({ needName, industryId, onBack, onBuild }: { needName: string; industryId: string; onBack: () => void; onBuild: () => void }) => {
   const [loaded] = useCall(async () => {
     const need = await DBService.findNeedByName(needName);
     if (!need) throw new Error('This need is not saved yet. Go back and open its industries first.');
@@ -78,7 +78,12 @@ export const DigStep = ({ needName, industryId, onBack }: { needName: string; in
       step={2}
       what={industry ? `Digging into “${industry.name}”.` : 'Digging into one industry.'}
       why="Understand shows how it works and whether the business holds up. Branch splits it into narrower industries. Combine merges it with another to find something new."
-      next={<Button variant="ghost" icon={<ArrowLeft className="w-4 h-4" aria-hidden />} onClick={onBack}>Back to the industries</Button>}
+      next={(
+        <div className="space-y-2">
+          <Button variant="primary" block icon={<Hammer className="w-4 h-4" aria-hidden />} onClick={onBuild}>Build an app from this</Button>
+          <Button variant="ghost" icon={<ArrowLeft className="w-4 h-4" aria-hidden />} onClick={onBack}>Back to the industries</Button>
+        </div>
+      )}
     >
       {loaded.status === 'loading' ? <Loading label="Opening…" />
         : loaded.status === 'error' ? <Failed message={loaded.message} onRetry={() => location.reload()} />

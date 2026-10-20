@@ -290,3 +290,84 @@ test('Dig in: Combine adds one flagged hybrid with both sources to the industrie
   await expect(hybrid.locator('p').filter({ hasText: /^Combines:/ })).toContainText(names[0]);
   await expect(hybrid.locator('p').filter({ hasText: /^Combines:/ })).toContainText(names[1]);
 });
+
+const concept = (name: string, over: Record<string, unknown>) => ({
+  name, tagline: `${name} tagline`, formFactor: 'saas', targetUser: 'Remote teams', problemSolved: 'Loneliness', coreFeature: 'Rituals',
+  monetization: { model: 'Freemium', pricing: '$9/mo', revenueEstimate: '$1k MRR' }, techStack: ['React'], mvpScope: 'A single page',
+  effortEstimate: '1-2 weeks', competitiveEdge: 'Simple', risks: ['Churn'], score: 70, ...over,
+});
+const CONCEPTS = JSON.stringify({ concepts: [
+  concept('Alpha', {}),
+  concept('Beta', { formFactor: 'mobile', techStack: ['Swift'], score: 60 }),
+  concept('Gamma', { effortEstimate: '3+ months' }),
+  concept('Delta', { formFactor: 'tool', techStack: ['Rust'], effortEstimate: '1-2 months', score: 40 }),
+  concept('Eps', { formFactor: 'api', techStack: ['Node.js'], effortEstimate: 'weekend' }),
+] });
+
+async function buildMock(page: Page, opts: { conceptsFail?: boolean } = {}) {
+  let failing = !!opts.conceptsFail;
+  await page.route('**/api/gemini', async (route) => {
+    const prompt = (route.request().postDataJSON() as { prompt: string }).prompt;
+    if (prompt.includes('diverse app/product concepts')) {
+      return route.fulfill({ json: { text: failing ? '{"concepts": []}' : CONCEPTS, truncated: false } });
+    }
+    await route.fulfill({ json: { text: prompt.includes('reading the competitive field') ? FIELD_READ : prompt.includes('Generate future industries') ? NEED : PRIOR_ART, truncated: false } });
+  });
+  return { stopFailing: () => { failing = false; } };
+}
+
+const openBuild = async (page: Page) => {
+  await page.goto('/v2/?need=Belonging&step=industries');
+  await expect(page.getByTestId('industries-list')).toBeVisible();
+  await page.getByRole('button', { name: /^Dig in:/ }).first().click();
+  await page.getByRole('button', { name: 'Build an app from this' }).click();
+};
+
+const fitOf = (page: Page, name: string) => page.getByTestId('concept').filter({ has: page.getByRole('heading', { name, exact: true }) }).getByTestId('fit');
+
+test('Build: 2 to 4 concepts with the AI effort estimate and a fit score, default profile named (checks 5, 5b, 4)', async ({ page }) => {
+  await buildMock(page);
+  await openBuild(page);
+  const cards = page.getByTestId('concept');
+  await expect(cards).toHaveCount(4);
+  await expect(cards.first()).toContainText("Effort (AI's estimate): 1-2 weeks");
+  await expect(fitOf(page, 'Alpha')).toHaveText('100');
+  await expect(fitOf(page, 'Eps')).toHaveText('100');
+  await expect(fitOf(page, 'Gamma')).toHaveText('75');
+  await expect(fitOf(page, 'Beta')).toHaveText('50');
+  await expect(page.getByRole('heading', { name: 'Delta', exact: true })).toHaveCount(0);
+  await expect(page.getByTestId('concept').filter({ hasText: 'Gamma' })).toContainText('longer than the 2-4 weeks');
+  await expect(page.getByTestId('profile-line')).toContainText('No profile saved yet');
+  await expect(page.getByRole('button', { name: 'Edit profile' })).toBeVisible();
+  await expect(page.getByText('What this is:')).toBeVisible();
+  await expect(page.getByText('Why it matters:')).toBeVisible();
+  expect(await noSideScroll(page)).toBe(true);
+});
+
+test('Build: editing the profile saves it and recomputes the scores on the same screen (check 5c)', async ({ page }) => {
+  await buildMock(page);
+  await openBuild(page);
+  await expect(fitOf(page, 'Alpha')).toHaveText('100');
+  await page.getByRole('button', { name: 'Edit profile' }).click();
+  await page.getByLabel('Time you have').selectOption('weekend');
+  await page.getByLabel('Technologies you build with').fill('Swift');
+  await page.getByRole('button', { name: 'Save profile' }).click();
+  await expect(page.getByTestId('profile-line')).toContainText('saved profile');
+  await expect(page.getByTestId('profile-line')).toContainText('weekend');
+  await expect(fitOf(page, 'Alpha')).toHaveText('50'); // effort 1-2 weeks > weekend, no React/Swift overlap
+  await expect(fitOf(page, 'Beta')).toHaveText('50'); // Swift matches, but mobile is not preferred and 1-2 weeks > weekend
+  await page.reload();
+  await expect(page.getByTestId('profile-line')).toContainText('saved profile');
+  await expect(fitOf(page, 'Alpha')).toHaveText('50');
+});
+
+test('Build: a failed concepts call shows Retry and saves nothing (check 7)', async ({ page }) => {
+  const m = await buildMock(page, { conceptsFail: true });
+  await openBuild(page);
+  await expect(page.getByRole('alert')).toBeVisible();
+  await page.reload();
+  await expect(page.getByRole('alert')).toBeVisible();
+  m.stopFailing();
+  await page.getByRole('button', { name: 'Retry' }).click();
+  await expect(page.getByTestId('concept')).toHaveCount(4);
+});
