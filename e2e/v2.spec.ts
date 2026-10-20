@@ -34,7 +34,7 @@ test('Need step explains itself and fits a phone', async ({ page }) => {
   expect(await noSideScroll(page)).toBe(true);
 });
 
-test('Field step shows every prior-art item in full, with a way forward (checks 1 and 4)', async ({ page }) => {
+test('Field step folds prior art by group, and every item is there in full once opened (checks 1, 4 and 7)', async ({ page }) => {
   await mockApi(page);
   await page.goto('/v2/');
   await page.getByRole('button', { name: 'Belonging' }).click();
@@ -43,7 +43,20 @@ test('Field step shows every prior-art item in full, with a way forward (checks 
   await expect(prior).toBeVisible();
   const items = Object.values(JSON.parse(PRIOR_ART) as Record<string, { name: string; mechanism: string; limitation?: string; lesson?: string; transferPotential?: string; biomimicryPotential?: string }[]>).flat();
   expect(items.length).toBeGreaterThanOrEqual(12);
+  // Folded by default except the first group; headings carry the counts.
+  const raw = JSON.parse(PRIOR_ART) as Record<string, unknown[]>;
+  await expect(prior.getByText(/^\d+ existing solutions in 4 groups/)).toBeVisible(); // the short summary comes first
+  const groups = prior.locator('details[data-testid^="group-"]');
+  expect(await groups.count()).toBe(4);
+  for (let n = 0; n < 4; n++) {
+    const g = groups.nth(n);
+    const key = (await g.getAttribute('data-testid'))!.replace('group-', '');
+    await expect(g.locator('summary')).toContainText(`(${raw[key].length})`);
+    expect(await g.evaluate((el) => (el as HTMLDetailsElement).open)).toBe(n === 0);
+    if (n > 0) await g.locator('summary').click();
+  }
   for (const item of items) {
+    await expect(prior.locator('article').filter({ hasText: item.name }).first()).toBeVisible();
     await expect(prior).toContainText(item.name);
     await expect(prior).toContainText(item.mechanism.slice(0, 60));
     const tail = item.limitation ?? item.lesson ?? item.transferPotential ?? item.biomimicryPotential;
@@ -125,7 +138,7 @@ test('a very long unbroken need does not widen the page (check 4, edge b)', asyn
   expect(await noSideScroll(page)).toBe(true);
 });
 
-test('Industries step: one list with lineage, history collapsed, fits a phone (checks 2 and 4)', async ({ page }) => {
+test('Industries step: folded cards with Dig in outside the fold, lineage once opened, fits a phone (checks 2, 4 and 8)', async ({ page }) => {
   await mockApi(page);
   await page.goto('/v2/?need=Belonging');
   await expect(page.getByTestId('field-read')).toContainText('Gaps');
@@ -134,9 +147,18 @@ test('Industries step: one list with lineage, history collapsed, fits a phone (c
   const list = page.getByTestId('industries-list');
   await expect(list).toBeVisible();
   const need = JSON.parse(NEED) as { eras: { name: string; expressions: unknown[] }[] };
-  const future = need.eras.flatMap((e) => e.expressions).filter((e): e is { name: string; mutation: string; inspirations: { source: string; mechanism: string }[] } => typeof e === 'object' && e !== null);
+  const future = need.eras.flatMap((e) => e.expressions).filter((e): e is { name: string; mutation: string; insight: string; inspirations: { source: string; mechanism: string }[] } => typeof e === 'object' && e !== null);
   expect(future.length).toBeGreaterThanOrEqual(5);
+  const cards = list.locator('details');
+  expect(await cards.count()).toBeGreaterThanOrEqual(future.length);
   for (const ind of future) {
+    const card = list.locator('article').filter({ has: page.getByRole('heading', { name: ind.name, exact: true }) }).first();
+    // Folded: the Dig in button is reachable, the long text is not shown.
+    await expect(card.getByRole('button', { name: `Dig in: ${ind.name}` })).toBeVisible();
+    await expect(card.getByText(ind.mutation.slice(0, 50))).toBeHidden();
+    await expect(card.locator('summary')).toContainText(ind.insight.slice(0, 40)); // one line of the insight stays in view
+    await card.locator('summary').first().click();
+    await expect(card.getByText(ind.mutation.slice(0, 50))).toBeVisible();
     await expect(list.getByRole('heading', { name: ind.name, exact: true })).toHaveCount(1);
     await expect(list).toContainText(ind.mutation.slice(0, 50));
     for (const insp of ind.inspirations) await expect(list).toContainText(insp.source);
@@ -271,6 +293,21 @@ test('Dig in: Branch adds 3 sub-industries with name and insight visible (check 
     await expect(branches).toContainText(`Sub insight ${n}`);
   }
   await expect(page.getByRole('button', { name: 'Branch into sub-industries' })).toHaveCount(0);
+});
+
+test('Industries: a branched industry shows its sub-industries only once opened, each with its own Dig in', async ({ page }) => {
+  await digMock(page);
+  await openFirstIndustry(page);
+  await page.getByRole('button', { name: 'Branch into sub-industries' }).click();
+  await expect(page.getByTestId('branches')).toContainText('Sub industry 1');
+  await page.getByRole('button', { name: 'Back to the industries' }).click();
+  const list = page.getByTestId('industries-list');
+  const parent = list.locator(':scope > article').first();
+  await expect(parent.getByRole('button', { name: 'Dig in: Sub industry 1' })).toBeHidden();
+  await parent.locator('summary').first().click();
+  const child = parent.locator('article').filter({ hasText: 'Sub industry 1' }).first();
+  await expect(child.getByRole('button', { name: 'Dig in: Sub industry 1' })).toBeVisible();
+  await expect(child.getByText('Sub insight 1').first()).toBeVisible(); // the child's preview shows although the parent is open
 });
 
 test('Dig in: Combine adds one flagged hybrid with both sources to the industries list (check 6)', async ({ page }) => {

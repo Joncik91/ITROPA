@@ -1,5 +1,6 @@
 import { ArrowLeft, ArrowRight } from 'lucide-react';
 import { Button, Section } from '../components/ui';
+import { Fold } from './Fold';
 import type { PriorArt, PriorArtItem } from '../types';
 import { loadFieldRead, loadPriorArt } from './journey';
 import type { FieldRead } from './field-read';
@@ -23,6 +24,28 @@ const Card = ({ title, sub, rows }: { title: string; sub?: string; rows: [string
     ))}
   </article>
 );
+
+const PriorArtGroups = ({ pa }: { pa: PriorArt }) => {
+  const groups = GROUPS.map((g) => ({ g, items: pa[g.key] ?? [] })).filter((x) => x.items.length);
+  const total = groups.reduce((n, x) => n + x.items.length, 0);
+  return (
+    <>
+      <p className="text-sm text-ink-2">{total} existing solutions in {groups.length} groups. Open a group to read each one in full.</p>
+      {groups.map(({ g, items }, n) => (
+        <div key={g.key} className="rounded-card border border-line bg-sheet">
+          <Fold open={n === 0} testId={`group-${g.key}`} summary={(
+            <>
+              <h3 className="font-semibold break-words">{g.title} <span className="text-ink-2 font-normal">({items.length})</span></h3>
+              <p className="text-xs text-ink-2">{g.hint}</p>
+            </>
+          )}>
+            {items.map((i) => <Card key={i.name} title={i.name} sub={i.domain ?? i.era ?? i.originalDomain} rows={[['How it works', i.mechanism], ...g.tail(i)]} />)}
+          </Fold>
+        </div>
+      ))}
+    </>
+  );
+};
 
 const FieldReadView = ({ f }: { f: FieldRead }) => (
   <div className="space-y-5">
@@ -81,15 +104,8 @@ export const FieldStep = ({ needName, description, onBack, onNext }: { needName:
     >
       <Slot state={prior} retry={retryPrior} label="Researching prior art…">
         {(pa) => (
-          <div className="space-y-5" data-testid="prior-art">
-            {GROUPS.map((g) => {
-              const items = pa[g.key] ?? [];
-              return items.length ? (
-                <Section key={g.key} title={g.title} description={g.hint}>
-                  {items.map((i) => <Card key={i.name} title={i.name} sub={i.domain ?? i.era ?? i.originalDomain} rows={[['How it works', i.mechanism], ...g.tail(i)]} />)}
-                </Section>
-              ) : null;
-            })}
+          <div className="space-y-3" data-testid="prior-art">
+            <PriorArtGroups pa={pa} />
           </div>
         )}
       </Slot>

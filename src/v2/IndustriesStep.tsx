@@ -4,6 +4,7 @@ import { Badge, Button, Section } from '../components/ui';
 import { getFutureExpressions, isFutureEra } from '../utils/need-model';
 import type { IndustryExpression, Need } from '../types';
 import { loadNeed, watchProgress } from './need-load';
+import { Fold } from './Fold';
 import { StepFrame } from './StepFrame';
 import { Failed, Loading } from './status';
 import { useCall } from './useCall';
@@ -11,30 +12,38 @@ import { useCall } from './useCall';
 const Industry = ({ e, onDig, names, depth = 0 }: { e: IndustryExpression; onDig: (id: string) => void; names: Map<string, string>; depth?: number }) => {
   const parents = (e.sourceExpressions ?? []).map((id) => names.get(id)).filter(Boolean);
   return (
-  <article className={`p-3 rounded-card bg-sheet border border-line space-y-2 min-w-0 ${depth ? 'ml-4' : ''}`}>
-    <div className="flex flex-wrap items-start gap-2">
-      <h3 className="font-semibold flex-1 min-w-0 break-words">{e.name}</h3>
-      {e.crossPollinated && <Badge tone="pollen"><Shuffle className="w-3 h-3" aria-hidden />Combined</Badge>}
+  <article className={`rounded-card bg-sheet border border-line min-w-0 ${depth ? 'ml-4' : ''}`}>
+    <Fold summary={(
+      <>
+        <div className="flex flex-wrap items-start gap-2">
+          <h3 className="font-semibold flex-1 min-w-0 break-words">{e.name}</h3>
+          {e.crossPollinated && <Badge tone="pollen"><Shuffle className="w-3 h-3" aria-hidden />Combined</Badge>}
+        </div>
+        {e.insight && <p className="text-sm text-ink-2 line-clamp-1 break-words [details[open]>summary_&]:hidden">{e.insight}</p>}
+      </>
+    )}>
+      {e.crossPollinated && !!parents.length && <p className="text-sm break-words"><span className="font-medium">Combines: </span>{parents.join(' + ')}</p>}
+      {e.mutation && <p className="text-sm break-words"><span className="font-medium">What makes it possible: </span>{e.mutation}</p>}
+      {e.insight && <p className="text-sm break-words">{e.insight}</p>}
+      {!!e.inspirations.length && (
+        <div className="pt-2 border-t border-line">
+          <p className="text-sm font-medium mb-1">Inspired by</p>
+          <ul className="space-y-1">
+            {e.inspirations.map((i, n) => (
+              <li key={n} className="text-sm break-words">
+                <span className="font-medium">{i.source}</span>
+                {i.mechanism && <> borrows {i.mechanism}</>}
+                {i.twist && <span className="text-ink-2"> Twist: {i.twist}</span>}
+              </li>
+            ))}
+          </ul>
+        </div>
+      )}
+      {e.children?.map((c) => <Industry key={c.id} e={c} onDig={onDig} names={names} depth={depth + 1} />)}
+    </Fold>
+    <div className="px-3 pb-3">
+      <Button size="sm" variant="secondary" icon={<Microscope className="w-4 h-4" aria-hidden />} onClick={() => onDig(e.id)} aria-label={`Dig in: ${e.name}`}>Dig in</Button>
     </div>
-    {e.crossPollinated && !!parents.length && <p className="text-sm break-words"><span className="font-medium">Combines: </span>{parents.join(' + ')}</p>}
-    {e.mutation && <p className="text-sm break-words"><span className="font-medium">What makes it possible: </span>{e.mutation}</p>}
-    {e.insight && <p className="text-sm break-words">{e.insight}</p>}
-    {!!e.inspirations.length && (
-      <div className="pt-2 border-t border-line">
-        <p className="text-sm font-medium mb-1">Inspired by</p>
-        <ul className="space-y-1">
-          {e.inspirations.map((i, n) => (
-            <li key={n} className="text-sm break-words">
-              <span className="font-medium">{i.source}</span>
-              {i.mechanism && <> borrows {i.mechanism}</>}
-              {i.twist && <span className="text-ink-2"> Twist: {i.twist}</span>}
-            </li>
-          ))}
-        </ul>
-      </div>
-    )}
-    {e.children?.map((c) => <Industry key={c.id} e={c} onDig={onDig} names={names} depth={depth + 1} />)}
-    <Button size="sm" variant="secondary" icon={<Microscope className="w-4 h-4" aria-hidden />} onClick={() => onDig(e.id)} aria-label={`Dig in: ${e.name}`}>Dig in</Button>
   </article>
   );
 };
