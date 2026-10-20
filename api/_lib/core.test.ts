@@ -4,6 +4,8 @@ import { handleGenerate, LIMITS, providerName, validateGenerateBody } from './co
 const env = { ...process.env };
 beforeEach(() => {
   delete process.env.GEMINI_API_KEY;
+  delete process.env.ANTHROPIC_API_KEY;
+  delete process.env.AI_PROVIDER;
 });
 afterEach(() => {
   process.env = { ...env };
@@ -43,7 +45,7 @@ describe('handleGenerate guards (no upstream call)', () => {
   });
 
   it('rejects invalid bodies before calling the model', async () => {
-    process.env.GEMINI_API_KEY = 'k';
+    process.env.ANTHROPIC_API_KEY = 'k';
     expect((await handleGenerate(req('POST', { prompt: '' }), 0.9)).status).toBe(400);
   });
 });
@@ -54,18 +56,17 @@ describe('provider selection', () => {
     delete process.env.ANTHROPIC_API_KEY;
   });
 
-  it('defaults to gemini, falls back to anthropic when only its key is set', () => {
-    expect(providerName()).toBe('gemini');
-    process.env.ANTHROPIC_API_KEY = 'a';
+  it('defaults to anthropic, falls back to gemini when only its key is set', () => {
     expect(providerName()).toBe('anthropic');
     process.env.GEMINI_API_KEY = 'g';
     expect(providerName()).toBe('gemini');
-    process.env.AI_PROVIDER = 'anthropic';
+    process.env.ANTHROPIC_API_KEY = 'a';
     expect(providerName()).toBe('anthropic');
+    process.env.AI_PROVIDER = 'gemini';
+    expect(providerName()).toBe('gemini');
   });
 
   it('reports the missing key for the selected provider', async () => {
-    process.env.AI_PROVIDER = 'anthropic';
     expect(await handleGenerate(req('POST', { prompt: 'x' }), 0.9)).toMatchObject({
       status: 500,
       body: { code: 'config', error: expect.stringContaining('ANTHROPIC_API_KEY') },

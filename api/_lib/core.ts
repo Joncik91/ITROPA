@@ -66,12 +66,12 @@ const UPSTREAM_TIMEOUT_MS = 55_000;
 
 export type Provider = 'gemini' | 'anthropic';
 
-/** AI_PROVIDER wins; otherwise Gemini if its key is set, else Anthropic if its key is set. */
+/** AI_PROVIDER wins; otherwise Anthropic, unless only a Gemini key is configured. */
 export function providerName(): Provider {
   const explicit = process.env.AI_PROVIDER?.trim().toLowerCase();
   if (explicit === 'gemini' || explicit === 'anthropic') return explicit;
-  if (!process.env.GEMINI_API_KEY?.trim() && process.env.ANTHROPIC_API_KEY?.trim()) return 'anthropic';
-  return 'gemini';
+  if (!process.env.ANTHROPIC_API_KEY?.trim() && process.env.GEMINI_API_KEY?.trim()) return 'gemini';
+  return 'anthropic';
 }
 
 export function modelName(): string {
