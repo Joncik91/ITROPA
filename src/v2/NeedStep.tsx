@@ -1,8 +1,9 @@
 import { useState, type FormEvent } from 'react';
-import { ChevronRight, Lightbulb, Search } from 'lucide-react';
+import { ChevronRight, Lightbulb, Search, Star } from 'lucide-react';
 import { SUGGESTED_NEEDS } from '../config/constants';
 import { Button, Chip, Field, Section, TextArea, TextInput } from '../components/ui';
 import { loadLibrary, type LibraryRow } from './library';
+import { loadPins } from './pins';
 import { StepFrame } from './StepFrame';
 import { Failed } from './status';
 import { useCall } from './useCall';
@@ -37,13 +38,16 @@ const Row = ({ r, onOpen }: { r: LibraryRow; onOpen: (name: string, step: 'indus
   </li>
 );
 
-export const NeedStep = ({ onStart, onOpen, onInsights }: {
+export const NeedStep = ({ onStart, onOpen, onInsights, onPins }: {
   onStart: (name: string, description?: string) => void;
   onOpen: (name: string, step: 'industries' | 'field') => void;
   onInsights: () => void;
+  onPins: () => void;
 }) => {
   const [library, retryLibrary] = useCall(loadLibrary, 'library');
   const rows = library.status === 'done' ? library.data : [];
+  const [pinList] = useCall(loadPins, 'pins-count');
+  const pinCount = pinList.status === 'done' ? pinList.data.length : 0;
   const [name, setName] = useState('');
   const [description, setDescription] = useState('');
   const [touched, setTouched] = useState(false);
@@ -69,6 +73,9 @@ export const NeedStep = ({ onStart, onOpen, onInsights }: {
             <Button variant="secondary" block icon={<Lightbulb className="w-4 h-4" aria-hidden />} onClick={onInsights}>Insights across your needs</Button>
           )}
         </Section>
+      )}
+      {pinCount > 0 && (
+        <Button variant="secondary" block icon={<Star className="w-4 h-4" aria-hidden />} onClick={onPins}>Pins ({pinCount})</Button>
       )}
       {library.status === 'error' && <Failed message={`Could not read your saved research. ${library.message}`} onRetry={retryLibrary} />}
       {library.status === 'done' && rows.length === 0 && (

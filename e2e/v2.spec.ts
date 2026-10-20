@@ -410,7 +410,7 @@ test('Build: a failed concepts call shows Retry and saves nothing (check 7)', as
 });
 
 /** Writes saved research straight into V1's database, the way earlier visits would have left it. */
-async function seedResearch(page: Page, needs: unknown[], mechanisms: unknown[], extra: { deepDives?: unknown[]; appConcepts?: unknown[]; fieldReads?: unknown[] } = {}) {
+async function seedResearch(page: Page, needs: unknown[], mechanisms: unknown[], extra: { deepDives?: unknown[]; appConcepts?: unknown[]; fieldReads?: unknown[]; pins?: unknown[] } = {}) {
   await page.goto('/v2/');
   await page.getByTestId('how-it-works').or(page.getByTestId('library')).waitFor(); // the library read has finished, so both databases exist
   await page.evaluate(async ({ needs, mechanisms, extra }) => {
@@ -429,7 +429,7 @@ async function seedResearch(page: Page, needs: unknown[], mechanisms: unknown[],
       db.close();
     };
     await put('IndustryFamilyTreeDB', { needs, mechanisms, deepDives: extra.deepDives ?? [], appConcepts: extra.appConcepts ?? [] });
-    if (extra.fieldReads?.length) await put('ItropaV2DB', { fieldReads: extra.fieldReads });
+    if (extra.fieldReads?.length || extra.pins?.length) await put('ItropaV2DB', { fieldReads: extra.fieldReads ?? [], pins: extra.pins ?? [] });
   }, { needs, mechanisms, extra });
   await page.reload();
 }
@@ -633,4 +633,75 @@ test('Navigation: the main action sits in a bar pinned to the bottom, and a long
   const box = await bar.boundingBox();
   const vh = page.viewportSize()!.height;
   expect(box!.y + box!.height).toBeLessThanOrEqual(vh + 1);
+});
+
+// One fixed name; the saved state is aria-pressed.
+const starName = (label: string, _on?: boolean) => `Pin: ${label}`;
+
+test('Pins: the star on an industry and on an app idea saves, survives a reload and removes (check 9)', async ({ page }) => {
+  await buildMock(page);
+  await page.goto('/v2/?need=Belonging&step=industries');
+  await expect(page.getByTestId('industries-list')).toBeVisible();
+  const first = page.getByRole('button', { name: /^Pin: / }).first();
+  const label = ((await first.getAttribute('aria-label')) ?? '').replace('Pin: ', '');
+  await first.click();
+  await expect(page.getByRole('button', { name: starName(label, true) })).toHaveAttribute('aria-pressed', 'true');
+  await page.reload();
+  await expect(page.getByRole('button', { name: starName(label, true) })).toHaveAttribute('aria-pressed', 'true');
+  await page.getByRole('button', { name: starName(label, true) }).click();
+  await expect(page.getByRole('button', { name: starName(label, false) })).toHaveAttribute('aria-pressed', 'false'); // saved before the reload
+  await page.reload();
+  await expect(page.getByRole('button', { name: starName(label, false) })).toHaveAttribute('aria-pressed', 'false');
+
+  await openBuild(page);
+  await expect(page.getByTestId('concepts')).toBeVisible();
+  await page.getByRole('button', { name: starName('Alpha', false) }).click();
+  await expect(page.getByRole('button', { name: starName('Alpha', true) })).toHaveAttribute('aria-pressed', 'true');
+  await page.reload();
+  await expect(page.getByRole('button', { name: starName('Alpha', true) })).toHaveAttribute('aria-pressed', 'true');
+});
+
+test('Pins: Home opens the Pinboard across needs, drops pins of a deleted need, and a pin opens its place (check 10)', async ({ page }) => {
+  await page.route('**/api/gemini', (route) => route.abort());
+  const long = 'Very long pinned name '.repeat(8).trim();
+  // The key is the one the app computes: kind, need, industry and (concepts) concept name, joined by a NUL character.
+  const mk = (kind: string, needName: string, industryId: string, label: string, text: string, createdAt: number) => ({ key: [kind, needName.toLowerCase(), industryId, kind === 'concept' ? label : ''].join('\u0000'), kind, needName, industryId, label, text, createdAt });
+  await seedResearch(page, [
+    seedNeed('n1', 'Belonging', [seedInd('a', 'Care circles', 'Meetup')]),
+    seedNeed('n2', 'Sleep', [seedInd('c', 'Sleep clubs', 'Meetup')]),
+  ], [], { pins: [
+    mk('industry', 'Belonging', 'a', 'Care circles', 'Neighbours looking after each other', 1),
+    mk('concept', 'Sleep', 'c', long, 'Tagline of the idea', 2),
+    mk('industry', 'Deleted need', 'z', 'Ghost industry', 'should never show', 3),
+  ] });
+  await page.getByRole('button', { name: 'Pins (2)' }).click();
+  await expect(page.getByText('What this is:')).toBeVisible();
+  await expect(page.getByText('Why it matters:')).toBeVisible();
+  const pins = page.getByTestId('pin');
+  await expect(pins).toHaveCount(2);
+  await expect(pins.nth(0)).toContainText(long);
+  await expect(pins.nth(0)).toContainText('From “Sleep”');
+  await expect(pins.nth(1)).toContainText('Care circles');
+  await expect(pins.nth(1)).toContainText('From “Belonging”');
+  await expect(page.getByTestId('pins')).not.toContainText('Ghost industry');
+  expect(await noSideScroll(page)).toBe(true);
+
+  await pins.nth(1).getByRole('button', { name: 'Open Care circles' }).click();
+  await expect(page).toHaveURL(/need=Belonging&step=dig&industry=a/);
+  await page.goBack();
+  await pins.nth(0).getByRole('button', { name: `Open ${long}` }).click();
+  await expect(page).toHaveURL(/need=Sleep&step=build&industry=c/);
+
+  // Removing from the Pins screen takes it off the list.
+  await page.goto('/v2/?view=pins');
+  await page.getByRole('button', { name: 'Pin: Care circles' }).click();
+  await expect(page.getByTestId('pin')).toHaveCount(1);
+});
+
+test('Pins: with none saved Home has no Pins button, and the Pins screen says how to add one', async ({ page }) => {
+  await seedResearch(page, [seedNeed('n1', 'Belonging', [seedInd('a', 'Care circles', 'Meetup')])], []);
+  await expect(page.getByRole('button', { name: /^Pins/ })).toHaveCount(0);
+  await page.goto('/v2/?view=pins');
+  await expect(page.getByTestId('pins-empty')).toBeVisible();
+  await expect(page.getByText('What this is:')).toBeVisible();
 });

@@ -25,14 +25,15 @@ interface Crumb { label: string; onClick?: () => void }
 /** Home > need > ... > here. Everything before the current place is one tap away; the bar scrolls inside itself. */
 export const PathBar = () => {
   const nav = useNav();
-  const { need, step, industry, insights } = nav?.place ?? { step: 'field' as const };
+  const { need, step, industry, insights, pins } = nav?.place ?? { step: 'field' as const };
   const [name] = useCall(() => (need && industry ? industryName(need, industry) : Promise.resolve('')), `path:${need}:${industry}`);
-  if (!nav || (!need && !insights)) return null;
+  if (!nav || (!need && !insights && !pins)) return null;
   const go = nav.go;
   const label = name.status === 'loading' ? '…' : name.status === 'done' && name.data ? name.data : 'Industry';
 
   const crumbs: Crumb[] = [{ label: 'Home', onClick: () => go({ step: 'field' }) }];
   if (insights) crumbs.push({ label: 'Insights' });
+  else if (pins) crumbs.push({ label: 'Pins' });
   else if (need) {
     const toIndustries = () => go({ need, step: 'industries' });
     // The need crumb is the way back to the field read; on Field and Industries it would point at the current page or its sibling, so it is plain text there.

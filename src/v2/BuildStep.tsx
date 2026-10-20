@@ -5,6 +5,7 @@ import { DBService } from '../services/db/db.service';
 import { getFutureExpressions, locateInExpressionTree } from '../utils/need-model';
 import type { ConstraintsProfile } from '../types';
 import { loadConcepts, rankConcepts, type ScoredConcept } from './build';
+import { PinStar } from './PinStar';
 import { ProfileForm } from './ProfileForm';
 import { StepFrame } from './StepFrame';
 import { Failed, Loading } from './status';
@@ -14,7 +15,7 @@ import { hasSavedProfile, loadProfile } from './profile';
 const Line = ({ label, children }: { label: string; children?: string }) =>
   children ? <p className="text-sm break-words"><span className="font-medium">{label}: </span>{children}</p> : null;
 
-const Concept = ({ s }: { s: ScoredConcept }) => {
+const Concept = ({ s, needName, industryId }: { s: ScoredConcept; needName: string; industryId: string }) => {
   const c = s.concept;
   return (
     <article data-testid="concept" className="p-3 rounded-card bg-sheet border border-line space-y-2 min-w-0">
@@ -37,6 +38,7 @@ const Concept = ({ s }: { s: ScoredConcept }) => {
       <Line label="Smallest first version">{c.mvpScope}</Line>
       <Line label="Why it wins">{c.competitiveEdge}</Line>
       <Line label="Risks">{c.risks.join('; ')}</Line>
+      <PinStar pin={{ kind: 'concept', needName, industryId, label: c.name, text: c.tagline, conceptName: c.name }} />
     </article>
   );
 };
@@ -74,7 +76,7 @@ export const BuildStep = ({ needName, industryId, onBack }: { needName: string; 
           : (
             <Section title="App ideas" description="Best fit first.">
               <div data-testid="concepts" className="space-y-3">
-                {rankConcepts(loaded.data.concepts, profile).map((s) => <Concept key={s.concept.id} s={s} />)}
+                {rankConcepts(loaded.data.concepts, profile).map((s) => <Concept key={s.concept.id} s={s} needName={needName} industryId={industryId} />)}
               </div>
             </Section>
           )}

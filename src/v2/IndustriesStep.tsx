@@ -5,11 +5,12 @@ import { getFutureExpressions, isFutureEra } from '../utils/need-model';
 import type { IndustryExpression, Need } from '../types';
 import { loadNeed, watchProgress } from './need-load';
 import { Fold } from './Fold';
+import { PinStar } from './PinStar';
 import { StepFrame } from './StepFrame';
 import { Failed, Loading } from './status';
 import { useCall } from './useCall';
 
-const Industry = ({ e, onDig, names, depth = 0 }: { e: IndustryExpression; onDig: (id: string) => void; names: Map<string, string>; depth?: number }) => {
+const Industry = ({ e, onDig, names, needName, depth = 0 }: { e: IndustryExpression; onDig: (id: string) => void; names: Map<string, string>; needName: string; depth?: number }) => {
   const parents = (e.sourceExpressions ?? []).map((id) => names.get(id)).filter(Boolean);
   return (
   <article className={`rounded-card bg-sheet border border-line min-w-0 ${depth ? 'ml-4' : ''}`}>
@@ -39,10 +40,11 @@ const Industry = ({ e, onDig, names, depth = 0 }: { e: IndustryExpression; onDig
           </ul>
         </div>
       )}
-      {e.children?.map((c) => <Industry key={c.id} e={c} onDig={onDig} names={names} depth={depth + 1} />)}
+      {e.children?.map((c) => <Industry key={c.id} e={c} onDig={onDig} names={names} needName={needName} depth={depth + 1} />)}
     </Fold>
-    <div className="px-3 pb-3">
+    <div className="px-3 pb-3 flex items-center gap-2">
       <Button size="sm" variant="secondary" icon={<Microscope className="w-4 h-4" aria-hidden />} onClick={() => onDig(e.id)} aria-label={`Dig in: ${e.name}`}>Dig in</Button>
+      <PinStar pin={{ kind: 'industry', needName, industryId: e.id, label: e.name, text: e.insight || e.mutation || '' }} />
     </div>
   </article>
   );
@@ -97,7 +99,7 @@ export const IndustriesStep = ({ needName, description, onBack, onDig }: { needN
             <History need={state.data} />
             <Section title="Future industries" description="Each shows what makes it possible and which earlier solutions it borrows from.">
               <div data-testid="industries-list" className="space-y-3">
-                {getFutureExpressions(state.data).map((e) => <Industry key={e.id} e={e} onDig={onDig} names={namesOf(state.data)} />)}
+                {getFutureExpressions(state.data).map((e) => <Industry key={e.id} e={e} onDig={onDig} names={namesOf(state.data)} needName={needName} />)}
                 {!getFutureExpressions(state.data).length && <p className="text-sm text-ink-2">This saved need has no future industries yet.</p>}
               </div>
             </Section>

@@ -1,6 +1,7 @@
 import Dexie, { type Table } from 'dexie';
 import { needKey } from '../utils/need-model';
 import type { FieldRead } from './field-read';
+import type { PinRecord } from './pins';
 
 interface FieldReadRecord {
   key: string;
@@ -12,10 +13,12 @@ interface FieldReadRecord {
 /** V2's own database: V1's schema and tables are left untouched. */
 class V2DB extends Dexie {
   fieldReads!: Table<FieldReadRecord, string>;
+  pins!: Table<PinRecord, string>;
 
   constructor() {
     super('ItropaV2DB');
     this.version(1).stores({ fieldReads: 'key, createdAt' });
+    this.version(2).stores({ fieldReads: 'key, createdAt', pins: 'key, createdAt' });
   }
 }
 
