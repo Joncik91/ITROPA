@@ -8,7 +8,7 @@ An interactive tool for exploring human needs and generating future industry pre
 
 ```bash
 npm install
-cp .env.example .env      # then set GEMINI_API_KEY (https://aistudio.google.com/app/apikey)
+cp .env.example .env      # then set ANTHROPIC_API_KEY (https://console.anthropic.com/settings/keys)
 npm run dev               # http://localhost:5173
 ```
 
@@ -18,8 +18,11 @@ also mirrored to `local-mirror.db` (SQLite) so it survives browser storage reset
 
 | Variable | Required | Purpose |
 |----------|----------|---------|
-| `GEMINI_API_KEY` | yes | Google AI Studio key (server-side only) |
+| `AI_PROVIDER` | no | `gemini` or `anthropic`; default: Anthropic, unless only a Gemini key is set |
+| `GEMINI_API_KEY` | if Gemini | Google AI Studio key (server-side only) |
 | `GEMINI_MODEL` | no | Model id, default `gemini-2.5-flash` |
+| `ANTHROPIC_API_KEY` | default provider | Anthropic API key (server-side only) |
+| `ANTHROPIC_MODEL` | no | Model id, default `claude-sonnet-5-5` |
 
 Never prefix these with `VITE_`: Vite inlines `VITE_*` variables into the browser bundle.
 
@@ -34,8 +37,8 @@ npm run check       # typecheck + test + production build
 ### Vercel deployment
 
 1. `npm install -g vercel && vercel`
-2. In Project Settings → Environment Variables, add `GEMINI_API_KEY` (and optionally
-   `GEMINI_MODEL`) for all environments.
+2. In Project Settings → Environment Variables, add `ANTHROPIC_API_KEY` (and optionally
+   `ANTHROPIC_MODEL`; or `GEMINI_API_KEY` for Gemini) for all environments.
 3. `vercel --prod`
 
 **Security model**
@@ -103,9 +106,9 @@ Browser (React SPA, IndexedDB)
    │  same-origin fetch, ≤4 concurrent, retries transient errors only
    ▼
 /api/gemini · /api/ai-assistant      ← Vercel functions (prod) / Vite middleware (dev)
-   │  api/_lib/core.ts: validation, Gemini call, error mapping
+   │  api/_lib/core.ts: validation, provider call, error mapping
    ▼
-Google Gemini (JSON mode)
+Anthropic Messages API (default) or Google Gemini (JSON mode)
 ```
 
 - **State:** `src/hooks/need-manager/*`, composed by `useNeedManager`. Async operations read the
@@ -125,7 +128,7 @@ Google Gemini (JSON mode)
 - Vite
 - Tailwind CSS
 - Framer Motion
-- Google Gemini (default `gemini-2.5-flash`, configurable)
+- Anthropic Claude (default `claude-sonnet-5-5`) or Google Gemini (`gemini-2.5-flash`), configurable
 - Lucide React Icons
 - Vercel Serverless Functions
 - Dexie (IndexedDB)
