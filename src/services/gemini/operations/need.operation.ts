@@ -9,7 +9,7 @@ import type { Need, PriorArt } from '../../../types';
 export class NeedOperation {
   async fetchPriorArt(need: string, userDescription?: string): Promise<PriorArt> {
     const prompt = buildFetchPriorArtPrompt(need, userDescription);
-    return normalizePriorArt(await geminiClient.callAPI(prompt, 3000));
+    return normalizePriorArt(await geminiClient.callAPI(prompt, 6000));
   }
 
   /** Prior art is attached client-side rather than echoed back by the model (saves output tokens). */
