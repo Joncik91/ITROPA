@@ -1,6 +1,6 @@
 # ITROPA V2 round 2: saved research, clear navigation, layered depth
 
-Status: ADOPTED after plan gate round 1 (section 8). Date: 2026-10-20. Repo: Joncik91/ITROPA, main. Builds on plans/lean-v2-2026-10-20.md (all five slices committed).
+Status: BUILT, all four slices committed (see the slice lines in section 5); ADOPTED after plan gate round 1 (section 8). Date: 2026-10-20. Repo: Joncik91/ITROPA, main. Builds on plans/lean-v2-2026-10-20.md (all five slices committed).
 
 ## 0. Ask and scope
 
@@ -86,9 +86,14 @@ Every call keeps its existing per-call save and Retry; no call or save path is t
 ## 5. Slices (about 200 lines each, build order)
 
 - S6 (riskiest assumption: a list built from five stores shows correct counts for old-app data): `library.ts` (reads the needs, fieldReads, mechanisms, deepDives and appConcepts stores), Home list, row opening, empty state, "saved on this device" line. Checks 1, 2, 3, 4, edge (b) and (c).
+  - Done: commit 80b62f6; review once (Opus + Grok), one fix round, closed.
 - S7: path bar, linked step bar, sticky bottom action bar, loading step labels. Checks 5, 6, 11, 13, edge (a).
+  - Done: commit 6faa767; Opus PASS + Grok 0 blocking; fix round (Industries link off on Field, typed description dropped on return to Field, need crumb); Opus closure CLOSED.
 - S8: `Fold` component; Field and Industries folding; update the two earlier tests on purpose. Checks 7, 8, 14.
+  - Done: commit 62ff457; Opus PASS, Grok clean; notes folded as tests (summary line, folded preview, nested fold). Not fixed: summary holds block elements (invalid HTML, fine in Chromium).
 - S9: pins table, star, Pins screen. Checks 9, 10 and F6.
+  - Done: commit 7284b32; Opus PASS, Grok clean; fix round (togglePin in one transaction, fixed star label with aria-pressed); Opus closure CLOSED. Not fixed: pinned concept can leave Build's top 4 after a profile edit; same-name concepts share a pin; a pin whose industry was regenerated opens the existing error screen.
+  - Whole change: npm run check exit 0, 111 unit tests, 30 browser tests.
 If S6's check 3 fails, return to this spec before S7.
 
 ## 6. Escalate if
