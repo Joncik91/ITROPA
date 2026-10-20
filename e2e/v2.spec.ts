@@ -371,3 +371,104 @@ test('Build: a failed concepts call shows Retry and saves nothing (check 7)', as
   await page.getByRole('button', { name: 'Retry' }).click();
   await expect(page.getByTestId('concept')).toHaveCount(4);
 });
+
+/** Writes saved research straight into V1's database, the way earlier visits would have left it. */
+async function seedResearch(page: Page, needs: unknown[], mechanisms: unknown[]) {
+  await page.goto('/v2/');
+  await page.getByRole('button', { name: 'Research this need' }).waitFor();
+  await page.evaluate(async ({ needs, mechanisms }) => {
+    const open = () => new Promise<IDBDatabase>((res, rej) => {
+      const r = indexedDB.open('IndustryFamilyTreeDB');
+      r.onsuccess = () => res(r.result);
+      r.onerror = () => rej(r.error);
+    });
+    const db = await open();
+    await new Promise<void>((res, rej) => {
+      const tx = db.transaction(['needs', 'mechanisms'], 'readwrite');
+      needs.forEach((n) => tx.objectStore('needs').put(n));
+      mechanisms.forEach((m) => tx.objectStore('mechanisms').put(m));
+      tx.oncomplete = () => res();
+      tx.onerror = () => rej(tx.error);
+    });
+    db.close();
+  }, { needs, mechanisms });
+  await page.reload();
+}
+
+const seedInd = (id: string, name: string, source: string, children: unknown[] = []) => ({
+  id, type: 'future', name, mutation: 'm', insight: 'i', children,
+  inspirations: [{ source, mechanism: `${source} mechanism`, twist: `${source} twist` }],
+});
+const seedNeed = (id: string, name: string, list: unknown[]) => ({
+  id, name, icon: 'Users', description: 'd', createdAt: 1, updatedAt: 1,
+  eras: [{ name: 'Post-AI Era (2025+)', expressions: list }],
+});
+const seedMech = (id: string, needId: string, name: string, pattern: string, core: string) => ({
+  id, needId, expressionName: name, createdAt: 1, details: [{ coreMechanism: core, abstractPattern: pattern }],
+});
+
+test('Insights: hidden with one saved need, shown with two, and lists patterns and the chain in full (check 9)', async ({ page }) => {
+  await seedResearch(page, [seedNeed('n1', 'Belonging', [seedInd('a', 'Care circles', 'Meetup')])], []);
+  await page.waitForLoadState('networkidle');
+  await page.waitForTimeout(400); // the saved-need count loads after first paint
+  await expect(page.getByRole('button', { name: 'Insights across your needs' })).toHaveCount(0);
+
+  await seedResearch(page, [
+    seedNeed('n1', 'Belonging', [seedInd('a', 'Care circles', 'Meetup', [seedInd('a2', 'Night circles', 'Lodges')])]),
+    seedNeed('n2', 'Sleep', [seedInd('b', 'Sleep clubs', 'Meetup')]),
+  ], [
+    seedMech('a', 'n1', 'Care circles', 'Synchrony creates bonds', 'Shared action builds trust'),
+    seedMech('b', 'n2', 'Sleep clubs', 'Synchrony creating bonds', 'Shared rhythm lowers stress'),
+  ]);
+  await page.getByRole('button', { name: 'Insights across your needs' }).click();
+  await expect(page).toHaveURL(/view=insights/);
+  await expect(page.getByText('What this is:')).toBeVisible();
+  await expect(page.getByText('Why it matters:')).toBeVisible();
+
+  const pattern = page.getByTestId('pattern');
+  await expect(pattern).toHaveCount(1);
+  await expect(pattern).toContainText('Seen in:');
+  await expect(pattern).toContainText('Belonging');
+  await expect(pattern).toContainText('Sleep');
+  await expect(pattern).toContainText('Shared action builds trust');
+  await expect(pattern).toContainText('Shared rhythm lowers stress');
+
+  const chains = page.getByTestId('chain');
+  await expect(chains).toHaveCount(2);
+  await expect(chains.first()).toContainText('Across 2 needs');
+  await expect(chains.first()).toContainText('Care circles');
+  await expect(chains.first()).toContainText('Sleep clubs');
+  await expect(chains.first()).toContainText('Meetup mechanism');
+  await expect(chains.first()).toContainText('Meetup twist');
+  await expect(chains.nth(1)).toContainText('Night circles');
+  expect(await noSideScroll(page)).toBe(true);
+
+  await page.reload();
+  await expect(page.getByTestId('pattern')).toHaveCount(1);
+  await page.getByRole('button', { name: 'Back to start' }).click();
+  await expect(page.getByRole('button', { name: 'Research this need' })).toBeVisible();
+});
+
+test('Insights: a very long need name does not push the page sideways', async ({ page }) => {
+  const long = 'Supercalifragilisticexpialidocious'.repeat(4);
+  await seedResearch(page, [
+    seedNeed('n1', long, [seedInd('a', 'Care circles', 'Meetup')]),
+    seedNeed('n2', 'Sleep', [seedInd('b', 'Sleep clubs', 'Meetup')]),
+  ], [
+    seedMech('a', 'n1', 'Care circles', 'Synchrony creates bonds', 'x'),
+    seedMech('b', 'n2', 'Sleep clubs', 'Synchrony creates bonds', 'y'),
+  ]);
+  await page.getByRole('button', { name: 'Insights across your needs' }).click();
+  await expect(page.getByTestId('pattern')).toContainText(long);
+  expect(await noSideScroll(page)).toBe(true);
+});
+
+test('Insights: with no mechanisms it says how patterns appear, and still shows the chain', async ({ page }) => {
+  await seedResearch(page, [
+    seedNeed('n1', 'Belonging', [seedInd('a', 'Care circles', 'Meetup')]),
+    seedNeed('n2', 'Sleep', [seedInd('b', 'Sleep clubs', 'Meetup')]),
+  ], []);
+  await page.getByRole('button', { name: 'Insights across your needs' }).click();
+  await expect(page.getByTestId('patterns')).toContainText('Understand this industry');
+  await expect(page.getByTestId('chain')).toHaveCount(1);
+});

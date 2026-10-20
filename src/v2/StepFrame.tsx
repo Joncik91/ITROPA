@@ -4,7 +4,7 @@ const STEPS = ['Need', 'Field', 'Industries', 'Build'] as const;
 
 /** Every V2 step: where you are, what it is, why it matters, and one way forward. */
 export const StepFrame = ({ step, what, why, children, next }: {
-  step: 0 | 1 | 2 | 3;
+  step: 0 | 1 | 2 | 3 | null;
   what: string;
   why: string;
   children: ReactNode;

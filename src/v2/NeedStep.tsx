@@ -1,10 +1,17 @@
-import { useState, type FormEvent } from 'react';
-import { Search } from 'lucide-react';
+import { useEffect, useState, type FormEvent } from 'react';
+import { Lightbulb, Search } from 'lucide-react';
+import { DBService } from '../services/db/db.service';
 import { SUGGESTED_NEEDS } from '../config/constants';
 import { Button, Chip, Field, TextArea, TextInput } from '../components/ui';
 import { StepFrame } from './StepFrame';
 
-export const NeedStep = ({ onStart }: { onStart: (name: string, description?: string) => void }) => {
+export const NeedStep = ({ onStart, onInsights }: { onStart: (name: string, description?: string) => void; onInsights: () => void }) => {
+  const [saved, setSaved] = useState(0);
+  useEffect(() => {
+    let current = true;
+    DBService.getAllNeeds().then((n) => current && setSaved(n.length), () => {});
+    return () => { current = false; };
+  }, []);
   const [name, setName] = useState('');
   const [description, setDescription] = useState('');
   const [touched, setTouched] = useState(false);
@@ -39,6 +46,12 @@ export const NeedStep = ({ onStart }: { onStart: (name: string, description?: st
         </Field>
         <Button type="submit" variant="primary" block icon={<Search className="w-4 h-4" aria-hidden />}>Research this need</Button>
       </form>
+      {saved >= 2 && (
+        <div className="pt-2 border-t border-line space-y-2">
+          <p className="text-sm text-ink-2">You have researched {saved} needs. See what repeats across them.</p>
+          <Button variant="secondary" block icon={<Lightbulb className="w-4 h-4" aria-hidden />} onClick={onInsights}>Insights across your needs</Button>
+        </div>
+      )}
     </StepFrame>
   );
 };

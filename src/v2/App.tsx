@@ -3,15 +3,17 @@ import { BuildStep } from './BuildStep';
 import { DigStep } from './DigStep';
 import { FieldStep } from './FieldStep';
 import { IndustriesStep } from './IndustriesStep';
+import { InsightsStep } from './InsightsStep';
 import { NeedStep } from './NeedStep';
 
 type Step = 'field' | 'industries' | 'dig' | 'build';
-type Place = { need?: string; step: Step; industry?: string };
+type Place = { need?: string; step: Step; industry?: string; insights?: boolean };
 
 function readPlace(): Place {
   const q = new URLSearchParams(window.location.search);
   const step = q.get('step');
   const industry = q.get('industry')?.slice(0, 100) || undefined;
+  if (q.get('view') === 'insights') return { step: 'field', insights: true };
   return { need: q.get('need')?.trim().slice(0, 200) || undefined, step: (step === 'dig' || step === 'build') && industry ? step : step === 'industries' ? 'industries' : 'field', industry };
 }
 
@@ -29,13 +31,14 @@ export default function App() {
   }, []);
 
   const go = (next: Place, desc?: string) => {
-    const q = next.need ? `?need=${encodeURIComponent(next.need)}${next.step === 'industries' ? '&step=industries' : next.step === 'dig' || next.step === 'build' ? `&step=${next.step}&industry=${encodeURIComponent(next.industry ?? '')}` : ''}` : '';
+    const q = next.insights ? '?view=insights' : next.need ? `?need=${encodeURIComponent(next.need)}${next.step === 'industries' ? '&step=industries' : next.step === 'dig' || next.step === 'build' ? `&step=${next.step}&industry=${encodeURIComponent(next.industry ?? '')}` : ''}` : '';
     window.history.pushState(null, '', window.location.pathname + q);
     if (next.need && next.step === 'field' && next.need !== place.need) setTyped(desc ? { need: next.need, text: desc } : undefined);
     setPlace(next);
   };
 
-  if (!place.need) return <NeedStep onStart={(name, desc) => go({ need: name, step: 'field' }, desc)} />;
+  if (place.insights) return <InsightsStep onBack={() => go({ step: 'field' })} />;
+  if (!place.need) return <NeedStep onStart={(name, desc) => go({ need: name, step: 'field' }, desc)} onInsights={() => go({ step: 'field', insights: true })} />;
   const need = place.need;
   if (place.step === 'build' && place.industry) return <BuildStep needName={need} industryId={place.industry} onBack={() => go({ need, step: 'dig', industry: place.industry })} />;
   if (place.step === 'dig' && place.industry) return <DigStep needName={need} industryId={place.industry} onBack={() => go({ need, step: 'industries' })} onBuild={() => go({ need, step: 'build', industry: place.industry })} />;
