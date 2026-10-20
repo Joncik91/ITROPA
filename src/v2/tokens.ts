@@ -6,3 +6,4 @@
 export const PRIOR_ART_TOKENS = 6000;
 /** 5-7 industries with inspirations; the V1 call uses the same budget. */
 export const NEED_TOKENS = 6000;
+export const UNDERSTAND_TOKENS = 5000;

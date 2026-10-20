@@ -1,14 +1,17 @@
 import { useEffect, useState } from 'react';
+import { DigStep } from './DigStep';
 import { FieldStep } from './FieldStep';
 import { IndustriesStep } from './IndustriesStep';
 import { NeedStep } from './NeedStep';
 
-type Step = 'field' | 'industries';
-type Place = { need?: string; step: Step };
+type Step = 'field' | 'industries' | 'dig';
+type Place = { need?: string; step: Step; industry?: string };
 
 function readPlace(): Place {
   const q = new URLSearchParams(window.location.search);
-  return { need: q.get('need')?.trim().slice(0, 200) || undefined, step: q.get('step') === 'industries' ? 'industries' : 'field' };
+  const step = q.get('step');
+  const industry = q.get('industry')?.slice(0, 100) || undefined;
+  return { need: q.get('need')?.trim().slice(0, 200) || undefined, step: step === 'dig' && industry ? 'dig' : step === 'industries' ? 'industries' : 'field', industry };
 }
 
 /** The need and step live in the URL, so a reload or a shared link resumes where you were. */
@@ -25,7 +28,7 @@ export default function App() {
   }, []);
 
   const go = (next: Place, desc?: string) => {
-    const q = next.need ? `?need=${encodeURIComponent(next.need)}${next.step === 'industries' ? '&step=industries' : ''}` : '';
+    const q = next.need ? `?need=${encodeURIComponent(next.need)}${next.step === 'industries' ? '&step=industries' : next.step === 'dig' ? `&step=dig&industry=${encodeURIComponent(next.industry ?? '')}` : ''}` : '';
     window.history.pushState(null, '', window.location.pathname + q);
     if (next.need && next.step === 'field' && next.need !== place.need) setTyped(desc ? { need: next.need, text: desc } : undefined);
     setPlace(next);
@@ -33,7 +36,8 @@ export default function App() {
 
   if (!place.need) return <NeedStep onStart={(name, desc) => go({ need: name, step: 'field' }, desc)} />;
   const need = place.need;
+  if (place.step === 'dig' && place.industry) return <DigStep needName={need} industryId={place.industry} onBack={() => go({ need, step: 'industries' })} />;
   return place.step === 'industries'
-    ? <IndustriesStep needName={need} description={description} onBack={() => go({ need, step: 'field' })} />
+    ? <IndustriesStep needName={need} description={description} onBack={() => go({ need, step: 'field' })} onDig={(industry) => go({ need, step: 'dig', industry })} />
     : <FieldStep needName={need} description={description} onBack={() => go({ step: 'field' })} onNext={() => go({ need, step: 'industries' })} />;
 }

@@ -1,4 +1,4 @@
-import { ArrowLeft, Shuffle } from 'lucide-react';
+import { ArrowLeft, Microscope, Shuffle } from 'lucide-react';
 import { Badge, Button, Section } from '../components/ui';
 import { getFutureExpressions, isFutureEra } from '../utils/need-model';
 import type { IndustryExpression, Need } from '../types';
@@ -7,12 +7,15 @@ import { StepFrame } from './StepFrame';
 import { Failed, Loading } from './status';
 import { useCall } from './useCall';
 
-const Industry = ({ e, depth = 0 }: { e: IndustryExpression; depth?: number }) => (
+const Industry = ({ e, onDig, names, depth = 0 }: { e: IndustryExpression; onDig: (id: string) => void; names: Map<string, string>; depth?: number }) => {
+  const parents = (e.sourceExpressions ?? []).map((id) => names.get(id)).filter(Boolean);
+  return (
   <article className={`p-3 rounded-card bg-sheet border border-line space-y-2 min-w-0 ${depth ? 'ml-4' : ''}`}>
     <div className="flex flex-wrap items-start gap-2">
       <h3 className="font-semibold flex-1 min-w-0 break-words">{e.name}</h3>
       {e.crossPollinated && <Badge tone="pollen"><Shuffle className="w-3 h-3" aria-hidden />Combined</Badge>}
     </div>
+    {e.crossPollinated && !!parents.length && <p className="text-sm break-words"><span className="font-medium">Combines: </span>{parents.join(' + ')}</p>}
     {e.mutation && <p className="text-sm break-words"><span className="font-medium">What makes it possible: </span>{e.mutation}</p>}
     {e.insight && <p className="text-sm break-words">{e.insight}</p>}
     {!!e.inspirations.length && (
@@ -29,9 +32,19 @@ const Industry = ({ e, depth = 0 }: { e: IndustryExpression; depth?: number }) =
         </ul>
       </div>
     )}
-    {e.children?.map((c) => <Industry key={c.id} e={c} depth={depth + 1} />)}
+    {e.children?.map((c) => <Industry key={c.id} e={c} onDig={onDig} names={names} depth={depth + 1} />)}
+    <Button size="sm" variant="secondary" icon={<Microscope className="w-4 h-4" aria-hidden />} onClick={() => onDig(e.id)} aria-label={`Dig in: ${e.name}`}>Dig in</Button>
   </article>
-);
+  );
+};
+
+/** Every industry id in the tree with its name, so a combined industry can name its parents. */
+const namesOf = (need: Need): Map<string, string> => {
+  const out = new Map<string, string>();
+  const walk = (list: IndustryExpression[]) => list.forEach((e) => { out.set(e.id, e.name); walk(e.children ?? []); });
+  walk(getFutureExpressions(need));
+  return out;
+};
 
 /** Past eras as one collapsed strip: context, not a second copy of the industries. */
 const History = ({ need }: { need: Need }) => {
@@ -51,7 +64,7 @@ const History = ({ need }: { need: Need }) => {
   );
 };
 
-export const IndustriesStep = ({ needName, description, onBack }: { needName: string; description?: string; onBack: () => void }) => {
+export const IndustriesStep = ({ needName, description, onBack, onDig }: { needName: string; description?: string; onBack: () => void; onDig: (industryId: string) => void }) => {
   const [state, retry] = useCall(() => loadNeed(needName, description), `need:${needName}`);
   return (
     <StepFrame
@@ -68,7 +81,7 @@ export const IndustriesStep = ({ needName, description, onBack }: { needName: st
             <History need={state.data} />
             <Section title="Future industries" description="Each shows what makes it possible and which earlier solutions it borrows from.">
               <div data-testid="industries-list" className="space-y-3">
-                {getFutureExpressions(state.data).map((e) => <Industry key={e.id} e={e} />)}
+                {getFutureExpressions(state.data).map((e) => <Industry key={e.id} e={e} onDig={onDig} names={namesOf(state.data)} />)}
                 {!getFutureExpressions(state.data).length && <p className="text-sm text-ink-2">This saved need has no future industries yet.</p>}
               </div>
             </Section>

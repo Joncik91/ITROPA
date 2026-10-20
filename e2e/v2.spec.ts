@@ -207,3 +207,86 @@ test('picking the same need again without a description opens the saved research
   await expect(page.getByTestId('prior-art')).toBeVisible();
   expect(priorCalls).toBe(1);
 });
+
+const UNDERSTAND = JSON.stringify({
+  mechanism: { coreMechanism: 'Repeated shared action builds trust between strangers', abstractPattern: 'Synchrony creates bonds', keyPrinciples: [{ principle: 'Ritual', function: 'makes belonging visible', criticality: 'without it groups fade' }], untappedDomains: [{ domain: 'Remote teams', opportunity: 'daily shared rhythm', novelty: 'async rituals' }], combinationPotential: ['reputation'] },
+  deepDive: { marketOpportunity: 'A large and growing community market', keyEnablers: ['AI matching', 'cheap video'], challenges: [{ challenge: 'Cold start', potentialSolution: 'seed with local hosts' }], timeline: 'Early adopters in 2 years', risks: ['Churn'] },
+});
+const SUBS = JSON.stringify([1, 2, 3].map((n) => ({ name: `Sub industry ${n}`, mutation: 'm', insight: `Sub insight ${n}`, inspirations: [], children: [] })));
+const HYBRIDS = JSON.stringify([{ name: 'Weaker hybrid', mutation: 'm', insight: 'i', synergyScore: 30, inspirations: [], children: [] }, { name: 'Ritual care hybrid', mutation: 'm', insight: 'i', synergyScore: 90, inspirations: [], children: [] }]);
+
+async function digMock(page: Page, fail: { understand?: boolean } = {}) {
+  await page.route('**/api/gemini', async (route) => {
+    const prompt = (route.request().postDataJSON() as { prompt: string }).prompt;
+    const body = prompt.includes('reading the competitive field') ? FIELD_READ
+      : prompt.includes('Generate future industries') ? NEED
+      : prompt.includes('Analyse the emerging industry') ? (fail.understand ? '{"mechanism": {}}' : UNDERSTAND)
+      : prompt.includes('sub-industries that branch') ? SUBS
+      : prompt.includes('systematic combination methods') ? HYBRIDS
+      : PRIOR_ART;
+    await route.fulfill({ json: { text: body, truncated: false } });
+  });
+}
+
+const openFirstIndustry = async (page: Page) => {
+  await page.goto('/v2/?need=Belonging&step=industries');
+  await expect(page.getByTestId('industries-list')).toBeVisible();
+  await page.getByRole('button', { name: /^Dig in:/ }).first().click();
+  await expect(page.getByRole('button', { name: 'Understand this industry' })).toBeVisible();
+};
+
+test('Dig in: Understand shows mechanism, pattern and business text and is saved (check 6b)', async ({ page }) => {
+  await digMock(page);
+  await openFirstIndustry(page);
+  await page.getByRole('button', { name: 'Understand this industry' }).click();
+  const u = page.getByTestId('understanding');
+  await expect(u).toContainText('Repeated shared action builds trust');
+  await expect(u).toContainText('Synchrony creates bonds');
+  await expect(u).toContainText('A large and growing community market');
+  await expect(u).toContainText('Cold start');
+  await expect(u).toContainText('AI matching');
+  await expect(u).toContainText('Churn');
+  expect(await noSideScroll(page)).toBe(true);
+  await page.reload();
+  await expect(page.getByTestId('understanding')).toContainText('Synchrony creates bonds');
+});
+
+test('Dig in: a bad Understand answer shows Retry and saves nothing (check 7)', async ({ page }) => {
+  await digMock(page, { understand: true });
+  await openFirstIndustry(page);
+  await page.getByRole('button', { name: 'Understand this industry' }).click();
+  await expect(page.getByRole('alert')).toBeVisible();
+  await expect(page.getByRole('button', { name: 'Retry' })).toBeVisible();
+  await page.reload();
+  await expect(page.getByRole('button', { name: 'Understand this industry' })).toBeVisible();
+});
+
+test('Dig in: Branch adds 3 sub-industries with name and insight visible (check 6b)', async ({ page }) => {
+  await digMock(page);
+  await openFirstIndustry(page);
+  await page.getByRole('button', { name: 'Branch into sub-industries' }).click();
+  const branches = page.getByTestId('branches');
+  for (const n of [1, 2, 3]) {
+    await expect(branches).toContainText(`Sub industry ${n}`);
+    await expect(branches).toContainText(`Sub insight ${n}`);
+  }
+  await expect(page.getByRole('button', { name: 'Branch into sub-industries' })).toHaveCount(0);
+});
+
+test('Dig in: Combine adds one flagged hybrid with both sources to the industries list (check 6)', async ({ page }) => {
+  await digMock(page);
+  await openFirstIndustry(page);
+  await expect(page.getByRole('button', { name: 'Combine', exact: true })).toBeDisabled();
+  await page.getByLabel('Combine with').selectOption({ index: 1 });
+  await page.getByRole('button', { name: 'Combine', exact: true }).click();
+  await expect(page.getByRole('status').filter({ hasText: 'now in your industries list' })).toBeVisible();
+  await page.getByRole('button', { name: 'Back to the industries' }).click();
+  const list = page.getByTestId('industries-list');
+  await expect(list.getByRole('heading', { name: 'Ritual care hybrid', exact: true })).toHaveCount(1);
+  await expect(list).not.toContainText('Weaker hybrid');
+  const hybrid = list.locator('article').filter({ hasText: 'Ritual care hybrid' });
+  await expect(hybrid).toContainText('Combined');
+  const names = (JSON.parse(NEED) as { eras: { expressions: unknown[] }[] }).eras.flatMap((e) => e.expressions).filter((e): e is { name: string } => typeof e === 'object' && e !== null).map((e) => e.name);
+  await expect(hybrid.locator('p').filter({ hasText: /^Combines:/ })).toContainText(names[0]);
+  await expect(hybrid.locator('p').filter({ hasText: /^Combines:/ })).toContainText(names[1]);
+});
